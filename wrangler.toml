@@ -13,7 +13,6 @@ command = "npm run build"
 [[d1_databases]]
 binding = "DB"
 database_name = "nodewarden-db"
-database_id = "d67608e7-c1a4-46ba-97fc-8247b6b55329"
 
 [[durable_objects.bindings]]
 name = "NOTIFICATIONS_HUB"
