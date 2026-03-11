@@ -138,12 +138,6 @@ function parseFieldType(value: number | string | null | undefined): CustomFieldT
   return 0;
 }
 
-function fieldTypeLabel(type: CustomFieldType): string {
-  if (type === 3) return t('txt_linked');
-  const found = FIELD_TYPE_OPTIONS.find((x) => x.value === type);
-  return found ? found.label : t('txt_text');
-}
-
 function toBooleanFieldValue(raw: string): boolean {
   const v = String(raw || '').trim().toLowerCase();
   return v === '1' || v === 'true' || v === 'yes' || v === 'on';
