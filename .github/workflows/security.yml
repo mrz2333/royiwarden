@@ -13,7 +13,7 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       security-events: write
       actions: read
     env:
@@ -103,17 +103,15 @@ jobs:
           trivy config . --format json --output trivy_result.json --severity CRITICAL,HIGH || true
 
       - name: Generate Security Report
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Gitleaks typically produces results.sarif if configured or by default in some versions
           # We'll ensure it exists for our reporter
           node .github/scripts/security.cjs
           
           # Also append to step summary for immediate visibility in GHA UI
-          cat README.md >> $GITHUB_STEP_SUMMARY
+          cat security-report.md >> $GITHUB_STEP_SUMMARY
           echo -e "\n---\n" >> $GITHUB_STEP_SUMMARY
-          cat README_CN.md >> $GITHUB_STEP_SUMMARY
+          cat security-report-cn.md >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Gitleaks Results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
@@ -122,30 +120,17 @@ jobs:
           sarif_file: results.sarif
           category: gitleaks
 
-      - name: Push to Audit Branch
-        if: github.event_name != 'pull_request'
-        run: |
-          mkdir audit_temp
-          cp README.md audit_temp/
-          cp README_CN.md audit_temp/
-          [ -f "snyk_result.txt" ] && cp snyk_result.txt audit_temp/
-          [ -f "snyk_result.json" ] && cp snyk_result.json audit_temp/
-          
-          # Collect all SARIF files with descriptive names
-          [ -f "results.sarif" ] && cp results.sarif audit_temp/Gitleaks_results.sarif
-          if [ -d "sarif-results" ]; then
-            for f in sarif-results/*.sarif; do
-              [ -f "$f" ] && cp "$f" "audit_temp/CodeQL_$(basename "$f")"
-            done
-          fi
-          
-          cd audit_temp
-          git init
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git checkout --orphan security-audit
-          
-          git add .
-          git commit -m "chore: archive security report and raw data [skip ci]"
-          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          git push -f origin security-audit
+      - name: Upload Security Report Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          if-no-files-found: ignore
+          path: |
+            security-report.md
+            security-report-cn.md
+            snyk_result.txt
+            snyk_result.json
+            trivy_result.json
+            results.sarif
+            sarif-results/*.sarif
