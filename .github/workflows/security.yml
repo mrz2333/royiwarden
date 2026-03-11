@@ -19,7 +19,7 @@ jobs:
     env:
       SECURITY_SNYK_TOKEN: ${{ secrets.SECURITY_SNYK_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -40,15 +40,21 @@ jobs:
           upload: true
           output: sarif-results
 
-      - name: Secret Detection
-        id: gitleaks
-        uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc
+      - name: Install Gitleaks
+        if: env.ACT != 'true'
         continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          format: sarif
-          report_path: results.sarif
+        run: |
+          GITLEAKS_VERSION="8.28.0"
+          curl -sSL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tar.gz gitleaks
+          chmod +x gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
+      - name: Secret Detection
+        if: env.ACT != 'true'
+        continue-on-error: true
+        run: |
+          gitleaks git . --report-format sarif --report-path results.sarif --no-banner || true
 
       - name: Install Project Dependencies
         if: env.SECURITY_SNYK_TOKEN != ''
@@ -114,7 +120,7 @@ jobs:
           cat security-report-cn.md >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Gitleaks Results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: results.sarif
@@ -122,7 +128,7 @@ jobs:
 
       - name: Upload Security Report Artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: security-report
           if-no-files-found: ignore

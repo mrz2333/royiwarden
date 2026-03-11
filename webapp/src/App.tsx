@@ -1811,7 +1811,8 @@ export default function App() {
   const hashPathRaw = typeof window !== 'undefined' ? window.location.hash || '' : '';
   const hashPath = hashPathRaw.startsWith('#') ? hashPathRaw.slice(1) : hashPathRaw;
   const hashPathOnly = String(hashPath || '').split('?')[0].split('#')[0];
-  const normalizedHashPath = `/${hashPathOnly.replace(/^\/+/, '').replace(/\/+$/, '')}`.replace(/^\/$/, '/');
+  const trimmedHashPath = hashPathOnly.replace(/^\/+/, '').replace(/\/+$/, '');
+  const normalizedHashPath = trimmedHashPath ? `/${trimmedHashPath}` : '/';
   const isImportHashRoute = IMPORT_ROUTE_ALIASES.has(normalizedHashPath);
   const effectiveLocation = hashPath.startsWith('/send/') || hashPath === '/recover-2fa' ? hashPath : location;
   const publicSendMatch = effectiveLocation.match(/^\/send\/([^/]+)(?:\/([^/]+))?\/?$/i);
