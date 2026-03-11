@@ -26,6 +26,8 @@ import {
   deleteCipherAttachment,
   deleteFolder,
   bulkDeleteCiphers,
+  bulkPermanentDeleteCiphers,
+  bulkRestoreCiphers,
   bulkDeleteSends,
   createCipher,
   createAuthedFetch,
@@ -1345,6 +1347,28 @@ export default function App() {
     }
   }
 
+  async function bulkRestoreVaultItems(ids: string[]) {
+    try {
+      await bulkRestoreCiphers(authedFetch, ids);
+      await Promise.all([ciphersQuery.refetch(), foldersQuery.refetch()]);
+      pushToast('success', t('txt_restored_selected_items'));
+    } catch (error) {
+      pushToast('error', error instanceof Error ? error.message : t('txt_bulk_restore_failed'));
+      throw error;
+    }
+  }
+
+  async function bulkPermanentDeleteVaultItems(ids: string[]) {
+    try {
+      await bulkPermanentDeleteCiphers(authedFetch, ids);
+      await Promise.all([ciphersQuery.refetch(), foldersQuery.refetch()]);
+      pushToast('success', t('txt_deleted_selected_items_permanently'));
+    } catch (error) {
+      pushToast('error', error instanceof Error ? error.message : t('txt_bulk_permanent_delete_failed'));
+      throw error;
+    }
+  }
+
   async function bulkDeleteFoldersAction(ids: string[]) {
     const folderIds = Array.from(new Set(ids.map((id) => String(id || '').trim()).filter(Boolean)));
     if (!folderIds.length) return;
@@ -2056,6 +2080,8 @@ export default function App() {
                     onUpdate={updateVaultItem}
                     onDelete={deleteVaultItem}
                     onBulkDelete={bulkDeleteVaultItems}
+                    onBulkPermanentDelete={bulkPermanentDeleteVaultItems}
+                    onBulkRestore={bulkRestoreVaultItems}
                     onBulkMove={bulkMoveVaultItems}
                     onVerifyMasterPassword={verifyMasterPasswordAction}
                     onNotify={pushToast}

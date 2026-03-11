@@ -46,6 +46,8 @@ interface VaultPageProps {
   onUpdate: (cipher: Cipher, draft: VaultDraft, options?: { addFiles?: File[]; removeAttachmentIds?: string[] }) => Promise<void>;
   onDelete: (cipher: Cipher) => Promise<void>;
   onBulkDelete: (ids: string[]) => Promise<void>;
+  onBulkPermanentDelete: (ids: string[]) => Promise<void>;
+  onBulkRestore: (ids: string[]) => Promise<void>;
   onBulkMove: (ids: string[], folderId: string | null) => Promise<void>;
   onVerifyMasterPassword: (email: string, password: string) => Promise<void>;
   onNotify: (type: 'success' | 'error' | 'warning', text: string) => void;
@@ -679,6 +681,7 @@ export default function VaultPage(props: VaultPageProps) {
     () => Object.values(selectedMap).reduce((sum, v) => sum + (v ? 1 : 0), 0),
     [selectedMap]
   );
+  const totalCipherCount = filteredCiphers.length;
 
 function folderName(id: string | null | undefined): string {
   if (!id) return t('txt_no_folder');
@@ -877,7 +880,11 @@ function folderName(id: string | null | undefined): string {
     if (!ids.length) return;
     setBusy(true);
     try {
-      await props.onBulkDelete(ids);
+      if (sidebarFilter.kind === 'trash') {
+        await props.onBulkPermanentDelete(ids);
+      } else {
+        await props.onBulkDelete(ids);
+      }
       setSelectedMap({});
       setBulkDeleteOpen(false);
     } finally {
@@ -953,6 +960,20 @@ function folderName(id: string | null | undefined): string {
         setSidebarFilter({ kind: 'all' });
       }
       setPendingDeleteFolder(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmBulkRestore(): Promise<void> {
+    const ids = Object.entries(selectedMap)
+      .filter(([, selected]) => selected)
+      .map(([id]) => id);
+    if (!ids.length) return;
+    setBusy(true);
+    try {
+      await props.onBulkRestore(ids);
+      setSelectedMap({});
     } finally {
       setBusy(false);
     }
@@ -1111,13 +1132,16 @@ function folderName(id: string | null | undefined): string {
                 </div>
               )}
             </div>
+            <div className="list-count" title={t('txt_total_items_count', { count: totalCipherCount })}>
+              {t('txt_total_items_count', { count: totalCipherCount })}
+            </div>
             <button type="button" className="btn btn-secondary small list-icon-btn" disabled={busy || props.loading} onClick={() => void syncVault()}>
               <RefreshCw size={14} className="btn-icon" /> {t('txt_sync_vault')}
             </button>
           </div>
           <div className="toolbar actions">
             <button type="button" className="btn btn-danger small" disabled={!selectedCount || busy} onClick={() => setBulkDeleteOpen(true)}>
-              <Trash2 size={14} className="btn-icon" /> {t('txt_delete_selected')}
+              <Trash2 size={14} className="btn-icon" /> {sidebarFilter.kind === 'trash' ? t('txt_delete_permanently') : t('txt_delete_selected')}
             </button>
             <button
               type="button"
@@ -1152,7 +1176,12 @@ function folderName(id: string | null | undefined): string {
                 </div>
               )}
             </div>
-            {selectedCount > 0 && (
+            {selectedCount > 0 && sidebarFilter.kind === 'trash' && (
+              <button type="button" className="btn btn-secondary small" disabled={busy} onClick={() => void confirmBulkRestore()}>
+                <RefreshCw size={14} className="btn-icon" /> {t('txt_restore')}
+              </button>
+            )}
+            {selectedCount > 0 && sidebarFilter.kind !== 'trash' && (
               <button
                 type="button"
                 className="btn btn-secondary small"
@@ -1969,8 +1998,12 @@ function folderName(id: string | null | undefined): string {
 
       <ConfirmDialog
         open={bulkDeleteOpen}
-        title={t('txt_delete_selected_items')}
-        message={t('txt_are_you_sure_you_want_to_delete_count_selected_items', { count: selectedCount })}
+        title={sidebarFilter.kind === 'trash' ? t('txt_delete_selected_items_permanently') : t('txt_delete_selected_items')}
+        message={
+          sidebarFilter.kind === 'trash'
+            ? t('txt_are_you_sure_you_want_to_delete_count_selected_items_permanently', { count: selectedCount })
+            : t('txt_are_you_sure_you_want_to_delete_count_selected_items', { count: selectedCount })
+        }
         danger
         onConfirm={() => void confirmBulkDelete()}
         onCancel={() => setBulkDeleteOpen(false)}
