@@ -13,6 +13,8 @@ export interface Profile {
   email: string;
   name: string;
   key: string;
+  privateKey?: string | null;
+  publicKey?: string | null;
   role: 'admin' | 'user';
   [k: string]: unknown;
 }

@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(rootDir, 'src'),
+      '@shared': path.resolve(rootDir, '../shared'),
     },
   },
   build: {
@@ -30,6 +31,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    fs: {
+      allow: [path.resolve(rootDir, '..')],
+    },
     proxy: {
       '/api': 'http://127.0.0.1:8787',
       '/identity': 'http://127.0.0.1:8787',

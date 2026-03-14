@@ -107,7 +107,16 @@ import {
 } from './handlers/admin';
 import {
   handleAdminExportBackup,
+  handleDownloadAdminRemoteBackup,
+  handleDeleteAdminRemoteBackup,
+  handleGetAdminBackupSettings,
+  handleGetAdminBackupSettingsRepairState,
   handleAdminImportBackup,
+  handleListAdminRemoteBackups,
+  handleRepairAdminBackupSettings,
+  handleRestoreAdminRemoteBackup,
+  handleRunAdminConfiguredBackup,
+  handleUpdateAdminBackupSettings,
 } from './handlers/backup';
 import {
   handleNotificationsHub,
@@ -822,6 +831,36 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
     if (path === '/api/admin/backup/export' && method === 'POST') {
       return handleAdminExportBackup(request, env, currentUser);
+    }
+
+    if (path === '/api/admin/backup/settings') {
+      if (method === 'GET') return handleGetAdminBackupSettings(request, env, currentUser);
+      if (method === 'PUT') return handleUpdateAdminBackupSettings(request, env, currentUser);
+    }
+
+    if (path === '/api/admin/backup/settings/repair') {
+      if (method === 'GET') return handleGetAdminBackupSettingsRepairState(request, env, currentUser);
+      if (method === 'POST') return handleRepairAdminBackupSettings(request, env, currentUser);
+    }
+
+    if (path === '/api/admin/backup/run' && method === 'POST') {
+      return handleRunAdminConfiguredBackup(request, env, currentUser);
+    }
+
+    if (path === '/api/admin/backup/remote' && method === 'GET') {
+      return handleListAdminRemoteBackups(request, env, currentUser);
+    }
+
+    if (path === '/api/admin/backup/remote/download' && method === 'GET') {
+      return handleDownloadAdminRemoteBackup(request, env, currentUser);
+    }
+
+    if (path === '/api/admin/backup/remote/file' && method === 'DELETE') {
+      return handleDeleteAdminRemoteBackup(request, env, currentUser);
+    }
+
+    if (path === '/api/admin/backup/remote/restore' && method === 'POST') {
+      return handleRestoreAdminRemoteBackup(request, env, currentUser);
     }
 
     if (path === '/api/admin/backup/import' && method === 'POST') {

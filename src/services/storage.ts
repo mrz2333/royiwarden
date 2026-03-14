@@ -213,6 +213,18 @@ export class StorageService {
     return row?.value === 'true';
   }
 
+  async getConfigValue(key: string): Promise<string | null> {
+    const row = await this.db.prepare('SELECT value FROM config WHERE key = ?').bind(key).first<{ value: string }>();
+    return typeof row?.value === 'string' ? row.value : null;
+  }
+
+  async setConfigValue(key: string, value: string): Promise<void> {
+    await this.db
+      .prepare('INSERT INTO config(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+      .bind(key, value)
+      .run();
+  }
+
   async setRegistered(): Promise<void> {
     await this.db.prepare('INSERT INTO config(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
       .bind('registered', 'true')

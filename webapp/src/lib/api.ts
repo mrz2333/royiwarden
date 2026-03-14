@@ -18,6 +18,13 @@ import type {
   VaultDraftField,
   WebConfigResponse,
 } from './types';
+import type {
+  BackupDestinationRecord,
+  BackupDestinationType,
+  BackupSettings as AdminBackupSettings,
+  E3BackupDestination,
+  WebDavBackupDestination,
+} from '@shared/backup';
 
 const SESSION_KEY = 'nodewarden.web.session.v4';
 const DEVICE_IDENTIFIER_KEY = 'nodewarden.web.device.identifier.v1';
@@ -932,6 +939,64 @@ export async function deleteUser(authedFetch: (input: string, init?: RequestInit
   if (!resp.ok) throw new Error('Delete user failed');
 }
 
+export type {
+  BackupDestinationConfig,
+  BackupDestinationRecord,
+  BackupDestinationType,
+  BackupRuntimeState,
+  BackupScheduleConfig,
+  BackupSettings as AdminBackupSettings,
+  E3BackupDestination,
+  PlaceholderBackupDestination,
+  WebDavBackupDestination,
+} from '@shared/backup';
+
+export interface BackupSettingsPortableWrap {
+  userId: string;
+  wrappedKey: string;
+}
+
+export interface BackupSettingsPortablePayload {
+  iv: string;
+  ciphertext: string;
+  wraps: BackupSettingsPortableWrap[];
+}
+
+export interface BackupSettingsRepairStateResponse {
+  object: 'backup-settings-repair';
+  needsRepair: boolean;
+  portable: BackupSettingsPortablePayload | null;
+}
+
+export interface AdminBackupRunResponse {
+  object: 'backup-run';
+  result: {
+    fileName: string;
+    fileSize: number;
+    provider: string;
+    remotePath: string;
+  };
+  settings: AdminBackupSettings;
+}
+
+export interface RemoteBackupItem {
+  path: string;
+  name: string;
+  isDirectory: boolean;
+  size: number | null;
+  modifiedAt: string | null;
+}
+
+export interface RemoteBackupBrowserResponse {
+  object: 'backup-remote-browser';
+  destinationId: string;
+  destinationName: string;
+  provider: BackupDestinationType;
+  currentPath: string;
+  parentPath: string | null;
+  items: RemoteBackupItem[];
+}
+
 export interface AdminBackupImportCounts {
   config: number;
   users: number;
@@ -959,12 +1024,140 @@ export async function exportAdminBackup(
   authedFetch: (input: string, init?: RequestInit) => Promise<Response>
 ): Promise<AdminBackupExportPayload> {
   const resp = await authedFetch('/api/admin/backup/export', { method: 'POST' });
-  if (!resp.ok) throw new Error(await parseErrorMessage(resp, 'Backup export failed'));
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_export_failed')));
 
   const mimeType = String(resp.headers.get('Content-Type') || 'application/zip').trim() || 'application/zip';
-  const fileName = parseContentDispositionFileName(resp, 'nodewarden_instance_backup.zip');
+  const fileName = parseContentDispositionFileName(resp, 'nodewarden_backup.zip');
   const bytes = new Uint8Array(await resp.arrayBuffer());
   return { fileName, mimeType, bytes };
+}
+
+export async function getAdminBackupSettings(
+  authedFetch: (input: string, init?: RequestInit) => Promise<Response>
+): Promise<AdminBackupSettings> {
+  const resp = await authedFetch('/api/admin/backup/settings', { method: 'GET' });
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_settings_load_failed')));
+  const body = await parseJson<AdminBackupSettings>(resp);
+  if (!Array.isArray(body?.destinations)) throw new Error(t('txt_backup_settings_invalid_response'));
+  return body;
+}
+
+export async function saveAdminBackupSettings(
+  authedFetch: (input: string, init?: RequestInit) => Promise<Response>,
+  settings: AdminBackupSettings
+): Promise<AdminBackupSettings> {
+  const resp = await authedFetch('/api/admin/backup/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_settings_save_failed')));
+  const body = await parseJson<AdminBackupSettings>(resp);
+  if (!Array.isArray(body?.destinations)) throw new Error(t('txt_backup_settings_invalid_response'));
+  return body;
+}
+
+export async function getAdminBackupSettingsRepairState(
+  authedFetch: (input: string, init?: RequestInit) => Promise<Response>
+): Promise<BackupSettingsRepairStateResponse> {
+  const resp = await authedFetch('/api/admin/backup/settings/repair', { method: 'GET' });
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_settings_load_failed')));
+  const body = await parseJson<BackupSettingsRepairStateResponse>(resp);
+  if (!body || typeof body.needsRepair !== 'boolean') {
+    throw new Error(t('txt_backup_settings_invalid_response'));
+  }
+  return body;
+}
+
+export async function repairAdminBackupSettings(
+  authedFetch: (input: string, init?: RequestInit) => Promise<Response>,
+  settings: AdminBackupSettings
+): Promise<AdminBackupSettings> {
+  const resp = await authedFetch('/api/admin/backup/settings/repair', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_settings_save_failed')));
+  const body = await parseJson<AdminBackupSettings>(resp);
+  if (!Array.isArray(body?.destinations)) throw new Error(t('txt_backup_settings_invalid_response'));
+  return body;
+}
+
+export async function runAdminBackupNow(
+  authedFetch: (input: string, init?: RequestInit) => Promise<Response>,
+  destinationId?: string | null
+): Promise<AdminBackupRunResponse> {
+  const resp = await authedFetch('/api/admin/backup/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(destinationId ? { destinationId } : {}),
+  });
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_remote_run_failed')));
+  const body = await parseJson<AdminBackupRunResponse>(resp);
+  if (!body?.result || !body?.settings) throw new Error(t('txt_backup_remote_run_invalid_response'));
+  return body;
+}
+
+export async function listRemoteBackups(
+  authedFetch: (input: string, init?: RequestInit) => Promise<Response>,
+  destinationId: string,
+  path: string = ''
+): Promise<RemoteBackupBrowserResponse> {
+  const params = new URLSearchParams();
+  params.set('destinationId', destinationId);
+  if (path) params.set('path', path);
+  const query = `?${params.toString()}`;
+  const resp = await authedFetch(`/api/admin/backup/remote${query}`, { method: 'GET' });
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_remote_load_failed')));
+  const body = await parseJson<RemoteBackupBrowserResponse>(resp);
+  if (!body?.items || typeof body.currentPath !== 'string' || !body.destinationId) throw new Error(t('txt_backup_remote_invalid_response'));
+  return body;
+}
+
+export async function downloadRemoteBackup(
+  authedFetch: (input: string, init?: RequestInit) => Promise<Response>,
+  destinationId: string,
+  path: string
+): Promise<AdminBackupExportPayload> {
+  const params = new URLSearchParams();
+  params.set('destinationId', destinationId);
+  params.set('path', path);
+  const resp = await authedFetch(`/api/admin/backup/remote/download?${params.toString()}`, { method: 'GET' });
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_remote_download_failed')));
+  const mimeType = String(resp.headers.get('Content-Type') || 'application/zip').trim() || 'application/zip';
+  const fileName = parseContentDispositionFileName(resp, 'nodewarden_remote_backup.zip');
+  const bytes = new Uint8Array(await resp.arrayBuffer());
+  return { fileName, mimeType, bytes };
+}
+
+export async function deleteRemoteBackup(
+  authedFetch: (input: string, init?: RequestInit) => Promise<Response>,
+  destinationId: string,
+  path: string
+): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('destinationId', destinationId);
+  params.set('path', path);
+  const resp = await authedFetch(`/api/admin/backup/remote/file?${params.toString()}`, { method: 'DELETE' });
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_remote_delete_failed')));
+}
+
+export async function restoreRemoteBackup(
+  authedFetch: (input: string, init?: RequestInit) => Promise<Response>,
+  destinationId: string,
+  path: string,
+  replaceExisting: boolean = false
+): Promise<AdminBackupImportResponse> {
+  const resp = await authedFetch('/api/admin/backup/remote/restore', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ destinationId, path, replaceExisting }),
+  });
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_remote_restore_failed')));
+  const body = await parseJson<AdminBackupImportResponse>(resp);
+  if (!body?.imported) throw new Error(t('txt_backup_remote_restore_invalid_response'));
+  return body;
 }
 
 export async function importAdminBackup(
@@ -973,7 +1166,7 @@ export async function importAdminBackup(
   replaceExisting: boolean = false
 ): Promise<AdminBackupImportResponse> {
   const formData = new FormData();
-  formData.set('file', file, file.name || 'nodewarden_instance_backup.zip');
+  formData.set('file', file, file.name || 'nodewarden_backup.zip');
   if (replaceExisting) {
     formData.set('replaceExisting', '1');
   }
@@ -982,10 +1175,10 @@ export async function importAdminBackup(
     method: 'POST',
     body: formData,
   });
-  if (!resp.ok) throw new Error(await parseErrorMessage(resp, 'Backup import failed'));
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_import_failed')));
 
   const body = await parseJson<AdminBackupImportResponse>(resp);
-  if (!body?.imported) throw new Error('Invalid backup import response');
+  if (!body?.imported) throw new Error(t('txt_backup_import_invalid_response'));
   return body;
 }
 
