@@ -17,13 +17,12 @@ import {
   type BackupScheduleFrequency,
   type BackupSettings,
   type E3BackupDestination,
-  type PlaceholderBackupDestination,
   type WebDavBackupDestination,
   createBackupRandomId,
   createDefaultBackupDestinationName,
   createDefaultBackupScheduleConfig,
   createDefaultBackupSettings as createSharedDefaultBackupSettings,
-} from '../../shared/backup';
+} from '../../shared/backup-schema';
 
 export const BACKUP_SETTINGS_CONFIG_KEY = 'backup.settings.v1';
 export const BACKUP_SCHEDULER_WINDOW_MINUTES = 5;
@@ -37,9 +36,8 @@ export type {
   BackupScheduleConfig,
   BackupSettings,
   E3BackupDestination,
-  PlaceholderBackupDestination,
   WebDavBackupDestination,
-} from '../../shared/backup';
+} from '../../shared/backup-schema';
 
 export interface BackupSettingsInput {
   destinations?: unknown;
@@ -186,22 +184,13 @@ function normalizeWebDavDestination(value: unknown, allowIncomplete = false): We
   };
 }
 
-function normalizePlaceholderDestination(value: unknown): PlaceholderBackupDestination {
-  const source = isPlainObject(value) ? value : {};
-  return {
-    providerName: asTrimmedString(source.providerName) || 'Reserved',
-    notes: asTrimmedString(source.notes),
-  };
-}
-
 function normalizeDestination(
   destinationType: BackupDestinationType,
   destination: unknown,
   allowIncomplete = false
 ): BackupDestinationConfig {
   if (destinationType === 'e3') return normalizeE3Destination(destination, allowIncomplete);
-  if (destinationType === 'webdav') return normalizeWebDavDestination(destination, allowIncomplete);
-  return normalizePlaceholderDestination(destination);
+  return normalizeWebDavDestination(destination, allowIncomplete);
 }
 
 function normalizeRuntime(value: unknown): BackupRuntimeState {
@@ -235,7 +224,7 @@ function defaultDestinationName(type: BackupDestinationType, index: number): str
 
 function getDestinationType(raw: unknown): BackupDestinationType {
   const value = asTrimmedString(raw);
-  if (value === 'e3' || value === 'webdav' || value === 'placeholder') return value;
+  if (value === 'e3' || value === 'webdav') return value;
   throw new Error('Backup destination type is invalid');
 }
 
@@ -269,10 +258,6 @@ function normalizeDestinationRecord(
     retentionCount: normalizeRetentionCount(retentionSource, previousSchedule.retentionCount),
   };
 
-  if (schedule.enabled && type === 'placeholder') {
-    throw new Error('The reserved backup destination is not available yet');
-  }
-
   const destination = normalizeDestination(type, input.destination, !schedule.enabled);
 
   return {
@@ -288,7 +273,7 @@ function normalizeDestinationRecord(
 function parseLegacyBackupSettings(rawValue: Record<string, unknown>, fallbackTimezone: string): BackupSettings {
   const destinationTypeRaw = asTrimmedString(rawValue.destinationType);
   const destinationType: BackupDestinationType =
-    destinationTypeRaw === 'e3' || destinationTypeRaw === 'webdav' || destinationTypeRaw === 'placeholder'
+    destinationTypeRaw === 'e3' || destinationTypeRaw === 'webdav'
       ? destinationTypeRaw
       : 'webdav';
   const destination = {
@@ -570,7 +555,6 @@ export function isBackupDueNow(
   windowMinutes: number = BACKUP_SCHEDULER_WINDOW_MINUTES
 ): boolean {
   if (!destination.schedule.enabled) return false;
-  if (destination.type === 'placeholder') return false;
 
   const currentMinutes = toMinutes(getBackupLocalTime(now, destination.schedule.timezone));
   const scheduledMinutes = toMinutes(destination.schedule.scheduleTime);

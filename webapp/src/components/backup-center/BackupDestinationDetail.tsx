@@ -4,7 +4,7 @@ import type {
   E3BackupDestination,
   RemoteBackupBrowserResponse,
   WebDavBackupDestination,
-} from '@/lib/api';
+} from '@/lib/api/backup';
 import { COMMON_TIME_ZONES, WEEKDAY_OPTIONS, getDestinationTypeLabel } from '@/lib/backup-center';
 import type { RecommendedProvider } from '@/lib/backup-recommendations';
 import { RemoteBackupBrowser } from './RemoteBackupBrowser';

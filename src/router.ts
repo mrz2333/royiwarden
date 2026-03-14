@@ -76,13 +76,6 @@ import { handleSync } from './handlers/sync';
 import { handleSetupStatus } from './handlers/setup';
 import {
   handleKnownDevice,
-  handleGetAuthorizedDevices,
-  handleGetDevices,
-  handleRevokeAllTrustedDevices,
-  handleRevokeTrustedDevice,
-  handleDeleteAllDevices,
-  handleDeleteDevice,
-  handleUpdateDeviceToken
 } from './handlers/devices';
 
 // Import handler
@@ -97,31 +90,11 @@ import {
   handlePublicDownloadAttachment,
 } from './handlers/attachments';
 import {
-  handleAdminListUsers,
-  handleAdminCreateInvite,
-  handleAdminListInvites,
-  handleAdminDeleteAllInvites,
-  handleAdminRevokeInvite,
-  handleAdminSetUserStatus,
-  handleAdminDeleteUser,
-} from './handlers/admin';
-import {
-  handleAdminExportBackup,
-  handleDownloadAdminRemoteBackup,
-  handleDeleteAdminRemoteBackup,
-  handleGetAdminBackupSettings,
-  handleGetAdminBackupSettingsRepairState,
-  handleAdminImportBackup,
-  handleListAdminRemoteBackups,
-  handleRepairAdminBackupSettings,
-  handleRestoreAdminRemoteBackup,
-  handleRunAdminConfiguredBackup,
-  handleUpdateAdminBackupSettings,
-} from './handlers/backup';
-import {
   handleNotificationsHub,
   handleNotificationsNegotiate,
 } from './handlers/notifications';
+import { handleAdminRoute } from './router-admin';
+import { handleAuthenticatedDeviceRoute } from './router-devices';
 
 function isSameOriginWriteRequest(request: Request): boolean {
   const targetOrigin = new URL(request.url).origin;
@@ -801,100 +774,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       }
     }
 
-    // Devices endpoint
-    if (path === '/api/devices') {
-      if (method === 'GET') return handleGetDevices(request, env, userId);
-      if (method === 'DELETE') return handleDeleteAllDevices(request, env, userId);
-    }
+    const authenticatedDeviceResponse = await handleAuthenticatedDeviceRoute(request, env, userId, path, method);
+    if (authenticatedDeviceResponse) return authenticatedDeviceResponse;
 
-    if (path === '/api/devices/authorized') {
-      if (method === 'GET') return handleGetAuthorizedDevices(request, env, userId);
-      if (method === 'DELETE') return handleRevokeAllTrustedDevices(request, env, userId);
-    }
-
-    const authorizedDeviceMatch = path.match(/^\/api\/devices\/authorized\/([^/]+)$/i);
-    if (authorizedDeviceMatch && method === 'DELETE') {
-      const deviceIdentifier = decodeURIComponent(authorizedDeviceMatch[1]);
-      return handleRevokeTrustedDevice(request, env, userId, deviceIdentifier);
-    }
-
-    const deleteDeviceMatch = path.match(/^\/api\/devices\/([^/]+)$/i);
-    if (deleteDeviceMatch && method === 'DELETE') {
-      const deviceIdentifier = decodeURIComponent(deleteDeviceMatch[1]);
-      return handleDeleteDevice(request, env, userId, deviceIdentifier);
-    }
-
-    // Admin endpoints
-    if (path === '/api/admin/users' && method === 'GET') {
-      return handleAdminListUsers(request, env, currentUser);
-    }
-
-    if (path === '/api/admin/backup/export' && method === 'POST') {
-      return handleAdminExportBackup(request, env, currentUser);
-    }
-
-    if (path === '/api/admin/backup/settings') {
-      if (method === 'GET') return handleGetAdminBackupSettings(request, env, currentUser);
-      if (method === 'PUT') return handleUpdateAdminBackupSettings(request, env, currentUser);
-    }
-
-    if (path === '/api/admin/backup/settings/repair') {
-      if (method === 'GET') return handleGetAdminBackupSettingsRepairState(request, env, currentUser);
-      if (method === 'POST') return handleRepairAdminBackupSettings(request, env, currentUser);
-    }
-
-    if (path === '/api/admin/backup/run' && method === 'POST') {
-      return handleRunAdminConfiguredBackup(request, env, currentUser);
-    }
-
-    if (path === '/api/admin/backup/remote' && method === 'GET') {
-      return handleListAdminRemoteBackups(request, env, currentUser);
-    }
-
-    if (path === '/api/admin/backup/remote/download' && method === 'GET') {
-      return handleDownloadAdminRemoteBackup(request, env, currentUser);
-    }
-
-    if (path === '/api/admin/backup/remote/file' && method === 'DELETE') {
-      return handleDeleteAdminRemoteBackup(request, env, currentUser);
-    }
-
-    if (path === '/api/admin/backup/remote/restore' && method === 'POST') {
-      return handleRestoreAdminRemoteBackup(request, env, currentUser);
-    }
-
-    if (path === '/api/admin/backup/import' && method === 'POST') {
-      return handleAdminImportBackup(request, env, currentUser);
-    }
-
-    if (path === '/api/admin/invites') {
-      if (method === 'GET') return handleAdminListInvites(request, env, currentUser);
-      if (method === 'POST') return handleAdminCreateInvite(request, env, currentUser);
-      if (method === 'DELETE') return handleAdminDeleteAllInvites(request, env, currentUser);
-    }
-
-    const adminInviteMatch = path.match(/^\/api\/admin\/invites\/([^/]+)$/i);
-    if (adminInviteMatch && method === 'DELETE') {
-      const inviteCode = decodeURIComponent(adminInviteMatch[1]);
-      return handleAdminRevokeInvite(request, env, currentUser, inviteCode);
-    }
-
-    const adminUserStatusMatch = path.match(/^\/api\/admin\/users\/([a-f0-9-]+)\/status$/i);
-    if (adminUserStatusMatch && (method === 'PUT' || method === 'POST')) {
-      return handleAdminSetUserStatus(request, env, currentUser, adminUserStatusMatch[1]);
-    }
-
-    const adminUserDeleteMatch = path.match(/^\/api\/admin\/users\/([a-f0-9-]+)$/i);
-    if (adminUserDeleteMatch && method === 'DELETE') {
-      return handleAdminDeleteUser(request, env, currentUser, adminUserDeleteMatch[1]);
-    }
-
-    // Device push token endpoint (no-op compatibility handler)
-    const deviceTokenMatch = path.match(/^\/api\/devices\/identifier\/([^/]+)\/token$/i);
-    if (deviceTokenMatch && (method === 'PUT' || method === 'POST')) {
-      const deviceIdentifier = decodeURIComponent(deviceTokenMatch[1]);
-      return handleUpdateDeviceToken(request, env, userId, deviceIdentifier);
-    }
+    const adminResponse = await handleAdminRoute(request, env, currentUser, path, method);
+    if (adminResponse) return adminResponse;
 
     // Not found
     return errorResponse('Not found', 404);

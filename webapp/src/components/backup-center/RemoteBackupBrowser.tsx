@@ -1,5 +1,5 @@
 import { Download, FileArchive, FolderOpen, RefreshCw, RotateCcw, Trash2 } from 'lucide-preact';
-import type { RemoteBackupBrowserResponse } from '@/lib/api';
+import type { RemoteBackupBrowserResponse } from '@/lib/api/backup';
 import { formatBytes, formatDateTime, isZipCandidate } from '@/lib/backup-center';
 import { t } from '@/lib/i18n';
 

@@ -2,7 +2,6 @@ import {
   BackupDestinationRecord,
   BackupDestinationType,
   E3BackupDestination,
-  PlaceholderBackupDestination,
   WebDavBackupDestination,
 } from './backup-config';
 
@@ -534,10 +533,6 @@ async function deleteFromE3(config: E3BackupDestination, relativePath: string): 
   }
 }
 
-function assertSupportedPlaceholder(_config: PlaceholderBackupDestination): never {
-  throw new Error('The reserved backup destination is not available yet');
-}
-
 interface ConfiguredDestinationAdapter {
   provider: 'webdav' | 'e3';
   config: WebDavBackupDestination | E3BackupDestination;
@@ -573,7 +568,7 @@ function resolveConfiguredDestinationAdapter(
     };
   }
 
-  return assertSupportedPlaceholder(destination.destination as PlaceholderBackupDestination);
+  throw new Error('Unsupported backup destination type');
 }
 
 export async function uploadBackupArchive(

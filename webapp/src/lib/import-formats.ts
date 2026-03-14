@@ -1,4 +1,4 @@
-import type { CiphersImportPayload } from '@/lib/api';
+import type { CiphersImportPayload } from '@/lib/api/vault';
 
 type ImportSourceEntry = { id: string; label: string };
 

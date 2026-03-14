@@ -75,9 +75,6 @@ async function executeConfiguredBackup(
 ): Promise<{ fileName: string; fileSize: number; remotePath: string; provider: string }> {
   const currentSettings = await loadBackupSettings(storage, env, 'UTC');
   const destination = requireBackupDestination(currentSettings, destinationId);
-  if (destination.type === 'placeholder') {
-    throw new Error('The reserved backup destination is not available yet');
-  }
 
   const now = new Date();
   destination.runtime.lastAttemptAt = now.toISOString();

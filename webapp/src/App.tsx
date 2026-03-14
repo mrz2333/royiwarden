@@ -1,89 +1,94 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { lazy, Suspense } from 'preact/compat';
-import { Link, Route, Switch, useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpDown, Cloud, Clock3, Folder as FolderIcon, KeyRound, Lock, LogOut, Send as SendIcon, Settings as SettingsIcon, Shield, ShieldUser } from 'lucide-preact';
+import AppMainRoutes from '@/components/AppMainRoutes';
 import AuthViews from '@/components/AuthViews';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToastHost from '@/components/ToastHost';
-import VaultPage from '@/components/VaultPage';
-import SendsPage from '@/components/SendsPage';
 import PublicSendPage from '@/components/PublicSendPage';
 import RecoverTwoFactorPage from '@/components/RecoverTwoFactorPage';
 import JwtWarningPage from '@/components/JwtWarningPage';
-import TotpCodesPage from '@/components/TotpCodesPage';
 import type { ImportAttachmentFile, ImportResultSummary } from '@/components/ImportPage';
 import {
-  buildCipherImportPayload,
-  bulkDeleteFolders,
   changeMasterPassword,
-  createFolder,
-  updateFolder,
-  deleteCipherAttachment,
-  deleteFolder,
-  deleteRemoteBackup,
-  bulkDeleteCiphers,
-  bulkPermanentDeleteCiphers,
-  bulkRestoreCiphers,
-  bulkDeleteSends,
-  createCipher,
   createAuthedFetch,
-  createInvite,
-  downloadCipherAttachmentDecrypted,
-  encryptFolderImportName,
-  exportAdminBackup,
-  getAdminBackupSettingsRepairState,
-  getAdminBackupSettings,
-  downloadRemoteBackup,
-  importAdminBackup,
-  importCiphers,
-  createSend,
-  deleteAllInvites,
-  deleteCipher,
-  deleteSend,
-  deleteUser,
+  deleteAllAuthorizedDevices,
+  deleteAuthorizedDevice,
   deriveLoginHash,
-  getAttachmentDownloadInfo,
-  bulkMoveCiphers,
-  getCiphers,
-  getFolders,
-  getPreloginKdfConfig,
-  getProfile,
   getAuthorizedDevices,
   getCurrentDeviceIdentifier,
+  getPreloginKdfConfig,
+  getProfile,
   getSetupStatus,
-  getSends,
-  getTotpStatus,
   getTotpRecoveryCode,
+  getTotpStatus,
   getWebConfig,
-  listAdminInvites,
-  listAdminUsers,
   loadSession,
   loginWithPassword,
   registerAccount,
   recoverTwoFactor,
-  repairAdminBackupSettings,
-  revokeInvite,
   revokeAuthorizedDeviceTrust,
   revokeAllAuthorizedDeviceTrust,
-  restoreRemoteBackup,
-  runAdminBackupNow,
   saveSession,
-  saveAdminBackupSettings,
   setTotp,
-  setUserStatus,
-  deleteAllAuthorizedDevices,
-  deleteAuthorizedDevice,
-  listRemoteBackups,
-  uploadCipherAttachment,
-  updateCipher,
-  updateSend,
-  buildSendShareKey,
   unlockVaultKey,
   verifyMasterPassword,
+} from '@/lib/api/auth';
+import {
+  createInvite,
+  deleteAllInvites,
+  deleteUser,
+  listAdminInvites,
+  listAdminUsers,
+  revokeInvite,
+  setUserStatus,
+} from '@/lib/api/admin';
+import {
+  deleteRemoteBackup,
+  downloadRemoteBackup,
+  exportAdminBackup,
+  getAdminBackupSettings,
+  importAdminBackup,
+  listRemoteBackups,
+  restoreRemoteBackup,
+  runAdminBackupNow,
+  saveAdminBackupSettings,
+  type AdminBackupSettings,
+} from '@/lib/api/backup';
+import {
+  buildSendShareKey,
+  bulkDeleteSends,
+  createSend,
+  deleteSend,
+  getSends,
+  updateSend,
+} from '@/lib/api/send';
+import {
+  buildCipherImportPayload,
+  bulkDeleteCiphers,
+  bulkDeleteFolders,
+  bulkMoveCiphers,
+  bulkPermanentDeleteCiphers,
+  bulkRestoreCiphers,
+  createCipher,
+  createFolder,
+  deleteCipher,
+  deleteCipherAttachment,
+  deleteFolder,
+  downloadCipherAttachmentDecrypted,
+  encryptFolderImportName,
+  getAttachmentDownloadInfo,
+  getCiphers,
+  getFolders,
+  importCiphers,
+  type CiphersImportPayload,
   type ImportedCipherMapEntry,
-} from '@/lib/api';
-import { decryptPortableBackupSettings } from '@/lib/admin-backup-portable';
+  updateCipher,
+  updateFolder,
+  uploadCipherAttachment,
+} from '@/lib/api/vault';
+import { silentlyRepairBackupSettingsIfNeeded } from '@/lib/backup-settings-repair';
 import { base64ToBytes, decryptBw, decryptBwFileData, decryptStr, hkdf } from '@/lib/crypto';
 import {
   attachNodeWardenEncryptedAttachmentPayload,
@@ -99,14 +104,7 @@ import {
   type ZipAttachmentEntry,
 } from '@/lib/export-formats';
 import { t } from '@/lib/i18n';
-import type { CiphersImportPayload } from '@/lib/api';
 import type { AppPhase, AuthorizedDevice, Cipher, Folder as VaultFolder, Profile, Send, SendDraft, SessionState, ToastMessage, VaultDraft } from '@/lib/types';
-
-const SettingsPage = lazy(() => import('@/components/SettingsPage'));
-const SecurityDevicesPage = lazy(() => import('@/components/SecurityDevicesPage'));
-const AdminPage = lazy(() => import('@/components/AdminPage'));
-const BackupCenterPage = lazy(() => import('@/components/BackupCenterPage'));
-const ImportPage = lazy(() => import('@/components/ImportPage'));
 
 interface PendingTotp {
   email: string;
@@ -147,10 +145,6 @@ function readInviteCodeFromUrl(): string {
   }
 
   return '';
-}
-
-function RouteContentFallback() {
-  return <div className="loading-screen">{t('txt_loading_nodewarden')}</div>;
 }
 
 function summarizeImportResult(
@@ -450,21 +444,6 @@ export default function App() {
   function setSession(next: SessionState | null) {
     setSessionState(next);
     saveSession(next);
-  }
-
-  async function silentlyRepairBackupSettingsIfNeeded(activeSession: SessionState, activeProfile: Profile): Promise<void> {
-    if (activeProfile.role !== 'admin') return;
-    if (!activeSession.accessToken || !activeSession.symEncKey || !activeSession.symMacKey) return;
-
-    const tempFetch = createAuthedFetch(() => activeSession, () => {});
-    try {
-      const state = await getAdminBackupSettingsRepairState(tempFetch);
-      if (!state.needsRepair || !state.portable) return;
-      const repairedSettings = await decryptPortableBackupSettings(state.portable, activeProfile, activeSession);
-      await repairAdminBackupSettings(tempFetch, repairedSettings);
-    } catch (error) {
-      console.error('Backup settings auto-repair failed:', error);
-    }
   }
 
   function pushToast(type: ToastMessage['type'], text: string) {
@@ -1908,33 +1887,6 @@ export default function App() {
     return t('nav_my_vault');
   })();
 
-  const importPageContent = (
-    <Suspense fallback={<RouteContentFallback />}>
-      <ImportPage
-        onImport={handleImportAction}
-        onImportEncryptedRaw={handleImportEncryptedRawAction}
-        accountKeys={session?.symEncKey && session?.symMacKey ? { encB64: session.symEncKey, macB64: session.symMacKey } : null}
-        onNotify={pushToast}
-        folders={decryptedFolders}
-        onExport={handleExportAction}
-      />
-    </Suspense>
-  );
-
-  const renderImportPageRoute = () => (
-    <div className="stack">
-      {mobileLayout && (
-        <div className="mobile-settings-subhead">
-          <button type="button" className="btn btn-secondary small mobile-settings-back" onClick={() => navigate(SETTINGS_HOME_ROUTE)}>
-            <span className="btn-icon" aria-hidden="true">{"<"}</span>
-            {t('txt_back')}
-          </button>
-        </div>
-      )}
-      {importPageContent}
-    </div>
-  );
-
   useEffect(() => {
     if (phase === 'app' && location === '/' && !isPublicSendRoute) navigate('/vault');
   }, [phase, location, isPublicSendRoute, navigate]);
@@ -2148,274 +2100,158 @@ export default function App() {
               </Link>
             </aside>
             <main className="content">
-              <Switch>
-                <Route path="/sends">
-                  <SendsPage
-                    sends={decryptedSends}
-                    loading={sendsQuery.isFetching}
-                    onRefresh={refreshVault}
-                    onCreate={createSendItem}
-                    onUpdate={updateSendItem}
-                    onDelete={deleteSendItem}
-                    onBulkDelete={bulkDeleteSendItems}
-                    onNotify={pushToast}
-                  />
-                </Route>
-                <Route path="/vault/totp">
-                  <TotpCodesPage ciphers={decryptedCiphers} loading={ciphersQuery.isFetching} onNotify={pushToast} />
-                </Route>
-                <Route path="/vault">
-                  <VaultPage
-                    ciphers={decryptedCiphers}
-                    folders={decryptedFolders}
-                    loading={ciphersQuery.isFetching || foldersQuery.isFetching}
-                    emailForReprompt={profile?.email || session?.email || ''}
-                    onRefresh={refreshVault}
-                    onCreate={createVaultItem}
-                    onUpdate={updateVaultItem}
-                    onDelete={deleteVaultItem}
-                    onBulkDelete={bulkDeleteVaultItems}
-                    onBulkPermanentDelete={bulkPermanentDeleteVaultItems}
-                    onBulkRestore={bulkRestoreVaultItems}
-                    onBulkMove={bulkMoveVaultItems}
-                    onVerifyMasterPassword={verifyMasterPasswordAction}
-                    onNotify={pushToast}
-                    onCreateFolder={createFolderAction}
-                    onDeleteFolder={deleteFolderAction}
-                    onBulkDeleteFolders={bulkDeleteFoldersAction}
-                    onDownloadAttachment={downloadVaultAttachment}
-                  />
-                </Route>
-                <Route path={SETTINGS_ACCOUNT_ROUTE}>
-                  {profile && (
-                    <div className="stack">
-                      {mobileLayout && (
-                        <div className="mobile-settings-subhead">
-                          <button type="button" className="btn btn-secondary small mobile-settings-back" onClick={() => navigate(SETTINGS_HOME_ROUTE)}>
-                            <span className="btn-icon" aria-hidden="true">{"<"}</span>
-                          {t('txt_back')}
-                        </button>
-                      </div>
-                      )}
-                      <Suspense fallback={<RouteContentFallback />}>
-                        <SettingsPage
-                          profile={profile}
-                          totpEnabled={!!totpStatusQuery.data?.enabled}
-                          onChangePassword={changePasswordAction}
-                          onEnableTotp={async (secret, token) => {
-                            await enableTotpAction(secret, token);
-                            await totpStatusQuery.refetch();
-                          }}
-                          onOpenDisableTotp={() => setDisableTotpOpen(true)}
-                          onGetRecoveryCode={getRecoveryCodeAction}
-                          onNotify={pushToast}
-                        />
-                      </Suspense>
-                    </div>
-                  )}
-                </Route>
-                <Route path="/settings">
-                  {profile && (
-                    <section className="card mobile-settings-card">
-                      <div className="mobile-settings-links">
-                        <Link href={SETTINGS_ACCOUNT_ROUTE} className="mobile-settings-link">
-                          <SettingsIcon size={18} />
-                          <span>{t('nav_account_settings')}</span>
-                        </Link>
-                        <Link href="/security/devices" className="mobile-settings-link">
-                          <Shield size={18} />
-                          <span>{t('nav_device_management')}</span>
-                        </Link>
-                        <Link href={IMPORT_ROUTE} className="mobile-settings-link">
-                          <ArrowUpDown size={18} />
-                          <span>{t('nav_import_export')}</span>
-                        </Link>
-                        {profile.role === 'admin' && (
-                          <Link href="/admin" className="mobile-settings-link">
-                            <ShieldUser size={18} />
-                            <span>{t('nav_admin_panel')}</span>
-                          </Link>
-                        )}
-                        {profile.role === 'admin' && (
-                          <Link href="/help" className="mobile-settings-link">
-                            <Cloud size={18} />
-                            <span>{t('nav_backup_strategy')}</span>
-                          </Link>
-                        )}
-                      </div>
-                      <button type="button" className="btn btn-secondary mobile-settings-logout" onClick={handleLogout}>
-                        <LogOut size={14} className="btn-icon" />
-                        {t('txt_sign_out')}
-                      </button>
-                    </section>
-                  )}
-                </Route>
-                <Route path="/security/devices">
-                  <div className="stack">
-                    {mobileLayout && (
-                      <div className="mobile-settings-subhead">
-                        <button type="button" className="btn btn-secondary small mobile-settings-back" onClick={() => navigate(SETTINGS_HOME_ROUTE)}>
-                          <span className="btn-icon" aria-hidden="true">{"<"}</span>
-                          {t('txt_back')}
-                        </button>
-                      </div>
-                    )}
-                    <Suspense fallback={<RouteContentFallback />}>
-                      <SecurityDevicesPage
-                        devices={authorizedDevicesQuery.data || []}
-                        loading={authorizedDevicesQuery.isFetching}
-                        onRefresh={() => void refreshAuthorizedDevices()}
-                        onRevokeTrust={(device) => {
-                          setConfirm({
-                            title: t('txt_revoke_device_authorization'),
-                            message: t('txt_revoke_30_day_totp_trust_for_name', { name: device.name }),
-                            danger: true,
-                            onConfirm: () => {
-                              setConfirm(null);
-                              void revokeDeviceTrustAction(device);
-                            },
-                          });
-                        }}
-                        onRemoveDevice={(device) => {
-                          setConfirm({
-                            title: t('txt_remove_device'),
-                            message: t('txt_remove_device_and_sign_out_name', { name: device.name }),
-                            danger: true,
-                            onConfirm: () => {
-                              setConfirm(null);
-                              void removeDeviceAction(device);
-                            },
-                          });
-                        }}
-                        onRevokeAll={() => {
-                          setConfirm({
-                            title: t('txt_revoke_all_trusted_devices'),
-                            message: t('txt_revoke_30_day_totp_trust_from_all_devices'),
-                            danger: true,
-                            onConfirm: () => {
-                              setConfirm(null);
-                              void revokeAllDeviceTrustAction();
-                            },
-                          });
-                        }}
-                        onRemoveAll={() => {
-                          setConfirm({
-                            title: t('txt_remove_all_devices'),
-                            message: t('txt_remove_all_devices_and_sign_out_all_sessions'),
-                            danger: true,
-                            onConfirm: () => {
-                              setConfirm(null);
-                              void removeAllDevicesAction();
-                            },
-                          });
-                        }}
-                      />
-                    </Suspense>
-                  </div>
-                </Route>
-                <Route path="/admin">
-                  <div className="stack">
-                    {mobileLayout && (
-                      <div className="mobile-settings-subhead">
-                        <button type="button" className="btn btn-secondary small mobile-settings-back" onClick={() => navigate(SETTINGS_HOME_ROUTE)}>
-                          <span className="btn-icon" aria-hidden="true">{"<"}</span>
-                          {t('txt_back')}
-                        </button>
-                      </div>
-                    )}
-                    <Suspense fallback={<RouteContentFallback />}>
-                      <AdminPage
-                        currentUserId={profile?.id || ''}
-                        users={usersQuery.data || []}
-                        invites={invitesQuery.data || []}
-                        onRefresh={() => {
-                          void usersQuery.refetch();
-                          void invitesQuery.refetch();
-                        }}
-                        onCreateInvite={async (hours) => {
-                          await createInvite(authedFetch, hours);
-                          await invitesQuery.refetch();
-                          pushToast('success', t('txt_invite_created'));
-                        }}
-                        onDeleteAllInvites={async () => {
-                          setConfirm({
-                            title: t('txt_delete_all_invites'),
-                            message: t('txt_delete_all_invite_codes_active_inactive'),
-                            danger: true,
-                            onConfirm: () => {
-                              setConfirm(null);
-                              void (async () => {
-                                await deleteAllInvites(authedFetch);
-                                await invitesQuery.refetch();
-                                pushToast('success', t('txt_all_invites_deleted'));
-                              })();
-                            },
-                          });
-                        }}
-                        onToggleUserStatus={async (userId, status) => {
-                          await setUserStatus(authedFetch, userId, status === 'active' ? 'banned' : 'active');
-                          await usersQuery.refetch();
-                          pushToast('success', t('txt_user_status_updated'));
-                        }}
-                        onDeleteUser={async (userId) => {
-                          setConfirm({
-                            title: t('txt_delete_user'),
-                            message: t('txt_delete_this_user_and_all_user_data'),
-                            danger: true,
-                            onConfirm: () => {
-                              setConfirm(null);
-                              void (async () => {
-                                await deleteUser(authedFetch, userId);
-                                await usersQuery.refetch();
-                                pushToast('success', t('txt_user_deleted'));
-                              })();
-                            },
-                          });
-                        }}
-                        onRevokeInvite={async (code) => {
-                          await revokeInvite(authedFetch, code);
-                          await invitesQuery.refetch();
-                          pushToast('success', t('txt_invite_revoked'));
-                        }}
-                      />
-                    </Suspense>
-                  </div>
-                </Route>
-                {IMPORT_ROUTE_PATHS.map((path) => (
-                  <Route key={path} path={path}>
-                    {renderImportPageRoute()}
-                  </Route>
-                ))}
-                <Route path="/help">
-                  {profile?.role === 'admin' ? (
-                    <div className="stack">
-                      {mobileLayout && (
-                        <div className="mobile-settings-subhead">
-                          <button type="button" className="btn btn-secondary small mobile-settings-back" onClick={() => navigate(SETTINGS_HOME_ROUTE)}>
-                            <span className="btn-icon" aria-hidden="true">{"<"}</span>
-                          {t('txt_back')}
-                        </button>
-                      </div>
-                      )}
-                      <Suspense fallback={<RouteContentFallback />}>
-                        <BackupCenterPage
-                          currentUserId={profile?.id || null}
-                          onExport={handleBackupExportAction}
-                          onImport={handleBackupImportAction}
-                          onLoadSettings={handleLoadBackupSettingsAction}
-                          onListRemoteBackups={handleListRemoteBackupsAction}
-                          onDownloadRemoteBackup={handleDownloadRemoteBackupAction}
-                          onDeleteRemoteBackup={handleDeleteRemoteBackupAction}
-                          onRestoreRemoteBackup={handleRestoreRemoteBackupAction}
-                          onSaveSettings={handleSaveBackupSettingsAction}
-                          onRunRemoteBackup={handleRunRemoteBackupAction}
-                          onNotify={pushToast}
-                        />
-                      </Suspense>
-                    </div>
-                  ) : null}
-                </Route>
-              </Switch>
+              <AppMainRoutes
+                profile={profile}
+                session={session}
+                mobileLayout={mobileLayout}
+                importRoute={IMPORT_ROUTE}
+                settingsHomeRoute={SETTINGS_HOME_ROUTE}
+                settingsAccountRoute={SETTINGS_ACCOUNT_ROUTE}
+                decryptedCiphers={decryptedCiphers}
+                decryptedFolders={decryptedFolders}
+                decryptedSends={decryptedSends}
+                ciphersLoading={ciphersQuery.isFetching}
+                foldersLoading={foldersQuery.isFetching}
+                sendsLoading={sendsQuery.isFetching}
+                users={usersQuery.data || []}
+                invites={invitesQuery.data || []}
+                totpEnabled={!!totpStatusQuery.data?.enabled}
+                authorizedDevices={authorizedDevicesQuery.data || []}
+                authorizedDevicesLoading={authorizedDevicesQuery.isFetching}
+                onNavigate={navigate}
+                onLogout={handleLogout}
+                onNotify={pushToast}
+                onImport={handleImportAction}
+                onImportEncryptedRaw={handleImportEncryptedRawAction}
+                onExport={handleExportAction}
+                onCreateVaultItem={createVaultItem}
+                onUpdateVaultItem={updateVaultItem}
+                onDeleteVaultItem={deleteVaultItem}
+                onBulkDeleteVaultItems={bulkDeleteVaultItems}
+                onBulkPermanentDeleteVaultItems={bulkPermanentDeleteVaultItems}
+                onBulkRestoreVaultItems={bulkRestoreVaultItems}
+                onBulkMoveVaultItems={bulkMoveVaultItems}
+                onVerifyMasterPassword={verifyMasterPasswordAction}
+                onCreateFolder={createFolderAction}
+                onDeleteFolder={deleteFolderAction}
+                onBulkDeleteFolders={bulkDeleteFoldersAction}
+                onDownloadVaultAttachment={downloadVaultAttachment}
+                onRefreshVault={refreshVault}
+                onCreateSend={createSendItem}
+                onUpdateSend={updateSendItem}
+                onDeleteSend={deleteSendItem}
+                onBulkDeleteSends={bulkDeleteSendItems}
+                onChangePassword={changePasswordAction}
+                onEnableTotp={async (secret, token) => {
+                  await enableTotpAction(secret, token);
+                  await totpStatusQuery.refetch();
+                }}
+                onOpenDisableTotp={() => setDisableTotpOpen(true)}
+                onGetRecoveryCode={getRecoveryCodeAction}
+                onRefreshAuthorizedDevices={refreshAuthorizedDevices}
+                onRevokeDeviceTrust={(device) => {
+                  setConfirm({
+                    title: t('txt_revoke_device_authorization'),
+                    message: t('txt_revoke_30_day_totp_trust_for_name', { name: device.name }),
+                    danger: true,
+                    onConfirm: () => {
+                      setConfirm(null);
+                      void revokeDeviceTrustAction(device);
+                    },
+                  });
+                }}
+                onRemoveDevice={(device) => {
+                  setConfirm({
+                    title: t('txt_remove_device'),
+                    message: t('txt_remove_device_and_sign_out_name', { name: device.name }),
+                    danger: true,
+                    onConfirm: () => {
+                      setConfirm(null);
+                      void removeDeviceAction(device);
+                    },
+                  });
+                }}
+                onRevokeAllDeviceTrust={() => {
+                  setConfirm({
+                    title: t('txt_revoke_all_trusted_devices'),
+                    message: t('txt_revoke_30_day_totp_trust_from_all_devices'),
+                    danger: true,
+                    onConfirm: () => {
+                      setConfirm(null);
+                      void revokeAllDeviceTrustAction();
+                    },
+                  });
+                }}
+                onRemoveAllDevices={() => {
+                  setConfirm({
+                    title: t('txt_remove_all_devices'),
+                    message: t('txt_remove_all_devices_and_sign_out_all_sessions'),
+                    danger: true,
+                    onConfirm: () => {
+                      setConfirm(null);
+                      void removeAllDevicesAction();
+                    },
+                  });
+                }}
+                onRefreshAdmin={() => {
+                  void usersQuery.refetch();
+                  void invitesQuery.refetch();
+                }}
+                onCreateInvite={async (hours) => {
+                  await createInvite(authedFetch, hours);
+                  await invitesQuery.refetch();
+                  pushToast('success', t('txt_invite_created'));
+                }}
+                onDeleteAllInvites={async () => {
+                  setConfirm({
+                    title: t('txt_delete_all_invites'),
+                    message: t('txt_delete_all_invite_codes_active_inactive'),
+                    danger: true,
+                    onConfirm: () => {
+                      setConfirm(null);
+                      void (async () => {
+                        await deleteAllInvites(authedFetch);
+                        await invitesQuery.refetch();
+                        pushToast('success', t('txt_all_invites_deleted'));
+                      })();
+                    },
+                  });
+                }}
+                onToggleUserStatus={async (userId, status) => {
+                  await setUserStatus(authedFetch, userId, status === 'active' ? 'banned' : 'active');
+                  await usersQuery.refetch();
+                  pushToast('success', t('txt_user_status_updated'));
+                }}
+                onDeleteUser={async (userId) => {
+                  setConfirm({
+                    title: t('txt_delete_user'),
+                    message: t('txt_delete_this_user_and_all_user_data'),
+                    danger: true,
+                    onConfirm: () => {
+                      setConfirm(null);
+                      void (async () => {
+                        await deleteUser(authedFetch, userId);
+                        await usersQuery.refetch();
+                        pushToast('success', t('txt_user_deleted'));
+                      })();
+                    },
+                  });
+                }}
+                onRevokeInvite={async (code) => {
+                  await revokeInvite(authedFetch, code);
+                  await invitesQuery.refetch();
+                  pushToast('success', t('txt_invite_revoked'));
+                }}
+                onExportBackup={handleBackupExportAction}
+                onImportBackup={handleBackupImportAction}
+                onLoadBackupSettings={handleLoadBackupSettingsAction}
+                onSaveBackupSettings={handleSaveBackupSettingsAction}
+                onRunRemoteBackup={handleRunRemoteBackupAction}
+                onListRemoteBackups={handleListRemoteBackupsAction}
+                onDownloadRemoteBackup={handleDownloadRemoteBackupAction}
+                onDeleteRemoteBackup={handleDeleteRemoteBackupAction}
+                onRestoreRemoteBackup={handleRestoreRemoteBackupAction}
+              />
             </main>
           </div>
 

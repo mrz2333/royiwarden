@@ -4,7 +4,7 @@ import { strFromU8, unzipSync } from 'fflate';
 import { BlobReader, Uint8ArrayWriter, ZipReader, configure as configureZipJs } from '@zip.js/zip.js';
 import { Download, FileUp } from 'lucide-preact';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import type { CiphersImportPayload } from '@/lib/api';
+import type { CiphersImportPayload } from '@/lib/api/vault';
 import {
   type EncryptedJsonMode,
   EXPORT_FORMATS,

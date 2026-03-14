@@ -1,5 +1,5 @@
 import { base64ToBytes, decryptBw } from './crypto';
-import type { AdminBackupSettings, BackupSettingsPortablePayload } from './api';
+import type { AdminBackupSettings, BackupSettingsPortablePayload } from './api/backup';
 import type { Profile, SessionState } from './types';
 
 const PORTABLE_ALGORITHM = 'RSA-OAEP';

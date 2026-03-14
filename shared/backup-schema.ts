@@ -4,7 +4,7 @@ export const BACKUP_DEFAULT_RETENTION_COUNT = 30;
 export const BACKUP_DEFAULT_E3_REGION = 'auto';
 export const BACKUP_DEFAULT_REMOTE_PATH = 'nodewarden';
 
-export type BackupDestinationType = 'e3' | 'webdav' | 'placeholder';
+export type BackupDestinationType = 'e3' | 'webdav';
 export type BackupScheduleFrequency = 'daily' | 'weekly' | 'monthly';
 
 export interface E3BackupDestination {
@@ -23,15 +23,9 @@ export interface WebDavBackupDestination {
   remotePath: string;
 }
 
-export interface PlaceholderBackupDestination {
-  providerName: string;
-  notes: string;
-}
-
 export type BackupDestinationConfig =
   | E3BackupDestination
-  | WebDavBackupDestination
-  | PlaceholderBackupDestination;
+  | WebDavBackupDestination;
 
 export interface BackupRuntimeState {
   lastAttemptAt: string | null;
@@ -110,12 +104,6 @@ export function createDefaultBackupDestinationConfig(type: BackupDestinationType
       rootPath: BACKUP_DEFAULT_REMOTE_PATH,
     };
   }
-  if (type === 'placeholder') {
-    return {
-      providerName: 'Reserved',
-      notes: '',
-    };
-  }
   return {
     baseUrl: '',
     username: '',
@@ -126,7 +114,6 @@ export function createDefaultBackupDestinationConfig(type: BackupDestinationType
 
 export function createDefaultBackupDestinationName(type: BackupDestinationType, index: number): string {
   if (type === 'e3') return `E3 ${index}`;
-  if (type === 'placeholder') return `Reserved ${index}`;
   return `WebDAV ${index}`;
 }
 

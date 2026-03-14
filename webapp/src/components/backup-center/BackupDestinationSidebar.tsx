@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-preact';
-import type { BackupDestinationRecord, BackupDestinationType } from '@/lib/api';
+import type { BackupDestinationRecord, BackupDestinationType } from '@/lib/api/backup';
 import { formatDateTime, getDestinationTypeLabel } from '@/lib/backup-center';
 import { t } from '@/lib/i18n';
 

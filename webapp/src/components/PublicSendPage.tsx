@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Download, Eye, Lock } from 'lucide-preact';
-import { accessPublicSend, accessPublicSendFile, decryptPublicSend, decryptPublicSendFileBytes } from '@/lib/api';
+import { accessPublicSend, accessPublicSendFile, decryptPublicSend, decryptPublicSendFileBytes } from '@/lib/api/send';
 import StandalonePageFrame from '@/components/StandalonePageFrame';
 import { t } from '@/lib/i18n';
 

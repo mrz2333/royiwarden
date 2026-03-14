@@ -6,7 +6,7 @@ import {
   type BackupDestinationRecord,
   type BackupDestinationType,
   type RemoteBackupBrowserResponse,
-} from '@/lib/api';
+} from '@/lib/api/backup';
 import {
   REMOTE_BROWSER_ITEMS_PER_PAGE,
   compareRemoteItems,
@@ -92,8 +92,8 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   const selectedRecommendedProvider = RECOMMENDED_PROVIDERS.find((provider) => provider.id === selectedProviderId) || null;
   const recommendedWebDavProviders = RECOMMENDED_PROVIDERS.filter((provider) => provider.protocol === 'webdav');
   const recommendedS3Providers = RECOMMENDED_PROVIDERS.filter((provider) => provider.protocol === 's3');
-  const canRunSelectedDestination = !!selectedDestination && selectedDestination.type !== 'placeholder' && selectedDestinationIsSaved;
-  const canBrowseSelectedDestination = !!savedSelectedDestination && savedSelectedDestination.type !== 'placeholder';
+  const canRunSelectedDestination = !!selectedDestination && selectedDestinationIsSaved;
+  const canBrowseSelectedDestination = !!savedSelectedDestination;
 
   useEffect(() => {
     let cancelled = false;
@@ -134,12 +134,6 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
       selectedDestinationId,
     });
   }, [props.currentUserId, remoteBrowserCache, remoteBrowserPageByKey, remoteBrowserPathByDestination, selectedDestinationId]);
-
-  useEffect(() => {
-    if (selectedDestination?.type === 'placeholder') {
-      setSelectedDestinationId(getFirstVisibleDestinationId(settings));
-    }
-  }, [selectedDestination?.id, selectedDestination?.type, settings]);
 
   function updateSettings(mutator: (current: AdminBackupSettings) => AdminBackupSettings) {
     setSettings((current) => {
