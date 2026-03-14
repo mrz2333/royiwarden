@@ -119,7 +119,8 @@ type JwtUnsafeReason = 'missing' | 'default' | 'too_short';
 const SEND_KEY_SALT = 'bitwarden-send';
 const SEND_KEY_PURPOSE = 'send';
 const IMPORT_ROUTE = '/help/import-export';
-const IMPORT_ROUTE_ALIASES = new Set(['/tools/import', '/tools/import-export', '/tools/import-data', '/import', '/import-export']);
+const IMPORT_ROUTE_PATHS = [IMPORT_ROUTE, '/tools/import', '/tools/import-export', '/tools/import-data', '/import', '/import-export'] as const;
+const IMPORT_ROUTE_ALIASES = new Set(IMPORT_ROUTE_PATHS.filter((path) => path !== IMPORT_ROUTE));
 const SETTINGS_HOME_ROUTE = '/settings';
 const SETTINGS_ACCOUNT_ROUTE = '/settings/account';
 
@@ -1920,6 +1921,20 @@ export default function App() {
     </Suspense>
   );
 
+  const renderImportPageRoute = () => (
+    <div className="stack">
+      {mobileLayout && (
+        <div className="mobile-settings-subhead">
+          <button type="button" className="btn btn-secondary small mobile-settings-back" onClick={() => navigate(SETTINGS_HOME_ROUTE)}>
+            <span className="btn-icon" aria-hidden="true">{"<"}</span>
+            {t('txt_back')}
+          </button>
+        </div>
+      )}
+      {importPageContent}
+    </div>
+  );
+
   useEffect(() => {
     if (phase === 'app' && location === '/' && !isPublicSendRoute) navigate('/vault');
   }, [phase, location, isPublicSendRoute, navigate]);
@@ -2366,34 +2381,11 @@ export default function App() {
                     </Suspense>
                   </div>
                 </Route>
-                <Route path={IMPORT_ROUTE}>
-                  <div className="stack">
-                    {mobileLayout && (
-                      <div className="mobile-settings-subhead">
-                        <button type="button" className="btn btn-secondary small mobile-settings-back" onClick={() => navigate(SETTINGS_HOME_ROUTE)}>
-                          <span className="btn-icon" aria-hidden="true">{"<"}</span>
-                          {t('txt_back')}
-                        </button>
-                      </div>
-                    )}
-                    {importPageContent}
-                  </div>
-                </Route>
-                <Route path="/tools/import">
-                  {importPageContent}
-                </Route>
-                <Route path="/tools/import-export">
-                  {importPageContent}
-                </Route>
-                <Route path="/tools/import-data">
-                  {importPageContent}
-                </Route>
-                <Route path="/import">
-                  {importPageContent}
-                </Route>
-                <Route path="/import-export">
-                  {importPageContent}
-                </Route>
+                {IMPORT_ROUTE_PATHS.map((path) => (
+                  <Route key={path} path={path}>
+                    {renderImportPageRoute()}
+                  </Route>
+                ))}
                 <Route path="/help">
                   {profile?.role === 'admin' ? (
                     <div className="stack">
@@ -2407,6 +2399,7 @@ export default function App() {
                       )}
                       <Suspense fallback={<RouteContentFallback />}>
                         <BackupCenterPage
+                          currentUserId={profile?.id || null}
                           onExport={handleBackupExportAction}
                           onImport={handleBackupImportAction}
                           onLoadSettings={handleLoadBackupSettingsAction}

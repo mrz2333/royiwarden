@@ -28,6 +28,7 @@ import { BackupDestinationSidebar } from './backup-center/BackupDestinationSideb
 import { BackupOperationsSidebar } from './backup-center/BackupOperationsSidebar';
 
 interface BackupCenterPageProps {
+  currentUserId: string | null;
   onExport: () => Promise<void>;
   onImport: (file: File, replaceExisting?: boolean) => Promise<void>;
   onLoadSettings: () => Promise<AdminBackupSettings>;
@@ -41,7 +42,7 @@ interface BackupCenterPageProps {
 }
 
 export default function BackupCenterPage(props: BackupCenterPageProps) {
-  const persistedRemoteStateRef = useRef(loadPersistedRemoteBrowserState());
+  const persistedRemoteStateRef = useRef(loadPersistedRemoteBrowserState(props.currentUserId));
   const persistedRemoteState = persistedRemoteStateRef.current;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -126,13 +127,13 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   }, []);
 
   useEffect(() => {
-    persistRemoteBrowserState({
+    persistRemoteBrowserState(props.currentUserId, {
       cache: remoteBrowserCache,
       pathByDestination: remoteBrowserPathByDestination,
       pageByKey: remoteBrowserPageByKey,
       selectedDestinationId,
     });
-  }, [remoteBrowserCache, remoteBrowserPageByKey, remoteBrowserPathByDestination, selectedDestinationId]);
+  }, [props.currentUserId, remoteBrowserCache, remoteBrowserPageByKey, remoteBrowserPathByDestination, selectedDestinationId]);
 
   useEffect(() => {
     if (selectedDestination?.type === 'placeholder') {

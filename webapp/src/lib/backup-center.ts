@@ -111,6 +111,13 @@ export function getRemoteBrowserCacheKey(destinationId: string, path: string = '
   return `${destinationId}:${path}`;
 }
 
+function getRemoteBrowserStorageKey(userId?: string | null): string {
+  const normalizedUserId = String(userId || '').trim();
+  return normalizedUserId
+    ? `${REMOTE_BROWSER_STORAGE_KEY}:${normalizedUserId}`
+    : REMOTE_BROWSER_STORAGE_KEY;
+}
+
 function getRemoteBrowserStorage(): Storage | null {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -129,10 +136,10 @@ function getRemoteBrowserStorage(): Storage | null {
   return null;
 }
 
-export function loadPersistedRemoteBrowserState(): PersistedRemoteBrowserState {
+export function loadPersistedRemoteBrowserState(userId?: string | null): PersistedRemoteBrowserState {
   try {
     const storage = getRemoteBrowserStorage();
-    const raw = storage?.getItem(REMOTE_BROWSER_STORAGE_KEY);
+    const raw = storage?.getItem(getRemoteBrowserStorageKey(userId));
     if (!raw) {
       return {
         cache: {},
@@ -158,10 +165,10 @@ export function loadPersistedRemoteBrowserState(): PersistedRemoteBrowserState {
   }
 }
 
-export function persistRemoteBrowserState(state: PersistedRemoteBrowserState): void {
+export function persistRemoteBrowserState(userId: string | null | undefined, state: PersistedRemoteBrowserState): void {
   try {
     const storage = getRemoteBrowserStorage();
-    storage?.setItem(REMOTE_BROWSER_STORAGE_KEY, JSON.stringify(state));
+    storage?.setItem(getRemoteBrowserStorageKey(userId), JSON.stringify(state));
   } catch {
     // Ignore cache persistence failures.
   }
