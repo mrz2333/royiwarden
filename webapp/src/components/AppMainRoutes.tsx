@@ -2,15 +2,15 @@ import { lazy, Suspense } from 'preact/compat';
 import { Link, Route, Switch } from 'wouter';
 import { ArrowUpDown, Cloud, LogOut, Settings as SettingsIcon, Shield, ShieldUser } from 'lucide-preact';
 import type { ImportAttachmentFile, ImportResultSummary } from '@/components/ImportPage';
-import SendsPage from '@/components/SendsPage';
-import TotpCodesPage from '@/components/TotpCodesPage';
-import VaultPage from '@/components/VaultPage';
 import type { AdminBackupRunResponse, AdminBackupSettings, RemoteBackupBrowserResponse } from '@/lib/api/backup';
 import type { CiphersImportPayload } from '@/lib/api/vault';
 import { t } from '@/lib/i18n';
 import type { AdminInvite, AdminUser, AuthorizedDevice, Cipher, Folder as VaultFolder, Profile, Send, SendDraft, SessionState, VaultDraft } from '@/lib/types';
 import type { ExportRequest } from '@/lib/export-formats';
 
+const SendsPage = lazy(() => import('@/components/SendsPage'));
+const TotpCodesPage = lazy(() => import('@/components/TotpCodesPage'));
+const VaultPage = lazy(() => import('@/components/VaultPage'));
 const SettingsPage = lazy(() => import('@/components/SettingsPage'));
 const SecurityDevicesPage = lazy(() => import('@/components/SecurityDevicesPage'));
 const AdminPage = lazy(() => import('@/components/AdminPage'));
@@ -21,7 +21,7 @@ function RouteContentFallback() {
   return <div className="loading-screen">{t('txt_loading_nodewarden')}</div>;
 }
 
-interface AppMainRoutesProps {
+export interface AppMainRoutesProps {
   profile: Profile | null;
   session: SessionState | null;
   mobileLayout: boolean;
@@ -128,41 +128,47 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
   return (
     <Switch>
       <Route path="/sends">
-        <SendsPage
-          sends={props.decryptedSends}
-          loading={props.sendsLoading}
-          onRefresh={props.onRefreshVault}
-          onCreate={props.onCreateSend}
-          onUpdate={props.onUpdateSend}
-          onDelete={props.onDeleteSend}
-          onBulkDelete={props.onBulkDeleteSends}
-          onNotify={props.onNotify}
-        />
+        <Suspense fallback={<RouteContentFallback />}>
+          <SendsPage
+            sends={props.decryptedSends}
+            loading={props.sendsLoading}
+            onRefresh={props.onRefreshVault}
+            onCreate={props.onCreateSend}
+            onUpdate={props.onUpdateSend}
+            onDelete={props.onDeleteSend}
+            onBulkDelete={props.onBulkDeleteSends}
+            onNotify={props.onNotify}
+          />
+        </Suspense>
       </Route>
       <Route path="/vault/totp">
-        <TotpCodesPage ciphers={props.decryptedCiphers} loading={props.ciphersLoading} onNotify={props.onNotify} />
+        <Suspense fallback={<RouteContentFallback />}>
+          <TotpCodesPage ciphers={props.decryptedCiphers} loading={props.ciphersLoading} onNotify={props.onNotify} />
+        </Suspense>
       </Route>
       <Route path="/vault">
-        <VaultPage
-          ciphers={props.decryptedCiphers}
-          folders={props.decryptedFolders}
-          loading={props.ciphersLoading || props.foldersLoading}
-          emailForReprompt={props.profile?.email || props.session?.email || ''}
-          onRefresh={props.onRefreshVault}
-          onCreate={props.onCreateVaultItem}
-          onUpdate={props.onUpdateVaultItem}
-          onDelete={props.onDeleteVaultItem}
-          onBulkDelete={props.onBulkDeleteVaultItems}
-          onBulkPermanentDelete={props.onBulkPermanentDeleteVaultItems}
-          onBulkRestore={props.onBulkRestoreVaultItems}
-          onBulkMove={props.onBulkMoveVaultItems}
-          onVerifyMasterPassword={props.onVerifyMasterPassword}
-          onNotify={props.onNotify}
-          onCreateFolder={props.onCreateFolder}
-          onDeleteFolder={props.onDeleteFolder}
-          onBulkDeleteFolders={props.onBulkDeleteFolders}
-          onDownloadAttachment={props.onDownloadVaultAttachment}
-        />
+        <Suspense fallback={<RouteContentFallback />}>
+          <VaultPage
+            ciphers={props.decryptedCiphers}
+            folders={props.decryptedFolders}
+            loading={props.ciphersLoading || props.foldersLoading}
+            emailForReprompt={props.profile?.email || props.session?.email || ''}
+            onRefresh={props.onRefreshVault}
+            onCreate={props.onCreateVaultItem}
+            onUpdate={props.onUpdateVaultItem}
+            onDelete={props.onDeleteVaultItem}
+            onBulkDelete={props.onBulkDeleteVaultItems}
+            onBulkPermanentDelete={props.onBulkPermanentDeleteVaultItems}
+            onBulkRestore={props.onBulkRestoreVaultItems}
+            onBulkMove={props.onBulkMoveVaultItems}
+            onVerifyMasterPassword={props.onVerifyMasterPassword}
+            onNotify={props.onNotify}
+            onCreateFolder={props.onCreateFolder}
+            onDeleteFolder={props.onDeleteFolder}
+            onBulkDeleteFolders={props.onBulkDeleteFolders}
+            onDownloadAttachment={props.onDownloadVaultAttachment}
+          />
+        </Suspense>
       </Route>
       <Route path={props.settingsAccountRoute}>
         {props.profile && (

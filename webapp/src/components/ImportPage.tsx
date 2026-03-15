@@ -13,14 +13,14 @@ import {
   type ExportRequest,
 } from '@/lib/export-formats';
 import {
-  getFileAcceptBySource,
-  IMPORT_SOURCES,
-  type BitwardenJsonInput,
-  type ImportSourceId,
-  normalizeBitwardenEncryptedAccountImport,
-  normalizeBitwardenImport,
   parseImportPayloadBySource,
 } from '@/lib/import-formats';
+import { getFileAcceptBySource, IMPORT_SOURCES, type ImportSourceId } from '@/lib/import-format-sources';
+import {
+  type BitwardenJsonInput,
+  normalizeBitwardenEncryptedAccountImport,
+  normalizeBitwardenImport,
+} from '@/lib/import-formats-bitwarden';
 import { base64ToBytes, decryptStr, hkdfExpand, pbkdf2 } from '@/lib/crypto';
 import { t } from '@/lib/i18n';
 import type { Folder } from '@/lib/types';
