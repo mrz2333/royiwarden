@@ -92,7 +92,12 @@ export default function PublicSendPage(props: PublicSendPageProps) {
         {loading && <p className="muted">{t('txt_loading')}</p>}
 
         {!loading && needPassword && (
-          <>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void loadSend(password);
+            }}
+          >
             <label className="field">
               <span>{t('txt_password')}</span>
               <div className="password-wrap">
@@ -104,10 +109,10 @@ export default function PublicSendPage(props: PublicSendPageProps) {
                 />
               </div>
             </label>
-            <button type="button" className="btn btn-primary full" disabled={busy} onClick={() => void loadSend(password)}>
+            <button type="submit" className="btn btn-primary full" disabled={busy}>
               <Lock size={14} className="btn-icon" /> {t('txt_unlock_send')}
             </button>
-          </>
+          </form>
         )}
 
         {!loading && sendData && (
