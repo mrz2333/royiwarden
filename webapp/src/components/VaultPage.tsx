@@ -5,34 +5,24 @@ import VaultEditor from '@/components/vault/VaultEditor';
 import VaultListPanel from '@/components/vault/VaultListPanel';
 import VaultSidebar from '@/components/vault/VaultSidebar';
 import {
-  CREATE_TYPE_OPTIONS,
   MOBILE_LAYOUT_QUERY,
-  TOTP_PERIOD_SECONDS,
-  TOTP_RING_CIRCUMFERENCE,
   VAULT_LIST_OVERSCAN,
   VAULT_LIST_ROW_HEIGHT,
   VAULT_SORT_STORAGE_KEY,
   cipherTypeKey,
   cipherTypeLabel,
-  copyToClipboard,
   createEmptyDraft,
   creationTimeValue,
   draftFromCipher,
   firstCipherUri,
   firstPasskeyCreationTime,
-  formatAttachmentSize,
-  formatHistoryTime,
-  formatTotp,
-  maskSecret,
-  openUri,
-  parseFieldType,
   sortTimeValue,
   type SidebarFilter,
   type VaultSortMode,
 } from '@/components/vault/vault-page-helpers';
 import { calcTotpNow } from '@/lib/crypto';
 import { computeSshFingerprint, generateDefaultSshKeyMaterial } from '@/lib/ssh';
-import { ChevronLeft, X } from 'lucide-preact';
+import { ChevronLeft } from 'lucide-preact';
 import type { Cipher, CustomFieldType, Folder, VaultDraft, VaultDraftField } from '@/lib/types';
 import { t } from '@/lib/i18n';
 

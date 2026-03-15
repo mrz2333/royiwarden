@@ -46,7 +46,10 @@ function encodePathSegments(path: string): string {
 }
 
 function trimSlashes(value: string): string {
-  return String(value || '').replace(/^\/+|\/+$/g, '');
+  let next = String(value || '');
+  while (next.startsWith('/')) next = next.slice(1);
+  while (next.endsWith('/')) next = next.slice(0, -1);
+  return next;
 }
 
 function buildJoinedPath(...segments: string[]): string {
@@ -138,7 +141,7 @@ function buildCanonicalQueryString(url: URL): string {
     return aKey.localeCompare(bKey);
   });
   return params
-    .map(([key, value]) => `${encodeURIComponent(key).replace(/%20/g, '%20')}=${encodeURIComponent(value).replace(/%20/g, '%20')}`)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join('&');
 }
 
