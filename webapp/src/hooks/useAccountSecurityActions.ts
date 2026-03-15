@@ -23,7 +23,6 @@ interface UseAccountSecurityActionsOptions {
   defaultKdfIterations: number;
   disableTotpPassword: string;
   clearDisableTotpDialog: () => void;
-  onPromptLogout: () => void;
   onLogoutNow: () => void;
   onNotify: Notify;
   onSetConfirm: (next: AppConfirmState | null) => void;
@@ -38,7 +37,6 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
     defaultKdfIterations,
     disableTotpPassword,
     clearDisableTotpDialog,
-    onPromptLogout,
     onLogoutNow,
     onNotify,
     onSetConfirm,
@@ -62,19 +60,29 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
           onNotify('error', t('txt_new_passwords_do_not_match'));
           return;
         }
-        try {
-          await changeMasterPassword(authedFetch, {
-            email: profile.email,
-            currentPassword,
-            newPassword: nextPassword,
-            currentIterations: defaultKdfIterations,
-            profileKey: profile.key,
-          });
-          onPromptLogout();
-          onNotify('success', t('txt_master_password_changed_please_login_again'));
-        } catch (error) {
-          onNotify('error', error instanceof Error ? error.message : t('txt_change_password_failed'));
-        }
+        onSetConfirm({
+          title: t('txt_change_master_password'),
+          message: t('txt_change_password_confirm_and_sign_out_all_devices'),
+          danger: true,
+          onConfirm: () => {
+            onSetConfirm(null);
+            void (async () => {
+              try {
+                await changeMasterPassword(authedFetch, {
+                  email: profile.email,
+                  currentPassword,
+                  newPassword: nextPassword,
+                  currentIterations: defaultKdfIterations,
+                  profileKey: profile.key,
+                });
+                onNotify('success', t('txt_master_password_changed_signing_out_everywhere'));
+                onLogoutNow();
+              } catch (error) {
+                onNotify('error', error instanceof Error ? error.message : t('txt_change_password_failed'));
+              }
+            })();
+          },
+        });
       },
 
       async enableTotp(secret: string, token: string) {
@@ -200,7 +208,6 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
       disableTotpPassword,
       onLogoutNow,
       onNotify,
-      onPromptLogout,
       onSetConfirm,
       profile,
       refetchAuthorizedDevices,

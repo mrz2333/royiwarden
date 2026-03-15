@@ -18,6 +18,7 @@ interface RegisterValues {
 
 interface AuthViewsProps {
   mode: 'login' | 'register' | 'locked';
+  pendingAction: 'login' | 'register' | 'unlock' | null;
   loginValues: LoginValues;
   registerValues: RegisterValues;
   unlockPassword: string;
@@ -60,6 +61,10 @@ function PasswordField(props: {
 }
 
 export default function AuthViews(props: AuthViewsProps) {
+  const loginBusy = props.pendingAction === 'login';
+  const registerBusy = props.pendingAction === 'register';
+  const unlockBusy = props.pendingAction === 'unlock';
+
   if (props.mode === 'locked') {
     return (
       <div className="auth-page">
@@ -77,12 +82,12 @@ export default function AuthViews(props: AuthViewsProps) {
               autoFocus
               onInput={props.onChangeUnlock}
             />
-            <button type="submit" className="btn btn-primary full">
+            <button type="submit" className="btn btn-primary full" disabled={unlockBusy}>
               <Unlock size={16} className="btn-icon" />
-              {t('txt_unlock')}
+              {unlockBusy ? t('txt_unlocking') : t('txt_unlock')}
             </button>
             <div className="or">{t('txt_or')}</div>
-            <button type="button" className="btn btn-secondary full" onClick={props.onLogout}>
+            <button type="button" className="btn btn-secondary full" onClick={props.onLogout} disabled={unlockBusy}>
               <LogOut size={16} className="btn-icon" />
               {t('txt_log_out')}
             </button>
@@ -143,12 +148,12 @@ export default function AuthViews(props: AuthViewsProps) {
                 }
               />
             </label>
-            <button type="submit" className="btn btn-primary full">
+            <button type="submit" className="btn btn-primary full" disabled={registerBusy}>
               <UserPlus size={16} className="btn-icon" />
-              {t('txt_create_account')}
+              {registerBusy ? t('txt_registering') : t('txt_create_account')}
             </button>
             <div className="or">{t('txt_or')}</div>
-            <button type="button" className="btn btn-secondary full" onClick={props.onGotoLogin}>
+            <button type="button" className="btn btn-secondary full" onClick={props.onGotoLogin} disabled={registerBusy}>
               <ArrowLeft size={16} className="btn-icon" />
               {t('txt_back_to_login')}
             </button>
@@ -182,12 +187,12 @@ export default function AuthViews(props: AuthViewsProps) {
             onInput={(v) => props.onChangeLogin({ ...props.loginValues, password: v })}
             autoFocus
           />
-          <button type="submit" className="btn btn-primary full">
+          <button type="submit" className="btn btn-primary full" disabled={loginBusy}>
             <LogIn size={16} className="btn-icon" />
-            {t('txt_log_in')}
+            {loginBusy ? t('txt_logging_in') : t('txt_log_in')}
           </button>
           <div className="or">{t('txt_or')}</div>
-          <button type="button" className="btn btn-secondary full" onClick={props.onGotoRegister}>
+          <button type="button" className="btn btn-secondary full" onClick={props.onGotoRegister} disabled={loginBusy}>
             <UserPlus size={16} className="btn-icon" />
             {t('txt_create_account')}
           </button>

@@ -59,6 +59,7 @@ const SIGNALR_UPDATE_TYPE_LOG_OUT = 11;
 const SIGNALR_UPDATE_TYPE_DEVICE_STATUS = 12;
 
 export default function App() {
+  const [pendingAuthAction, setPendingAuthAction] = useState<'login' | 'register' | 'unlock' | null>(null);
   const [location, navigate] = useLocation();
   const [phase, setPhase] = useState<AppPhase>('loading');
   const [session, setSessionState] = useState<SessionState | null>(null);
@@ -210,10 +211,12 @@ export default function App() {
   }
 
   async function handleLogin() {
+    if (pendingAuthAction) return;
     if (!loginValues.email || !loginValues.password) {
       pushToast('error', t('txt_please_input_email_and_password'));
       return;
     }
+    setPendingAuthAction('login');
     try {
       const result = await performPasswordLogin(loginValues.email, loginValues.password, defaultKdfIterations);
       if (result.kind === 'success') {
@@ -229,6 +232,8 @@ export default function App() {
       pushToast('error', result.message || t('txt_login_failed'));
     } catch (error) {
       pushToast('error', error instanceof Error ? error.message : t('txt_login_failed'));
+    } finally {
+      setPendingAuthAction(null);
     }
   }
 
@@ -273,6 +278,7 @@ export default function App() {
   }
 
   async function handleRegister() {
+    if (pendingAuthAction) return;
     if (!registerValues.email || !registerValues.password) {
       pushToast('error', t('txt_please_input_email_and_password'));
       return;
@@ -285,29 +291,36 @@ export default function App() {
       pushToast('error', t('txt_passwords_do_not_match'));
       return;
     }
-    const resp = await performRegistration({
-      email: registerValues.email,
-      name: registerValues.name,
-      password: registerValues.password,
-      inviteCode: registerValues.inviteCode,
-      fallbackIterations: defaultKdfIterations,
-    });
-    if (!resp.ok) {
-      pushToast('error', resp.message);
-      return;
+    setPendingAuthAction('register');
+    try {
+      const resp = await performRegistration({
+        email: registerValues.email,
+        name: registerValues.name,
+        password: registerValues.password,
+        inviteCode: registerValues.inviteCode,
+        fallbackIterations: defaultKdfIterations,
+      });
+      if (!resp.ok) {
+        pushToast('error', resp.message);
+        return;
+      }
+      setLoginValues({ email: registerValues.email.toLowerCase(), password: '' });
+      setPhase('login');
+      navigate('/login');
+      pushToast('success', t('txt_registration_succeeded_please_sign_in'));
+    } finally {
+      setPendingAuthAction(null);
     }
-    setLoginValues({ email: registerValues.email.toLowerCase(), password: '' });
-    setPhase('login');
-    navigate('/login');
-    pushToast('success', t('txt_registration_succeeded_please_sign_in'));
   }
 
   async function handleUnlock() {
+    if (pendingAuthAction) return;
     if (!session || !profile) return;
     if (!unlockPassword) {
       pushToast('error', t('txt_please_input_master_password'));
       return;
     }
+    setPendingAuthAction('unlock');
     try {
       const nextSession = await performUnlock(session, profile, unlockPassword, defaultKdfIterations);
       setSession(nextSession);
@@ -318,6 +331,8 @@ export default function App() {
       pushToast('success', t('txt_unlocked'));
     } catch {
       pushToast('error', t('txt_unlock_failed_master_password_is_incorrect'));
+    } finally {
+      setPendingAuthAction(null);
     }
   }
 
@@ -749,7 +764,6 @@ export default function App() {
       setDisableTotpOpen(false);
       setDisableTotpPassword('');
     },
-    onPromptLogout: handleLogout,
     onLogoutNow: logoutNow,
     onNotify: pushToast,
     onSetConfirm: setConfirm,
@@ -937,6 +951,7 @@ export default function App() {
       <>
         <AuthViews
           mode={phase}
+          pendingAction={pendingAuthAction}
           loginValues={loginValues}
           registerValues={registerValues}
           unlockPassword={unlockPassword}
