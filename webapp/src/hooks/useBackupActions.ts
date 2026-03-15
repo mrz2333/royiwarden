@@ -50,8 +50,8 @@ export default function useBackupActions(options: UseBackupActionsOptions) {
         return listRemoteBackups(authedFetch, destinationId, path);
       },
 
-      async downloadRemoteBackup(destinationId: string, path: string) {
-        const payload = await downloadRemoteBackup(authedFetch, destinationId, path);
+      async downloadRemoteBackup(destinationId: string, path: string, onProgress?: (percent: number | null) => void) {
+        const payload = await downloadRemoteBackup(authedFetch, destinationId, path, onProgress);
         downloadBytesAsFile(payload.bytes, payload.fileName, payload.mimeType);
       },
 

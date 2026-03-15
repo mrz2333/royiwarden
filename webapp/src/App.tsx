@@ -46,6 +46,7 @@ import useBackupActions from '@/hooks/useBackupActions';
 import useVaultSendActions from '@/hooks/useVaultSendActions';
 import { useToastManager } from '@/hooks/useToastManager';
 import { t } from '@/lib/i18n';
+import { APP_NOTIFY_EVENT, type AppNotifyDetail } from '@/lib/app-notify';
 import type { AppPhase, Cipher, Folder as VaultFolder, Profile, Send, SessionState } from '@/lib/types';
 
 const IMPORT_ROUTE = '/help/import-export';
@@ -95,6 +96,17 @@ export default function App() {
   const silentRefreshVaultRef = useRef<() => Promise<void>>(async () => {});
   const refreshAuthorizedDevicesRef = useRef<() => Promise<void>>(async () => {});
   const { toasts, pushToast, removeToast } = useToastManager();
+
+  useEffect(() => {
+    const handleAppNotify = (event: Event) => {
+      const detail = (event as CustomEvent<AppNotifyDetail>).detail;
+      if (!detail?.text) return;
+      pushToast(detail.type, detail.text);
+    };
+
+    window.addEventListener(APP_NOTIFY_EVENT, handleAppNotify as EventListener);
+    return () => window.removeEventListener(APP_NOTIFY_EVENT, handleAppNotify as EventListener);
+  }, [pushToast]);
 
   useEffect(() => {
     const syncInviteFromUrl = () => {
@@ -873,6 +885,8 @@ export default function App() {
     onDeleteFolder: vaultSendActions.deleteFolder,
     onBulkDeleteFolders: vaultSendActions.bulkDeleteFolders,
     onDownloadVaultAttachment: vaultSendActions.downloadVaultAttachment,
+    downloadingAttachmentKey: vaultSendActions.downloadingAttachmentKey,
+    attachmentDownloadPercent: vaultSendActions.attachmentDownloadPercent,
     onRefreshVault: vaultSendActions.refreshVault,
     onCreateSend: vaultSendActions.createSend,
     onUpdateSend: vaultSendActions.updateSend,

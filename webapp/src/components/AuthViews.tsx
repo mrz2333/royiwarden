@@ -39,6 +39,7 @@ function PasswordField(props: {
   value: string;
   onInput: (v: string) => void;
   autoFocus?: boolean;
+  autoComplete?: string;
 }) {
   const [show, setShow] = useState(false);
   return (
@@ -51,6 +52,7 @@ function PasswordField(props: {
           value={props.value}
           onInput={(e) => props.onInput((e.currentTarget as HTMLInputElement).value)}
           autoFocus={props.autoFocus}
+          autoComplete={props.autoComplete}
         />
         <button type="button" className="eye-btn" onClick={() => setShow((v) => !v)}>
           {show ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -76,10 +78,12 @@ export default function AuthViews(props: AuthViewsProps) {
             }}
           >
             <p className="muted standalone-muted">{props.emailForLock}</p>
+            <input type="text" value={props.emailForLock} autoComplete="username" readOnly hidden tabIndex={-1} aria-hidden="true" />
             <PasswordField
               label={t('txt_master_password')}
               value={props.unlockPassword}
               autoFocus
+              autoComplete="current-password"
               onInput={props.onChangeUnlock}
             />
             <button type="submit" className="btn btn-primary full" disabled={unlockBusy}>
@@ -112,6 +116,7 @@ export default function AuthViews(props: AuthViewsProps) {
               <input
                 className="input"
                 value={props.registerValues.name}
+                autoComplete="name"
                 onInput={(e) =>
                   props.onChangeRegister({ ...props.registerValues, name: (e.currentTarget as HTMLInputElement).value })
                 }
@@ -123,6 +128,7 @@ export default function AuthViews(props: AuthViewsProps) {
                 className="input"
                 type="email"
                 value={props.registerValues.email}
+                autoComplete="email"
                 onInput={(e) =>
                   props.onChangeRegister({ ...props.registerValues, email: (e.currentTarget as HTMLInputElement).value })
                 }
@@ -131,11 +137,13 @@ export default function AuthViews(props: AuthViewsProps) {
             <PasswordField
               label={t('txt_master_password')}
               value={props.registerValues.password}
+              autoComplete="new-password"
               onInput={(v) => props.onChangeRegister({ ...props.registerValues, password: v })}
             />
             <PasswordField
               label={t('txt_confirm_master_password')}
               value={props.registerValues.password2}
+              autoComplete="new-password"
               onInput={(v) => props.onChangeRegister({ ...props.registerValues, password2: v })}
             />
             <label className="field">
@@ -143,6 +151,7 @@ export default function AuthViews(props: AuthViewsProps) {
               <input
                 className="input"
                 value={props.registerValues.inviteCode}
+                autoComplete="off"
                 onInput={(e) =>
                   props.onChangeRegister({ ...props.registerValues, inviteCode: (e.currentTarget as HTMLInputElement).value })
                 }
@@ -178,12 +187,14 @@ export default function AuthViews(props: AuthViewsProps) {
               className="input"
               type="email"
               value={props.loginValues.email}
+              autoComplete="username"
               onInput={(e) => props.onChangeLogin({ ...props.loginValues, email: (e.currentTarget as HTMLInputElement).value })}
             />
           </label>
           <PasswordField
             label={t('txt_master_password')}
             value={props.loginValues.password}
+            autoComplete="current-password"
             onInput={(v) => props.onChangeLogin({ ...props.loginValues, password: v })}
             autoFocus
           />

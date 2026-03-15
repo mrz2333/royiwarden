@@ -264,6 +264,9 @@ export interface WebConfigResponse {
   defaultKdfIterations?: number;
   jwtUnsafeReason?: 'missing' | 'default' | 'too_short' | null;
   jwtSecretMinLength?: number;
+  _icon_service_url?: string;
+  _icon_service_csp?: string;
+  iconServiceUrl?: string;
 }
 
 export interface TokenSuccess {

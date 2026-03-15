@@ -8,7 +8,6 @@ import type { CiphersImportPayload } from '@/lib/api/vault';
 import {
   type EncryptedJsonMode,
   EXPORT_FORMATS,
-  type ExportDownloadPayload,
   type ExportFormatId,
   type ExportRequest,
 } from '@/lib/export-formats';
@@ -48,7 +47,7 @@ interface ImportPageProps {
   accountKeys?: { encB64: string; macB64: string } | null;
   onNotify: (type: 'success' | 'error', text: string) => void;
   folders: Folder[];
-  onExport: (request: ExportRequest) => Promise<ExportDownloadPayload>;
+  onExport: (request: ExportRequest) => Promise<void>;
 }
 
 export interface ImportResultSummary {
@@ -539,23 +538,13 @@ export default function ImportPage({ onImport, onImportEncryptedRaw, accountKeys
 
     setIsExporting(true);
     try {
-      const payload = await onExport({
+      await onExport({
         format: exportFormat,
         encryptedJsonMode: exportNeedsMode ? encryptedJsonMode : undefined,
         filePassword,
         zipPassword: exportIsZip ? zipPass : '',
         masterPassword,
       });
-      const blobBytes = Uint8Array.from(payload.bytes);
-      const blob = new Blob([blobBytes], { type: payload.mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = payload.fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
       onNotify('success', t('txt_export_completed'));
     } catch (error) {
       const message = error instanceof Error ? error.message : t('txt_export_failed');

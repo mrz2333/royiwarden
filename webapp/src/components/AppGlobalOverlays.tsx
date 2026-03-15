@@ -64,7 +64,7 @@ export default function AppGlobalOverlays(props: AppGlobalOverlaysProps) {
       >
         <label className="field">
           <span>{t('txt_totp_code')}</span>
-          <input className="input" value={props.totpCode} onInput={(e) => props.onTotpCodeChange((e.currentTarget as HTMLInputElement).value)} />
+          <input className="input" value={props.totpCode} autoComplete="one-time-code" onInput={(e) => props.onTotpCodeChange((e.currentTarget as HTMLInputElement).value)} />
         </label>
         <label className="check-line" style={{ marginBottom: 0 }}>
           <input type="checkbox" checked={props.rememberDevice} onChange={(e) => props.onRememberDeviceChange((e.currentTarget as HTMLInputElement).checked)} />
@@ -85,7 +85,7 @@ export default function AppGlobalOverlays(props: AppGlobalOverlaysProps) {
       >
         <label className="field">
           <span>{t('txt_master_password')}</span>
-          <input className="input" type="password" value={props.disableTotpPassword} onInput={(e) => props.onDisableTotpPasswordChange((e.currentTarget as HTMLInputElement).value)} />
+          <input className="input" type="password" autoComplete="current-password" value={props.disableTotpPassword} onInput={(e) => props.onDisableTotpPasswordChange((e.currentTarget as HTMLInputElement).value)} />
         </label>
       </ConfirmDialog>
 

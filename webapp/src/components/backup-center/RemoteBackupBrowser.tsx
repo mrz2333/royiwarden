@@ -13,6 +13,7 @@ interface RemoteBackupBrowserProps {
   currentPage: number;
   totalPages: number;
   downloadingRemotePath: string;
+  downloadingRemotePercent: number | null;
   restoringRemotePath: string;
   deletingRemotePath: string;
   onRefresh: () => void;
@@ -24,6 +25,13 @@ interface RemoteBackupBrowserProps {
 }
 
 export function RemoteBackupBrowser(props: RemoteBackupBrowserProps) {
+  const getDownloadLabel = (path: string) => {
+    if (props.downloadingRemotePath !== path) return t('txt_backup_remote_download');
+    return props.downloadingRemotePercent == null
+      ? t('txt_downloading')
+      : t('txt_downloading_percent', { percent: props.downloadingRemotePercent });
+  };
+
   return (
     <>
       <div className="backup-divider" />
@@ -98,7 +106,7 @@ export function RemoteBackupBrowser(props: RemoteBackupBrowserProps) {
                         <>
                           <button type="button" className="btn btn-secondary small" disabled={props.disableWhileBusy || props.downloadingRemotePath === item.path || !isZipCandidate(item)} onClick={() => props.onDownload(item.path)}>
                             <Download size={14} className="btn-icon" />
-                            {props.downloadingRemotePath === item.path ? t('txt_backup_remote_downloading') : t('txt_backup_remote_download')}
+                            {getDownloadLabel(item.path)}
                           </button>
                           <button type="button" className="btn btn-primary small" disabled={props.disableWhileBusy || props.restoringRemotePath === item.path || !isZipCandidate(item)} onClick={() => props.onRestore(item.path)}>
                             <RotateCcw size={14} className="btn-icon" />

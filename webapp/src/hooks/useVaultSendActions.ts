@@ -1,4 +1,4 @@
-import { useMemo } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import type { ImportAttachmentFile, ImportResultSummary } from '@/components/ImportPage';
 import type { ExportRequest, ZipAttachmentEntry } from '@/lib/export-formats';
 import {
@@ -91,6 +91,8 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
     refetchSends,
     onNotify,
   } = options;
+  const [downloadingAttachmentKey, setDownloadingAttachmentKey] = useState('');
+  const [attachmentDownloadPercent, setAttachmentDownloadPercent] = useState<number | null>(null);
 
   return useMemo(() => {
     const refetchVault = async () => {
@@ -189,13 +191,19 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
 
       async downloadVaultAttachment(cipher: Cipher, attachmentId: string) {
         if (!session) return;
+        const downloadKey = `${cipher.id}:${attachmentId}`;
+        setDownloadingAttachmentKey(downloadKey);
+        setAttachmentDownloadPercent(null);
         try {
-          const file = await downloadCipherAttachmentDecrypted(authedFetch, session, cipher, attachmentId);
+          const file = await downloadCipherAttachmentDecrypted(authedFetch, session, cipher, attachmentId, setAttachmentDownloadPercent);
           const fileName = String(file.fileName || '').trim() || 'attachment.bin';
           downloadBytesAsFile(file.bytes, fileName, 'application/octet-stream');
         } catch (error) {
           onNotify('error', error instanceof Error ? error.message : t('txt_download_failed'));
           throw error;
+        } finally {
+          setDownloadingAttachmentKey('');
+          setAttachmentDownloadPercent(null);
         }
       },
 
@@ -686,10 +694,14 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
         if (!result) throw new Error(t('txt_unsupported_export_format'));
         downloadBytesAsFile(result.bytes, result.fileName, result.mimeType);
       },
+      downloadingAttachmentKey,
+      attachmentDownloadPercent,
     };
   }, [
+    attachmentDownloadPercent,
     authedFetch,
     defaultKdfIterations,
+    downloadingAttachmentKey,
     encryptedCiphers,
     encryptedFolders,
     importAuthedFetch,

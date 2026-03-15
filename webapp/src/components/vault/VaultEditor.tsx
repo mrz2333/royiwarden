@@ -16,6 +16,8 @@ interface VaultEditorProps {
   attachmentQueue: File[];
   attachmentInputRef: RefObject<HTMLInputElement>;
   localError: string;
+  downloadingAttachmentKey: string;
+  attachmentDownloadPercent: number | null;
   onUpdateDraft: (patch: Partial<VaultDraft>) => void;
   onSeedSshDefaults: (force?: boolean) => void;
   onUpdateSshPublicKey: (value: string) => void;
@@ -33,6 +35,14 @@ interface VaultEditorProps {
 }
 
 export default function VaultEditor(props: VaultEditorProps) {
+  const formatDownloadLabel = (attachmentId: string) => {
+    const downloadKey = `${props.selectedCipher?.id || ''}:${attachmentId}`;
+    if (props.downloadingAttachmentKey !== downloadKey) return t('txt_download');
+    return props.attachmentDownloadPercent == null
+      ? t('txt_downloading')
+      : t('txt_downloading_percent', { percent: props.attachmentDownloadPercent });
+  };
+
   return (
     <>
       <div className="card">
@@ -162,17 +172,32 @@ export default function VaultEditor(props: VaultEditorProps) {
         <div className="card">
           <div className="section-head">
             <h4>{t('txt_ssh_key')}</h4>
-            <button type="button" className="btn btn-secondary small" onClick={() => props.onSeedSshDefaults(true)}>
+            <button
+              type="button"
+              className="btn btn-secondary small"
+              disabled={!props.isCreating}
+              onClick={() => props.onSeedSshDefaults(true)}
+            >
               <RefreshCw size={14} className="btn-icon" /> {t('txt_regenerate')}
             </button>
           </div>
           <label className="field">
             <span>{t('txt_private_key')}</span>
-            <textarea className="input textarea" value={props.draft.sshPrivateKey} onInput={(e) => props.onUpdateDraft({ sshPrivateKey: (e.currentTarget as HTMLTextAreaElement).value })} />
+            <textarea
+              className="input textarea"
+              value={props.draft.sshPrivateKey}
+              disabled={!props.isCreating}
+              onInput={(e) => props.onUpdateDraft({ sshPrivateKey: (e.currentTarget as HTMLTextAreaElement).value })}
+            />
           </label>
           <label className="field">
             <span>{t('txt_public_key')}</span>
-            <textarea className="input textarea" value={props.draft.sshPublicKey} onInput={(e) => props.onUpdateSshPublicKey((e.currentTarget as HTMLTextAreaElement).value)} />
+            <textarea
+              className="input textarea"
+              value={props.draft.sshPublicKey}
+              disabled={!props.isCreating}
+              onInput={(e) => props.onUpdateSshPublicKey((e.currentTarget as HTMLTextAreaElement).value)}
+            />
           </label>
           <label className="field">
             <span>{t('txt_fingerprint')}</span>
@@ -212,8 +237,13 @@ export default function VaultEditor(props: VaultEditorProps) {
                     </div>
                   </div>
                   <div className="kv-actions">
-                    <button type="button" className="btn btn-secondary small" disabled={props.busy || removed} onClick={() => props.onDownloadAttachment(props.selectedCipher as Cipher, attachmentId)}>
-                      <Download size={14} className="btn-icon" /> {t('txt_download')}
+                    <button
+                      type="button"
+                      className="btn btn-secondary small"
+                      disabled={props.busy || removed || props.downloadingAttachmentKey === `${props.selectedCipher?.id || ''}:${attachmentId}`}
+                      onClick={() => props.onDownloadAttachment(props.selectedCipher as Cipher, attachmentId)}
+                    >
+                      <Download size={14} className="btn-icon" /> {formatDownloadLabel(attachmentId)}
                     </button>
                     <button type="button" className="btn btn-secondary small" disabled={props.busy} onClick={() => props.onToggleExistingAttachmentRemoval(attachmentId)}>
                       <X size={14} className="btn-icon" />

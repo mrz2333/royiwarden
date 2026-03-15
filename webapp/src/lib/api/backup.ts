@@ -15,6 +15,7 @@ import {
   parseJson,
   type AuthedFetch,
 } from './shared';
+import { readResponseBytesWithProgress } from '../download';
 
 export type {
   BackupDestinationConfig,
@@ -190,7 +191,8 @@ export async function listRemoteBackups(
 export async function downloadRemoteBackup(
   authedFetch: AuthedFetch,
   destinationId: string,
-  path: string
+  path: string,
+  onProgress?: (percent: number | null) => void
 ): Promise<AdminBackupExportPayload> {
   const params = new URLSearchParams();
   params.set('destinationId', destinationId);
@@ -199,7 +201,7 @@ export async function downloadRemoteBackup(
   if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_remote_download_failed')));
   const mimeType = String(resp.headers.get('Content-Type') || 'application/zip').trim() || 'application/zip';
   const fileName = parseContentDispositionFileName(resp, 'nodewarden_remote_backup.zip');
-  const bytes = new Uint8Array(await resp.arrayBuffer());
+  const bytes = await readResponseBytesWithProgress(resp, (progress) => onProgress?.(progress.percent));
   return { fileName, mimeType, bytes };
 }
 

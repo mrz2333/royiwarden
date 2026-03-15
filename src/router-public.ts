@@ -57,68 +57,60 @@ function handleNwFavicon(): Response {
   });
 }
 
-function isValidIconHostname(hostname: string): boolean {
-  if (!hostname) return false;
-  if (hostname.length > 253) return false;
-
-  const normalized = hostname.toLowerCase().replace(/\.$/, '');
-  const domainPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/;
-  const ipv4Pattern = /^(?:\d{1,3}\.){3}\d{1,3}$/;
-
-  if (domainPattern.test(normalized)) return true;
-  if (!ipv4Pattern.test(normalized)) return false;
-
-  const parts = normalized.split('.');
-  return parts.every((p) => {
-    const n = Number(p);
-    return Number.isInteger(n) && n >= 0 && n <= 255;
-  });
+function buildIconServiceBase(origin: string): string {
+  return `${origin}/icons`;
 }
 
-async function handleGetIcon(env: Env, hostname: string): Promise<Response> {
+function buildIconServiceTemplate(origin: string): string {
+  return `${buildIconServiceBase(origin)}/{}/icon.png`;
+}
+
+function buildIconServiceCsp(origin: string): string {
+  return `img-src 'self' data: ${origin}`;
+}
+
+function normalizeIconHost(rawHost: string): string | null {
+  const decoded = decodeURIComponent(String(rawHost || '').trim()).toLowerCase().replace(/\.+$/, '');
+  if (!decoded || decoded.includes('/') || decoded.includes('\\')) return null;
   try {
-    void env;
-    const normalizedHostname = hostname.toLowerCase();
-    if (!isValidIconHostname(normalizedHostname)) {
-      return new Response(null, { status: 204 });
-    }
+    const parsed = new URL(`https://${decoded}`);
+    return parsed.hostname === decoded ? decoded : null;
+  } catch {
+    return null;
+  }
+}
 
-    const cache = caches.default;
-    const cacheKey = new Request(`https://nodewarden-icons.local/icons/${normalizedHostname}/icon.png`, { method: 'GET' });
-    const cached = await cache.match(cacheKey);
-    if (cached) return cached;
+async function handleWebsiteIcon(host: string): Promise<Response> {
+  const normalizedHost = normalizeIconHost(host);
+  if (!normalizedHost) return handleNwFavicon();
 
-    const resp = await fetch(`https://favicon.im/${normalizedHostname}`, {
-      headers: { 'User-Agent': 'NodeWarden/1.0' },
+  const upstream = `https://favicon.im/${encodeURIComponent(normalizedHost)}`;
+  try {
+    const resp = await fetch(upstream, {
       redirect: 'follow',
       cf: {
         cacheEverything: true,
         cacheTtl: LIMITS.cache.iconTtlSeconds,
       },
-    });
+    } as RequestInit & { cf: { cacheEverything: boolean; cacheTtl: number } });
 
-    if (!resp.ok) return new Response(null, { status: 204 });
+    if (!resp.ok) return handleNwFavicon();
+    const contentType = String(resp.headers.get('Content-Type') || '').toLowerCase();
+    if (!contentType.startsWith('image/')) return handleNwFavicon();
 
-    const body = await resp.arrayBuffer();
-    if (body.byteLength === 0) {
-      return new Response(null, { status: 204 });
-    }
-
-    const iconResponse = new Response(body, {
+    return new Response(resp.body, {
       status: 200,
       headers: {
         'Content-Type': resp.headers.get('Content-Type') || 'image/png',
         'Cache-Control': `public, max-age=${LIMITS.cache.iconTtlSeconds}`,
       },
     });
-    await cache.put(cacheKey, iconResponse.clone());
-    return iconResponse;
   } catch {
-    return new Response(null, { status: 204 });
+    return handleNwFavicon();
   }
 }
 
-export function buildWebConfigResponse(env: Env) {
+export function buildWebConfigResponse(env: Env, origin: string) {
   const secret = (env.JWT_SECRET || '').trim();
   const jwtUnsafeReason =
     !secret
@@ -133,6 +125,9 @@ export function buildWebConfigResponse(env: Env) {
     defaultKdfIterations: LIMITS.auth.defaultKdfIterations,
     jwtUnsafeReason,
     jwtSecretMinLength: LIMITS.auth.jwtSecretMinLength,
+    _icon_service_url: buildIconServiceTemplate(origin),
+    _icon_service_csp: buildIconServiceCsp(origin),
+    iconServiceUrl: buildIconServiceTemplate(origin),
   };
 }
 
@@ -152,7 +147,7 @@ export async function handlePublicRoute(
   if (path === '/api/web/config' && method === 'GET') {
     const blocked = await enforcePublicRateLimit('public-read', LIMITS.rateLimit.publicReadRequestsPerMinute);
     if (blocked) return blocked;
-    return jsonResponse(buildWebConfigResponse(env));
+    return jsonResponse(buildWebConfigResponse(env, new URL(request.url).origin));
   }
 
   if (path === '/.well-known/appspecific/com.chrome.devtools.json' && method === 'GET') {
@@ -170,8 +165,8 @@ export async function handlePublicRoute(
   }
 
   const iconMatch = path.match(/^\/icons\/([^/]+)\/icon\.png$/i);
-  if (iconMatch) {
-    return handleGetIcon(env, iconMatch[1]);
+  if (iconMatch && method === 'GET') {
+    return handleWebsiteIcon(iconMatch[1]);
   }
 
   const publicAttachmentMatch = path.match(/^\/api\/attachments\/([a-f0-9-]+)\/([a-f0-9-]+)$/i);
@@ -250,8 +245,11 @@ export async function handlePublicRoute(
         api: origin + '/api',
         identity: origin + '/identity',
         notifications: origin + '/notifications',
+        icons: origin,
         sso: '',
       },
+      _icon_service_url: buildIconServiceTemplate(origin),
+      _icon_service_csp: buildIconServiceCsp(origin),
       featureStates: {
         'duo-redirect': true,
         'email-verification': true,

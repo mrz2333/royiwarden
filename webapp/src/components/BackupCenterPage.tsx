@@ -35,7 +35,7 @@ interface BackupCenterPageProps {
   onSaveSettings: (settings: AdminBackupSettings) => Promise<AdminBackupSettings>;
   onRunRemoteBackup: (destinationId?: string | null) => Promise<AdminBackupRunResponse>;
   onListRemoteBackups: (destinationId: string, path: string) => Promise<RemoteBackupBrowserResponse>;
-  onDownloadRemoteBackup: (destinationId: string, path: string) => Promise<void>;
+  onDownloadRemoteBackup: (destinationId: string, path: string, onProgress?: (percent: number | null) => void) => Promise<void>;
   onDeleteRemoteBackup: (destinationId: string, path: string) => Promise<void>;
   onRestoreRemoteBackup: (destinationId: string, path: string, replaceExisting?: boolean) => Promise<void>;
   onNotify: (type: 'success' | 'error', text: string) => void;
@@ -54,6 +54,7 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   const [runningRemoteBackup, setRunningRemoteBackup] = useState(false);
   const [loadingRemoteBrowser, setLoadingRemoteBrowser] = useState(false);
   const [downloadingRemotePath, setDownloadingRemotePath] = useState('');
+  const [downloadingRemotePercent, setDownloadingRemotePercent] = useState<number | null>(null);
   const [restoringRemotePath, setRestoringRemotePath] = useState('');
   const [deletingRemotePath, setDeletingRemotePath] = useState('');
   const [localError, setLocalError] = useState('');
@@ -367,15 +368,17 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   async function handleDownloadRemote(path: string) {
     if (!savedSelectedDestination) return;
     setDownloadingRemotePath(path);
+    setDownloadingRemotePercent(null);
     setLocalError('');
     try {
-      await props.onDownloadRemoteBackup(savedSelectedDestination.id, path);
+      await props.onDownloadRemoteBackup(savedSelectedDestination.id, path, setDownloadingRemotePercent);
     } catch (error) {
       const message = error instanceof Error ? error.message : t('txt_backup_remote_download_failed');
       setLocalError(message);
       props.onNotify('error', message);
     } finally {
       setDownloadingRemotePath('');
+      setDownloadingRemotePercent(null);
     }
   }
 
@@ -479,6 +482,7 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
         remoteBrowserTotalPages={remoteBrowserTotalPages}
         loadingRemoteBrowser={loadingRemoteBrowser}
         downloadingRemotePath={downloadingRemotePath}
+        downloadingRemotePercent={downloadingRemotePercent}
         restoringRemotePath={restoringRemotePath}
         deletingRemotePath={deletingRemotePath}
         onSaveSettings={() => void handleSaveSettings()}

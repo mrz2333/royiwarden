@@ -55,6 +55,8 @@ interface VaultPageProps {
   onDeleteFolder: (folderId: string) => Promise<void>;
   onBulkDeleteFolders: (folderIds: string[]) => Promise<void>;
   onDownloadAttachment: (cipher: Cipher, attachmentId: string) => Promise<void>;
+  downloadingAttachmentKey: string;
+  attachmentDownloadPercent: number | null;
 }
 
 
@@ -793,6 +795,8 @@ function folderName(id: string | null | undefined): string {
               onToggleExistingAttachmentRemoval={toggleExistingAttachmentRemoval}
               onRemoveQueuedAttachment={removeQueuedAttachment}
               onDownloadAttachment={(cipher, attachmentId) => void props.onDownloadAttachment(cipher, attachmentId)}
+              downloadingAttachmentKey={props.downloadingAttachmentKey}
+              attachmentDownloadPercent={props.attachmentDownloadPercent}
               onPatchDraftCustomField={patchDraftCustomField}
               onUpdateDraftCustomFields={updateDraftCustomFields}
               onOpenFieldModal={() => setFieldModalOpen(true)}
@@ -815,6 +819,8 @@ function folderName(id: string | null | undefined): string {
               onToggleShowPassword={() => setShowPassword((value) => !value)}
               onToggleHiddenField={(index) => setHiddenFieldVisibleMap((prev) => ({ ...prev, [index]: !prev[index] }))}
               onDownloadAttachment={(cipher, attachmentId) => void props.onDownloadAttachment(cipher, attachmentId)}
+              downloadingAttachmentKey={props.downloadingAttachmentKey}
+              attachmentDownloadPercent={props.attachmentDownloadPercent}
               onStartEdit={startEdit}
               onDelete={setPendingDelete}
             />

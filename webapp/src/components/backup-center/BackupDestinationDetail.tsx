@@ -27,6 +27,7 @@ interface BackupDestinationDetailProps {
   remoteBrowserTotalPages: number;
   loadingRemoteBrowser: boolean;
   downloadingRemotePath: string;
+  downloadingRemotePercent: number | null;
   restoringRemotePath: string;
   deletingRemotePath: string;
   onSaveSettings: () => void;
@@ -511,6 +512,7 @@ export function BackupDestinationDetail(props: BackupDestinationDetailProps) {
             currentPage={props.remoteBrowserCurrentPage}
             totalPages={props.remoteBrowserTotalPages}
             downloadingRemotePath={props.downloadingRemotePath}
+            downloadingRemotePercent={props.downloadingRemotePercent}
             restoringRemotePath={props.restoringRemotePath}
             deletingRemotePath={props.deletingRemotePath}
             onRefresh={props.onRefreshRemoteBrowser}

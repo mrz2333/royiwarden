@@ -37,6 +37,7 @@ import {
   handleGetSends,
   handleGetSend,
   handleCreateSend,
+  handleCreateFileSendV2,
   handleGetSendFileUpload,
   handleUploadSendFile,
   handleUpdateSend,
@@ -215,6 +216,10 @@ export async function handleAuthenticatedRoute(
     if (method === 'GET') return handleGetSends(request, env, userId);
     if (method === 'POST') return handleCreateSend(request, env, userId);
     return null;
+  }
+
+  if (path === '/api/sends/file/v2' && method === 'POST') {
+    return handleCreateFileSendV2(request, env, userId);
   }
 
   if (path === '/api/sends/delete' && method === 'POST') {

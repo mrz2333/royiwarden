@@ -14,6 +14,7 @@ import {
   parseJson,
   type AuthedFetch,
 } from './shared';
+import { readResponseBytesWithProgress } from '../download';
 
 export async function getFolders(authedFetch: AuthedFetch): Promise<Folder[]> {
   const resp = await authedFetch('/api/folders');
@@ -331,7 +332,8 @@ export async function downloadCipherAttachmentDecrypted(
   authedFetch: AuthedFetch,
   session: SessionState,
   cipher: Cipher,
-  attachmentId: string
+  attachmentId: string,
+  onProgress?: (percent: number | null) => void
 ): Promise<{ fileName: string; bytes: Uint8Array }> {
   if (!session.symEncKey || !session.symMacKey) throw new Error('Vault key unavailable');
   const cid = String(cipher?.id || '').trim();
@@ -341,7 +343,7 @@ export async function downloadCipherAttachmentDecrypted(
   const info = await getAttachmentDownloadInfo(authedFetch, cid, aid);
   const rawResp = await fetch(info.url, { cache: 'no-store' });
   if (!rawResp.ok) throw new Error('Download attachment failed');
-  const encryptedBytes = new Uint8Array(await rawResp.arrayBuffer());
+  const encryptedBytes = await readResponseBytesWithProgress(rawResp, (progress) => onProgress?.(progress.percent));
 
   const userEnc = base64ToBytes(session.symEncKey);
   const userMac = base64ToBytes(session.symMacKey);

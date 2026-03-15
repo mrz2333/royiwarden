@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Download, Eye, Lock } from 'lucide-preact';
 import { accessPublicSend, accessPublicSendFile, decryptPublicSend, decryptPublicSendFileBytes } from '@/lib/api/send';
+import { downloadBytesAsFile, readResponseBytesWithProgress } from '@/lib/download';
 import StandalonePageFrame from '@/components/StandalonePageFrame';
 import { t } from '@/lib/i18n';
 
@@ -16,6 +17,7 @@ export default function PublicSendPage(props: PublicSendPageProps) {
   const [error, setError] = useState('');
   const [sendData, setSendData] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
 
   async function loadSend(pass?: string): Promise<void> {
     setBusy(true);
@@ -48,12 +50,13 @@ export default function PublicSendPage(props: PublicSendPageProps) {
   async function downloadFile(): Promise<void> {
     if (!sendData?.id || !sendData?.file?.id) return;
     setBusy(true);
+    setDownloadPercent(null);
     setError('');
     try {
       const url = await accessPublicSendFile(sendData.id, sendData.file.id, props.keyPart, password || undefined);
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(t('txt_download_failed'));
-      const encryptedBytes = await resp.arrayBuffer();
+      const encryptedBytes = await readResponseBytesWithProgress(resp, (progress) => setDownloadPercent(progress.percent));
       let blob: Blob;
       if (props.keyPart) {
         try {
@@ -66,19 +69,17 @@ export default function PublicSendPage(props: PublicSendPageProps) {
       } else {
         blob = new Blob([encryptedBytes], { type: 'application/octet-stream' });
       }
-      const obj = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = obj;
-      a.download = sendData.decFileName || sendData.file?.fileName || t('txt_send_file');
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(obj);
+      downloadBytesAsFile(
+        new Uint8Array(await blob.arrayBuffer()),
+        sendData.decFileName || sendData.file?.fileName || t('txt_send_file'),
+        'application/octet-stream'
+      );
     } catch (e) {
       const err = e as Error;
       setError(err.message || t('txt_download_failed'));
     } finally {
       setBusy(false);
+      setDownloadPercent(null);
     }
   }
 
@@ -105,6 +106,7 @@ export default function PublicSendPage(props: PublicSendPageProps) {
                   className="input"
                   type="password"
                   value={password}
+                  autoComplete="current-password"
                   onInput={(e) => setPassword((e.currentTarget as HTMLInputElement).value)}
                 />
               </div>
@@ -129,7 +131,7 @@ export default function PublicSendPage(props: PublicSendPageProps) {
                   <strong>{sendData.decFileName || sendData.file?.fileName || sendData.file?.sizeName || t('txt_encrypted_file')}</strong>
                 </div>
                 <button type="button" className="btn btn-primary full" disabled={busy} onClick={() => void downloadFile()}>
-                  <Download size={14} className="btn-icon" /> {t('txt_download')}
+                  <Download size={14} className="btn-icon" /> {downloadPercent == null ? (busy ? t('txt_downloading') : t('txt_download')) : t('txt_downloading_percent', { percent: downloadPercent })}
                 </button>
               </div>
             )}

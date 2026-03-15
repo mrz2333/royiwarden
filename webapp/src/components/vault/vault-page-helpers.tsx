@@ -7,6 +7,7 @@ import {
   ShieldUser,
   StickyNote,
 } from 'lucide-preact';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { t } from '@/lib/i18n';
 import type { Cipher, CipherAttachment, CustomFieldType, VaultDraft, VaultDraftField } from '@/lib/types';
 
@@ -117,6 +118,10 @@ export function hostFromUri(uri: string): string {
   } catch {
     return '';
   }
+}
+
+export function websiteIconUrl(host: string): string {
+  return `/icons/${encodeURIComponent(host)}/icon.png`;
 }
 
 export function createEmptyDraft(type: number): VaultDraft {
@@ -294,9 +299,10 @@ export function VaultListIcon({ cipher }: { cipher: Cipher }) {
     return (
       <img
         className="list-icon"
-        src={`/icons/${host}/icon.png?v=2`}
+        src={websiteIconUrl(host)}
         alt=""
         loading="lazy"
+        referrerPolicy="no-referrer"
         onError={() => {
           failedIconHosts.add(host);
           setErrored(true);
@@ -313,7 +319,7 @@ export function VaultListIcon({ cipher }: { cipher: Cipher }) {
 
 export function copyToClipboard(value: string): void {
   if (!value.trim()) return;
-  void navigator.clipboard.writeText(value);
+  void copyTextToClipboard(value);
 }
 
 export function openUri(raw: string): void {

@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks';
 import { Clipboard, Download, Eye, EyeOff, ExternalLink, Paperclip, Pencil, Trash2 } from 'lucide-preact';
 import type { Cipher } from '@/lib/types';
 import { t } from '@/lib/i18n';
@@ -22,6 +23,8 @@ interface VaultDetailViewProps {
   passkeyCreatedAt: string | null;
   hiddenFieldVisibleMap: Record<number, boolean>;
   folderName: (id: string | null | undefined) => string;
+  downloadingAttachmentKey: string;
+  attachmentDownloadPercent: number | null;
   onOpenReprompt: () => void;
   onToggleShowPassword: () => void;
   onToggleHiddenField: (index: number) => void;
@@ -32,6 +35,14 @@ interface VaultDetailViewProps {
 
 export default function VaultDetailView(props: VaultDetailViewProps) {
   const selectedAttachments = Array.isArray(props.selectedCipher.attachments) ? props.selectedCipher.attachments : [];
+  const [showSshPrivateKey, setShowSshPrivateKey] = useState(false);
+  const formatDownloadLabel = (attachmentId: string) => {
+    const downloadKey = `${props.selectedCipher.id}:${attachmentId}`;
+    if (props.downloadingAttachmentKey !== downloadKey) return t('txt_download');
+    return props.attachmentDownloadPercent == null
+      ? t('txt_downloading')
+      : t('txt_downloading_percent', { percent: props.attachmentDownloadPercent });
+  };
 
   return (
     <>
@@ -188,11 +199,22 @@ export default function VaultDetailView(props: VaultDetailViewProps) {
               <div className="kv-row">
                 <span className="kv-label">{t('txt_private_key')}</span>
                 <div className="kv-main">
-                  <strong className="value-ellipsis" title={maskSecret(props.selectedCipher.sshKey.decPrivateKey || '')}>
-                    {maskSecret(props.selectedCipher.sshKey.decPrivateKey || '')}
+                  <strong
+                    className="value-ellipsis"
+                    title={showSshPrivateKey ? props.selectedCipher.sshKey.decPrivateKey || '' : maskSecret(props.selectedCipher.sshKey.decPrivateKey || '')}
+                  >
+                    {showSshPrivateKey ? props.selectedCipher.sshKey.decPrivateKey || '' : maskSecret(props.selectedCipher.sshKey.decPrivateKey || '')}
                   </strong>
                 </div>
-                <div className="kv-actions" />
+                <div className="kv-actions">
+                  <button type="button" className="btn btn-secondary small" onClick={() => setShowSshPrivateKey((value) => !value)}>
+                    {showSshPrivateKey ? <EyeOff size={14} className="btn-icon" /> : <Eye size={14} className="btn-icon" />}
+                    {showSshPrivateKey ? t('txt_hide') : t('txt_reveal')}
+                  </button>
+                  <button type="button" className="btn btn-secondary small" onClick={() => copyToClipboard(props.selectedCipher.sshKey?.decPrivateKey || '')}>
+                    <Clipboard size={14} className="btn-icon" /> {t('txt_copy')}
+                  </button>
+                </div>
               </div>
               <div className="kv-row">
                 <span className="kv-label">{t('txt_public_key')}</span>
@@ -201,7 +223,11 @@ export default function VaultDetailView(props: VaultDetailViewProps) {
                     {props.selectedCipher.sshKey.decPublicKey || ''}
                   </strong>
                 </div>
-                <div className="kv-actions" />
+                <div className="kv-actions">
+                  <button type="button" className="btn btn-secondary small" onClick={() => copyToClipboard(props.selectedCipher.sshKey?.decPublicKey || '')}>
+                    <Clipboard size={14} className="btn-icon" /> {t('txt_copy')}
+                  </button>
+                </div>
               </div>
               <div className="kv-row">
                 <span className="kv-label">{t('txt_fingerprint')}</span>
@@ -210,7 +236,11 @@ export default function VaultDetailView(props: VaultDetailViewProps) {
                     {props.selectedCipher.sshKey.decFingerprint || ''}
                   </strong>
                 </div>
-                <div className="kv-actions" />
+                <div className="kv-actions">
+                  <button type="button" className="btn btn-secondary small" onClick={() => copyToClipboard(props.selectedCipher.sshKey?.decFingerprint || '')}>
+                    <Clipboard size={14} className="btn-icon" /> {t('txt_copy')}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -292,8 +322,13 @@ export default function VaultDetailView(props: VaultDetailViewProps) {
                         </div>
                       </div>
                       <div className="kv-actions">
-                        <button type="button" className="btn btn-secondary small" onClick={() => props.onDownloadAttachment(props.selectedCipher, attachmentId)}>
-                          <Download size={14} className="btn-icon" /> {t('txt_download')}
+                        <button
+                          type="button"
+                          className="btn btn-secondary small"
+                          disabled={props.downloadingAttachmentKey === `${props.selectedCipher.id}:${attachmentId}`}
+                          onClick={() => props.onDownloadAttachment(props.selectedCipher, attachmentId)}
+                        >
+                          <Download size={14} className="btn-icon" /> {formatDownloadLabel(attachmentId)}
                         </button>
                       </div>
                     </div>

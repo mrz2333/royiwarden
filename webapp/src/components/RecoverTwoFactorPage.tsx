@@ -30,6 +30,7 @@ export default function RecoverTwoFactorPage(props: RecoverTwoFactorPageProps) {
               className="input"
               type="email"
               value={props.values.email}
+              autoComplete="username"
               onInput={(e) => props.onChange({ ...props.values, email: (e.currentTarget as HTMLInputElement).value })}
             />
           </label>
@@ -41,6 +42,7 @@ export default function RecoverTwoFactorPage(props: RecoverTwoFactorPageProps) {
                 className="input"
                 type={showPassword ? 'text' : 'password'}
                 value={props.values.password}
+                autoComplete="current-password"
                 onInput={(e) => props.onChange({ ...props.values, password: (e.currentTarget as HTMLInputElement).value })}
               />
               <button type="button" className="eye-btn" onClick={() => setShowPassword((v) => !v)}>
@@ -54,6 +56,7 @@ export default function RecoverTwoFactorPage(props: RecoverTwoFactorPageProps) {
             <input
               className="input"
               value={props.values.recoveryCode}
+              autoComplete="one-time-code"
               onInput={(e) => props.onChange({ ...props.values, recoveryCode: (e.currentTarget as HTMLInputElement).value.toUpperCase() })}
             />
           </label>

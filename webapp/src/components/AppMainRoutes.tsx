@@ -65,6 +65,8 @@ export interface AppMainRoutesProps {
   onDeleteFolder: (folderId: string) => Promise<void>;
   onBulkDeleteFolders: (folderIds: string[]) => Promise<void>;
   onDownloadVaultAttachment: (cipher: Cipher, attachmentId: string) => Promise<void>;
+  downloadingAttachmentKey: string;
+  attachmentDownloadPercent: number | null;
   onRefreshVault: () => Promise<void>;
   onCreateSend: (draft: SendDraft, autoCopyLink: boolean) => Promise<void>;
   onUpdateSend: (send: Send, draft: SendDraft, autoCopyLink: boolean) => Promise<void>;
@@ -91,7 +93,7 @@ export interface AppMainRoutesProps {
   onSaveBackupSettings: (settings: AdminBackupSettings) => Promise<AdminBackupSettings>;
   onRunRemoteBackup: (destinationId?: string | null) => Promise<AdminBackupRunResponse>;
   onListRemoteBackups: (destinationId: string, path: string) => Promise<RemoteBackupBrowserResponse>;
-  onDownloadRemoteBackup: (destinationId: string, path: string) => Promise<void>;
+  onDownloadRemoteBackup: (destinationId: string, path: string, onProgress?: (percent: number | null) => void) => Promise<void>;
   onDeleteRemoteBackup: (destinationId: string, path: string) => Promise<void>;
   onRestoreRemoteBackup: (destinationId: string, path: string, replaceExisting?: boolean) => Promise<void>;
 }
@@ -167,6 +169,8 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
             onDeleteFolder={props.onDeleteFolder}
             onBulkDeleteFolders={props.onBulkDeleteFolders}
             onDownloadAttachment={props.onDownloadVaultAttachment}
+            downloadingAttachmentKey={props.downloadingAttachmentKey}
+            attachmentDownloadPercent={props.attachmentDownloadPercent}
           />
         </Suspense>
       </Route>
