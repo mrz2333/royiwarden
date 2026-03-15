@@ -89,12 +89,22 @@ function sortRemoteItems(items: RemoteBackupItem[]): RemoteBackupItem[] {
 }
 
 function decodeXmlText(value: string): string {
-  return value
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+  return value.replace(/&(amp|lt|gt|quot|#39);/g, (_match, entity) => {
+    switch (entity) {
+      case 'amp':
+        return '&';
+      case 'lt':
+        return '<';
+      case 'gt':
+        return '>';
+      case 'quot':
+        return '"';
+      case '#39':
+        return "'";
+      default:
+        return _match;
+    }
+  });
 }
 
 function parseHttpDate(value: string): string | null {
