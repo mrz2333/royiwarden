@@ -4,10 +4,8 @@ import type { AuthorizedDevice } from '../types';
 import type {
   Profile,
   SessionState,
-  SetupStatusResponse,
   TokenError,
   TokenSuccess,
-  WebConfigResponse,
 } from '../types';
 import { parseJson, type AuthedFetch, type SessionSetter } from './shared';
 
@@ -91,17 +89,6 @@ export function saveSession(session: SessionState | null): void {
     email: session.email,
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(persisted));
-}
-
-export async function getSetupStatus(): Promise<SetupStatusResponse> {
-  const resp = await fetch('/setup/status');
-  const body = await parseJson<SetupStatusResponse>(resp);
-  return { registered: !!body?.registered };
-}
-
-export async function getWebConfig(): Promise<WebConfigResponse> {
-  const resp = await fetch('/api/web/config');
-  return (await parseJson<WebConfigResponse>(resp)) || {};
 }
 
 export function getCurrentDeviceIdentifier(): string {

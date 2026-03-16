@@ -32,6 +32,7 @@ import {
 } from '@/lib/app-support';
 import {
   bootstrapAppSession,
+  readInitialAppBootstrapState,
   performPasswordLogin,
   performRecoverTwoFactorLogin,
   performRegistration,
@@ -60,14 +61,15 @@ const SIGNALR_UPDATE_TYPE_LOG_OUT = 11;
 const SIGNALR_UPDATE_TYPE_DEVICE_STATUS = 12;
 
 export default function App() {
+  const initialBootstrap = useMemo(() => readInitialAppBootstrapState(), []);
+  const initialInviteCode = useMemo(() => readInviteCodeFromUrl(), []);
   const [pendingAuthAction, setPendingAuthAction] = useState<'login' | 'register' | 'unlock' | null>(null);
   const [location, navigate] = useLocation();
-  const [phase, setPhase] = useState<AppPhase>('loading');
-  const [session, setSessionState] = useState<SessionState | null>(null);
+  const [phase, setPhase] = useState<AppPhase>(initialBootstrap.phase);
+  const [session, setSessionState] = useState<SessionState | null>(initialBootstrap.session);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [defaultKdfIterations, setDefaultKdfIterations] = useState(600000);
-  const [setupRegistered, setSetupRegistered] = useState(true);
-  const [jwtWarning, setJwtWarning] = useState<{ reason: JwtUnsafeReason; minLength: number } | null>(null);
+  const [defaultKdfIterations, setDefaultKdfIterations] = useState(initialBootstrap.defaultKdfIterations);
+  const [jwtWarning, setJwtWarning] = useState<{ reason: JwtUnsafeReason; minLength: number } | null>(initialBootstrap.jwtWarning);
 
   const [loginValues, setLoginValues] = useState({ email: '', password: '' });
   const [registerValues, setRegisterValues] = useState({
@@ -75,9 +77,9 @@ export default function App() {
     email: '',
     password: '',
     password2: '',
-    inviteCode: '',
+    inviteCode: initialInviteCode,
   });
-  const [inviteCodeFromUrl, setInviteCodeFromUrl] = useState('');
+  const [inviteCodeFromUrl, setInviteCodeFromUrl] = useState(initialInviteCode);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [pendingTotp, setPendingTotp] = useState<PendingTotp | null>(null);
   const [totpCode, setTotpCode] = useState('');
@@ -128,7 +130,7 @@ export default function App() {
 
   useEffect(() => {
     if (!inviteCodeFromUrl) return;
-    if (phase === 'loading' || phase === 'locked' || phase === 'app') return;
+    if (phase === 'locked' || phase === 'app') return;
     setPhase('register');
     if (location !== '/register') navigate('/register');
     if (typeof window !== 'undefined' && typeof window.history?.replaceState === 'function') {
@@ -163,11 +165,11 @@ export default function App() {
           setSession(next);
           if (!next) {
             setProfile(null);
-            setPhase(setupRegistered ? 'login' : 'register');
+            setPhase('login');
           }
         }
       ),
-    [session, setupRegistered]
+    [session]
   );
   const importAuthedFetch = useMemo(
     () => async (input: string, init?: RequestInit) => {
@@ -196,7 +198,6 @@ export default function App() {
     (async () => {
       const boot = await bootstrapAppSession();
       if (!mounted) return;
-      setSetupRegistered(boot.setupRegistered);
       setDefaultKdfIterations(boot.defaultKdfIterations);
       setJwtWarning(boot.jwtWarning);
       setSession(boot.session);
@@ -363,8 +364,8 @@ export default function App() {
     setSession(null);
     setProfile(null);
     setPendingTotp(null);
-    setPhase(setupRegistered ? 'login' : 'register');
-    navigate(setupRegistered ? '/login' : '/register');
+    setPhase('login');
+    navigate('/login');
   }
 
   function handleLogout() {
@@ -951,21 +952,13 @@ export default function App() {
     );
   }
 
-  if (phase === 'loading') {
-    return (
-      <>
-        <div className="loading-screen">{t('txt_loading_nodewarden')}</div>
-        {renderPassiveOverlays()}
-      </>
-    );
-  }
-
   if (phase === 'register' || phase === 'login' || phase === 'locked') {
     return (
       <>
         <AuthViews
           mode={phase}
           pendingAction={pendingAuthAction}
+          unlockReady={!!profile}
           loginValues={loginValues}
           registerValues={registerValues}
           unlockPassword={unlockPassword}

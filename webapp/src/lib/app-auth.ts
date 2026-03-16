@@ -2,8 +2,6 @@ import {
   createAuthedFetch,
   deriveLoginHash,
   getProfile,
-  getSetupStatus,
-  getWebConfig,
   loadSession,
   loginWithPassword,
   refreshAccessToken,
@@ -11,7 +9,8 @@ import {
   registerAccount,
   unlockVaultKey,
 } from '@/lib/api/auth';
-import type { AppPhase, Profile, SessionState } from '@/lib/types';
+import { readInviteCodeFromUrl } from '@/lib/app-support';
+import type { AppPhase, Profile, SessionState, WebBootstrapResponse } from '@/lib/types';
 
 export interface PendingTotp {
   email: string;
@@ -22,11 +21,17 @@ export interface PendingTotp {
 export type JwtUnsafeReason = 'missing' | 'default' | 'too_short';
 
 export interface BootstrapAppResult {
-  setupRegistered: boolean;
   defaultKdfIterations: number;
   jwtWarning: { reason: JwtUnsafeReason; minLength: number } | null;
   session: SessionState | null;
   profile: Profile | null;
+  phase: AppPhase;
+}
+
+export interface InitialAppBootstrapState {
+  defaultKdfIterations: number;
+  jwtWarning: { reason: JwtUnsafeReason; minLength: number } | null;
+  session: SessionState | null;
   phase: AppPhase;
 }
 
@@ -80,35 +85,56 @@ async function maybeRefreshSession(session: SessionState): Promise<SessionState 
   };
 }
 
-export async function bootstrapAppSession(): Promise<BootstrapAppResult> {
-  const [setup, config] = await Promise.all([getSetupStatus(), getWebConfig()]);
-  const setupRegistered = setup.registered;
-  const defaultKdfIterations = Number(config.defaultKdfIterations || 600000);
-  const jwtUnsafeReason = config.jwtUnsafeReason || null;
+function readWindowBootstrap(): WebBootstrapResponse {
+  if (typeof window === 'undefined') return {};
+  const raw = (window as Window & { __NW_BOOT__?: WebBootstrapResponse }).__NW_BOOT__;
+  return raw && typeof raw === 'object' ? raw : {};
+}
 
-  if (jwtUnsafeReason) {
-    return {
-      setupRegistered,
-      defaultKdfIterations,
-      jwtWarning: {
+export function readInitialAppBootstrapState(): InitialAppBootstrapState {
+  const boot = readWindowBootstrap();
+  const defaultKdfIterations = Number(boot.defaultKdfIterations || 600000);
+  const jwtUnsafeReason = boot.jwtUnsafeReason || null;
+  const jwtWarning = jwtUnsafeReason
+    ? {
         reason: jwtUnsafeReason,
-        minLength: Number(config.jwtSecretMinLength || 32),
-      },
+        minLength: Number(boot.jwtSecretMinLength || 32),
+      }
+    : null;
+  const session = loadSession();
+  const hasInviteCode = !!readInviteCodeFromUrl();
+
+  return {
+    defaultKdfIterations,
+    jwtWarning,
+    session,
+    phase: jwtWarning ? 'login' : session ? 'locked' : hasInviteCode ? 'register' : 'login',
+  };
+}
+
+export async function bootstrapAppSession(): Promise<BootstrapAppResult> {
+  const initial = readInitialAppBootstrapState();
+  const defaultKdfIterations = initial.defaultKdfIterations;
+  const jwtWarning = initial.jwtWarning;
+
+  if (jwtWarning) {
+    return {
+      defaultKdfIterations,
+      jwtWarning,
       session: null,
       profile: null,
       phase: 'login',
     };
   }
 
-  const loaded = loadSession();
+  const loaded = initial.session;
   if (!loaded) {
     return {
-      setupRegistered,
       defaultKdfIterations,
       jwtWarning: null,
       session: null,
       profile: null,
-      phase: setupRegistered ? 'login' : 'register',
+      phase: initial.phase,
     };
   }
 
@@ -124,7 +150,6 @@ export async function bootstrapAppSession(): Promise<BootstrapAppResult> {
       )
     );
     return {
-      setupRegistered,
       defaultKdfIterations,
       jwtWarning: null,
       session,
@@ -133,12 +158,11 @@ export async function bootstrapAppSession(): Promise<BootstrapAppResult> {
     };
   } catch {
     return {
-      setupRegistered,
       defaultKdfIterations,
       jwtWarning: null,
       session: null,
       profile: null,
-      phase: setupRegistered ? 'login' : 'register',
+      phase: initial.phase === 'register' ? 'register' : 'login',
     };
   }
 }

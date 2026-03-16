@@ -1,4 +1,4 @@
-export type AppPhase = 'loading' | 'register' | 'login' | 'locked' | 'app';
+export type AppPhase = 'register' | 'login' | 'locked' | 'app';
 
 export interface SessionState {
   accessToken: string;
@@ -256,17 +256,10 @@ export interface ListResponse<T> {
   data: T[];
 }
 
-export interface SetupStatusResponse {
-  registered: boolean;
-}
-
-export interface WebConfigResponse {
+export interface WebBootstrapResponse {
   defaultKdfIterations?: number;
   jwtUnsafeReason?: 'missing' | 'default' | 'too_short' | null;
   jwtSecretMinLength?: number;
-  _icon_service_url?: string;
-  _icon_service_csp?: string;
-  iconServiceUrl?: string;
 }
 
 export interface TokenSuccess {
