@@ -109,6 +109,18 @@ export async function deriveLoginHash(email: string, password: string, fallbackI
   return { hash: bytesToBase64(hash), masterKey, kdfIterations: iterations };
 }
 
+export async function deriveLoginHashLocally(
+  email: string,
+  password: string,
+  fallbackIterations: number
+): Promise<PreloginResult> {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const iterations = Number(fallbackIterations || 600000);
+  const masterKey = await pbkdf2(password, normalizedEmail, iterations, 32);
+  const hash = await pbkdf2(masterKey, password, 1, 32);
+  return { hash: bytesToBase64(hash), masterKey, kdfIterations: iterations };
+}
+
 export async function getPreloginKdfConfig(email: string, fallbackIterations: number): Promise<PreloginKdfConfig> {
   const normalized = String(email || '').trim().toLowerCase();
   if (!normalized) throw new Error('Email is required');

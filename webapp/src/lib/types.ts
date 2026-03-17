@@ -265,7 +265,23 @@ export interface WebBootstrapResponse {
 export interface TokenSuccess {
   access_token: string;
   refresh_token: string;
+  expires_in?: number;
+  token_type?: string;
   TwoFactorToken?: string;
+  Key?: string;
+  PrivateKey?: string | null;
+  AccountKeys?: unknown | null;
+  accountKeys?: unknown | null;
+  Kdf?: number;
+  KdfIterations?: number;
+  KdfMemory?: number | null;
+  KdfParallelism?: number | null;
+  ForcePasswordReset?: boolean;
+  ResetMasterPassword?: boolean;
+  scope?: string;
+  unofficialServer?: boolean;
+  UserDecryptionOptions?: unknown;
+  userDecryptionOptions?: unknown;
 }
 
 export interface TokenError {

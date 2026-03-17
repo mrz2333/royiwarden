@@ -32,6 +32,7 @@ import {
 } from '@/lib/app-support';
 import {
   bootstrapAppSession,
+  type CompletedLogin,
   readInitialAppBootstrapState,
   performPasswordLogin,
   performRecoverTwoFactorLogin,
@@ -94,9 +95,11 @@ export default function App() {
   const [decryptedFolders, setDecryptedFolders] = useState<VaultFolder[]>([]);
   const [decryptedCiphers, setDecryptedCiphers] = useState<Cipher[]>([]);
   const [decryptedSends, setDecryptedSends] = useState<Send[]>([]);
+  const sessionRef = useRef<SessionState | null>(initialBootstrap.session);
   const migratedPlainFolderIdsRef = useRef<Set<string>>(new Set());
   const silentRefreshVaultRef = useRef<() => Promise<void>>(async () => {});
   const refreshAuthorizedDevicesRef = useRef<() => Promise<void>>(async () => {});
+  const repairAttemptRef = useRef<string>('');
   const { toasts, pushToast, removeToast } = useToastManager();
 
   useEffect(() => {
@@ -153,6 +156,7 @@ export default function App() {
   }, []);
 
   function setSession(next: SessionState | null) {
+    sessionRef.current = next;
     setSessionState(next);
     saveSession(next);
   }
@@ -210,10 +214,9 @@ export default function App() {
     };
   }, []);
 
-  async function finalizeLogin(nextSession: SessionState, nextProfile: Profile) {
-    setSession(nextSession);
-    setProfile(nextProfile);
-    await silentlyRepairBackupSettingsIfNeeded(nextSession, nextProfile);
+  async function finalizeLogin(login: CompletedLogin) {
+    setSession(login.session);
+    setProfile(login.profile);
     setPendingTotp(null);
     setTotpCode('');
     setPhase('app');
@@ -221,6 +224,15 @@ export default function App() {
       navigate('/vault');
     }
     pushToast('success', t('txt_login_success'));
+    void (async () => {
+      try {
+        const hydratedProfile = await login.profilePromise;
+        if (sessionRef.current?.accessToken !== login.session.accessToken) return;
+        setProfile(hydratedProfile);
+      } catch {
+        // Keep the in-memory transient profile for the current session.
+      }
+    })();
   }
 
   async function handleLogin() {
@@ -233,7 +245,7 @@ export default function App() {
     try {
       const result = await performPasswordLogin(loginValues.email, loginValues.password, defaultKdfIterations);
       if (result.kind === 'success') {
-        await finalizeLogin(result.login.session, result.login.profile);
+        await finalizeLogin(result.login);
         return;
       }
       if (result.kind === 'totp') {
@@ -258,7 +270,7 @@ export default function App() {
     }
     try {
       const login = await performTotpLogin(pendingTotp, totpCode, rememberDevice);
-      await finalizeLogin(login.session, login.profile);
+      await finalizeLogin(login);
     } catch (error) {
       pushToast('error', error instanceof Error ? error.message : t('txt_totp_verify_failed'));
     }
@@ -275,7 +287,7 @@ export default function App() {
     try {
       const recovered = await performRecoverTwoFactorLogin(email, password, recoveryCode, defaultKdfIterations);
       if (recovered.login) {
-        await finalizeLogin(recovered.login.session, recovered.login.profile);
+        await finalizeLogin(recovered.login);
         if (recovered.newRecoveryCode) {
           pushToast('success', t('txt_text_2fa_recovered_new_recovery_code_code', { code: recovered.newRecoveryCode }));
         } else {
@@ -337,7 +349,6 @@ export default function App() {
     try {
       const nextSession = await performUnlock(session, profile, unlockPassword, defaultKdfIterations);
       setSession(nextSession);
-      await silentlyRepairBackupSettingsIfNeeded(nextSession, profile);
       setUnlockPassword('');
       setPhase('app');
       if (location === '/' || location === '/lock') navigate('/vault');
@@ -438,6 +449,20 @@ export default function App() {
     queryFn: () => getAuthorizedDevices(authedFetch),
     enabled: phase === 'app' && !!session?.accessToken,
   });
+
+  useEffect(() => {
+    if (phase !== 'app' || !session?.accessToken || !session?.symEncKey || !session?.symMacKey) return;
+    if (!profile?.role || profile.role !== 'admin') return;
+    if (repairAttemptRef.current === session.accessToken) return;
+
+    repairAttemptRef.current = session.accessToken;
+    void silentlyRepairBackupSettingsIfNeeded(session, profile);
+  }, [phase, session?.accessToken, session?.symEncKey, session?.symMacKey, profile]);
+
+  useEffect(() => {
+    if (session?.accessToken) return;
+    repairAttemptRef.current = '';
+  }, [session?.accessToken]);
 
   useEffect(() => {
     if (!session?.symEncKey || !session?.symMacKey) {
