@@ -48,6 +48,8 @@ interface VaultPageProps {
   onDownloadAttachment: (cipher: Cipher, attachmentId: string) => Promise<void>;
   downloadingAttachmentKey: string;
   attachmentDownloadPercent: number | null;
+  uploadingAttachmentName: string;
+  attachmentUploadPercent: number | null;
 }
 
 
@@ -821,6 +823,8 @@ function folderName(id: string | null | undefined): string {
               onDownloadAttachment={(cipher, attachmentId) => void props.onDownloadAttachment(cipher, attachmentId)}
               downloadingAttachmentKey={props.downloadingAttachmentKey}
               attachmentDownloadPercent={props.attachmentDownloadPercent}
+              uploadingAttachmentName={props.uploadingAttachmentName}
+              attachmentUploadPercent={props.attachmentUploadPercent}
               onPatchDraftCustomField={patchDraftCustomField}
               onUpdateDraftCustomFields={updateDraftCustomFields}
               onOpenFieldModal={() => setFieldModalOpen(true)}

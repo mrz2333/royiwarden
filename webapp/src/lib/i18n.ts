@@ -291,10 +291,15 @@ const messages: Record<Locale, Record<string, string>> = {
     txt_disable_this_send: "Disable this send",
     txt_disable_totp: "Disable TOTP",
     txt_disable_totp_failed: "Disable TOTP failed",
-    txt_download: "Download",
-    txt_downloading: "Downloading...",
-    txt_downloading_percent: "Downloading {percent}%",
-    txt_download_failed: "Download failed",
+     txt_download: "Download",
+     txt_downloading: "Downloading...",
+     txt_downloading_percent: "Downloading {percent}%",
+     txt_attachment: "Attachment",
+     txt_uploading_attachment_named: "Uploading {name}...",
+     txt_uploading_attachment_named_percent: "Uploading {name} {percent}%",
+     txt_uploading_file_named: "Uploading {name}...",
+     txt_uploading_file_named_percent: "Uploading {name} {percent}%",
+     txt_download_failed: "Download failed",
     txt_edge_browser: "Edge Browser",
     txt_edge_extension: "Edge Extension",
     txt_edit: "Edit",
@@ -928,6 +933,11 @@ const zhCNOverrides: Record<string, string> = {
   txt_download: '下载',
   txt_downloading: '下载中...',
   txt_downloading_percent: '下载中 {percent}%',
+  txt_attachment: '附件',
+  txt_uploading_attachment_named: '正在上传 {name}...',
+  txt_uploading_attachment_named_percent: '正在上传 {name} {percent}%',
+  txt_uploading_file_named: '正在上传 {name}...',
+  txt_uploading_file_named_percent: '正在上传 {name} {percent}%',
   txt_expires_at: '过期时间',
   txt_expires_at_value: '过期于：{value}',
   txt_dash: '-',
@@ -1192,6 +1202,11 @@ zhCNOverrides.txt_passkey_created_at_value = '创建于 {value}';
 zhCNOverrides.txt_attachments = '附件';
 zhCNOverrides.txt_upload_attachments = '上传附件';
 zhCNOverrides.txt_new_attachments = '待上传附件';
+zhCNOverrides.txt_attachment = '附件';
+zhCNOverrides.txt_uploading_attachment_named = '正在上传 {name}...';
+zhCNOverrides.txt_uploading_attachment_named_percent = '正在上传 {name} {percent}%';
+zhCNOverrides.txt_uploading_file_named = '正在上传 {name}...';
+zhCNOverrides.txt_uploading_file_named_percent = '正在上传 {name} {percent}%';
 zhCNOverrides.txt_marked_for_removal_count = '保存后将删除 {count} 个附件';
 messages.en.txt_import = 'Import';
 messages.en.txt_export = 'Export';
