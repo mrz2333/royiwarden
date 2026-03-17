@@ -1,6 +1,5 @@
 import {
   createAuthedFetch,
-  deriveLoginHash,
   deriveLoginHashLocally,
   getProfile,
   loadSession,
