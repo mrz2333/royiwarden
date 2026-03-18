@@ -32,6 +32,10 @@ function injectBootstrapIntoHtml(html: string, env: Env): string {
   return `${script}${html}`;
 }
 
+function responseStatusCannotHaveBody(status: number): boolean {
+  return status === 101 || status === 204 || status === 205 || status === 304;
+}
+
 async function maybeServeAsset(request: Request, env: Env): Promise<Response | null> {
   if (!env.ASSETS) return null;
   if (request.method !== 'GET' && request.method !== 'HEAD') return null;
@@ -40,7 +44,11 @@ async function maybeServeAsset(request: Request, env: Env): Promise<Response | n
 
   const assetResponse = await env.ASSETS.fetch(request);
   const contentType = String(assetResponse.headers.get('Content-Type') || '').toLowerCase();
-  if (request.method === 'GET' && contentType.includes('text/html')) {
+  if (
+    request.method === 'GET' &&
+    contentType.includes('text/html') &&
+    !responseStatusCannotHaveBody(assetResponse.status)
+  ) {
     const html = await assetResponse.text();
     const injected = injectBootstrapIntoHtml(html, env);
     return new Response(injected, {

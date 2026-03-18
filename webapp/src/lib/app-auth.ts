@@ -149,8 +149,7 @@ export function readInitialAppBootstrapState(): InitialAppBootstrapState {
   };
 }
 
-export async function bootstrapAppSession(): Promise<BootstrapAppResult> {
-  const initial = readInitialAppBootstrapState();
+export async function bootstrapAppSession(initial: InitialAppBootstrapState = readInitialAppBootstrapState()): Promise<BootstrapAppResult> {
   const defaultKdfIterations = initial.defaultKdfIterations;
   const jwtWarning = initial.jwtWarning;
 
@@ -309,6 +308,7 @@ export async function performRegistration(args: {
   email: string;
   name: string;
   password: string;
+  masterPasswordHint: string;
   inviteCode: string;
   fallbackIterations: number;
 }) {
@@ -316,6 +316,7 @@ export async function performRegistration(args: {
     email: args.email.trim().toLowerCase(),
     name: args.name.trim(),
     password: args.password,
+    masterPasswordHint: args.masterPasswordHint.trim(),
     inviteCode: args.inviteCode.trim(),
     fallbackIterations: args.fallbackIterations,
   });
