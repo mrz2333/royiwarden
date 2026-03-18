@@ -175,6 +175,12 @@ export async function handlePublicRoute(
     });
   }
 
+  if ((path === '/api/web-bootstrap' || path === '/web-bootstrap') && method === 'GET') {
+    const blocked = await enforcePublicRateLimit('public-read', LIMITS.rateLimit.publicReadRequestsPerMinute);
+    if (blocked) return blocked;
+    return jsonResponse(buildWebBootstrapResponse(env));
+  }
+
   const iconMatch = path.match(/^\/icons\/([^/]+)\/icon\.png$/i);
   if (iconMatch && method === 'GET') {
     return handleWebsiteIcon(iconMatch[1]);
