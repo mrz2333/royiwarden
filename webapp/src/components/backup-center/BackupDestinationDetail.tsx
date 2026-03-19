@@ -9,6 +9,7 @@ import { COMMON_TIME_ZONES, WEEKDAY_OPTIONS, getDestinationTypeLabel } from '@/l
 import type { RecommendedProvider } from '@/lib/backup-recommendations';
 import { RemoteBackupBrowser } from './RemoteBackupBrowser';
 import { t } from '@/lib/i18n';
+import { BackupIncludeAttachmentsField } from './BackupIncludeAttachmentsField';
 
 interface BackupDestinationDetailProps {
   selectedRecommendedProvider: RecommendedProvider | null;
@@ -286,6 +287,15 @@ export function BackupDestinationDetail(props: BackupDestinationDetailProps) {
               </div>
             </label>
           </div>
+
+          <BackupIncludeAttachmentsField
+            checked={props.selectedDestination.includeAttachments}
+            disabled={props.loadingSettings || props.disableWhileBusy}
+            onChange={(checked) => props.onUpdateDestination((destination) => ({
+              ...destination,
+              includeAttachments: checked,
+            }))}
+          />
 
           {props.selectedDestination.schedule.frequency === 'weekly' ? (
             <div className="field-grid backup-detail-schedule-extra-grid">

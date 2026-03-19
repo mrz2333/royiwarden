@@ -52,6 +52,7 @@ export interface BackupDestinationRecord {
   id: string;
   name: string;
   type: BackupDestinationType;
+  includeAttachments: boolean;
   destination: BackupDestinationConfig;
   schedule: BackupScheduleConfig;
   runtime: BackupRuntimeState;
@@ -132,6 +133,7 @@ export function createBackupDestinationRecord(
     id: options.id || createBackupRandomId(),
     name: options.name || createDefaultBackupDestinationName(type, index),
     type,
+    includeAttachments: false,
     destination: createDefaultBackupDestinationConfig(type),
     schedule: createDefaultBackupScheduleConfig(options.timezone || BACKUP_DEFAULT_TIMEZONE),
     runtime: createDefaultBackupRuntimeState(),

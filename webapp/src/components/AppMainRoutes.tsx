@@ -92,7 +92,7 @@ export interface AppMainRoutesProps {
   onToggleUserStatus: (userId: string, status: 'active' | 'banned') => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
   onRevokeInvite: (code: string) => Promise<void>;
-  onExportBackup: () => Promise<void>;
+  onExportBackup: (includeAttachments?: boolean) => Promise<void>;
   onImportBackup: (file: File, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
   onLoadBackupSettings: () => Promise<AdminBackupSettings>;
   onSaveBackupSettings: (settings: AdminBackupSettings) => Promise<AdminBackupSettings>;

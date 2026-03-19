@@ -264,6 +264,9 @@ function normalizeDestinationRecord(
     id,
     name,
     type,
+    includeAttachments: typeof input.includeAttachments === 'boolean'
+      ? input.includeAttachments
+      : previous?.includeAttachments ?? false,
     destination,
     schedule,
     runtime,
@@ -280,6 +283,7 @@ function parseLegacyBackupSettings(rawValue: Record<string, unknown>, fallbackTi
     id: createBackupRandomId(),
     name: defaultDestinationName(destinationType, 1),
     type: destinationType,
+    includeAttachments: false,
     destination: normalizeDestination(destinationType, rawValue.destination),
     schedule: {
       enabled: !!rawValue.enabled,

@@ -1434,6 +1434,105 @@ input[type='file'].input::file-selector-button:hover {
   gap: 10px;
 }
 
+.backup-option-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.backup-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.backup-option-label input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.backup-help-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.backup-help-trigger {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #bfd1f3;
+  border-radius: 999px;
+  padding: 0;
+  background: #eef4ff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.backup-help-trigger:hover,
+.backup-help-trigger:focus-visible {
+  border-color: #7ea4ef;
+  background: #e1ecff;
+  outline: none;
+}
+
+.backup-help-bubble {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 10px);
+  z-index: 30;
+  width: min(320px, calc(100vw - 40px));
+  padding: 10px 12px;
+  border: 1px solid #d5dce7;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.14);
+  color: #475467;
+  font-size: 13px;
+  line-height: 1.55;
+  transform: translate(-50%, -4px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
+}
+
+.backup-help-bubble::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border-left: 1px solid #d5dce7;
+  border-top: 1px solid #d5dce7;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.backup-help-wrap:hover .backup-help-bubble,
+.backup-help-wrap:focus-within .backup-help-bubble,
+.backup-help-wrap.open .backup-help-bubble {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
 .backup-manual-inline-actions {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1646,7 +1745,6 @@ input[type='file'].input::file-selector-button:hover {
 
 .backup-detail-schedule-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  margin-bottom: 12px;
 }
 
 .backup-retention-input {
@@ -3050,5 +3148,25 @@ input[type='file'].input::file-selector-button:hover {
 
   .backup-name-row {
     grid-template-columns: 1fr;
+  }
+
+  .backup-option-field {
+    align-items: flex-start;
+  }
+
+  .backup-help-bubble {
+    left: 0;
+    transform: translate(0, -4px);
+  }
+
+  .backup-help-bubble::before {
+    left: 16px;
+    transform: rotate(45deg);
+  }
+
+  .backup-help-wrap:hover .backup-help-bubble,
+  .backup-help-wrap:focus-within .backup-help-bubble,
+  .backup-help-wrap.open .backup-help-bubble {
+    transform: translate(0, 0);
   }
 }
