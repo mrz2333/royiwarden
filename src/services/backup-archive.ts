@@ -1,5 +1,6 @@
 import { zipSync, unzipSync } from 'fflate';
 import type { Env } from '../types';
+import { APP_VERSION } from '../../shared/app-version';
 import {
   getAttachmentObjectKey,
   getBlobStorageKind,
@@ -8,7 +9,6 @@ import {
 type SqlRow = Record<string, string | number | null>;
 
 const BACKUP_FORMAT_VERSION = 1;
-const BACKUP_APP_VERSION = '1.3.0';
 // Worker-side backup export must stay well below Cloudflare CPU limits.
 // Prefer store-only ZIP entries over heavier compression to keep exports reliable.
 const BACKUP_TEXT_COMPRESSION_LEVEL = 0;
@@ -294,7 +294,7 @@ export async function buildBackupArchive(
   const manifestBase = {
     formatVersion: BACKUP_FORMAT_VERSION,
     exportedAt: date.toISOString(),
-    appVersion: BACKUP_APP_VERSION,
+    appVersion: APP_VERSION,
     storageKind: getBlobStorageKind(env),
     tableCounts: {
       config: configRows.length,

@@ -206,6 +206,11 @@ body,
   text-decoration: underline;
 }
 
+.standalone-version {
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
 .muted {
   margin: 0 0 16px 0;
   text-align: center;
