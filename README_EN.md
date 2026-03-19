@@ -30,8 +30,8 @@ English: [`README.md`](./README.md)
 | Attachment upload / download | ✅ | ✅ | Cloudflare R2 or KV |
 | Send | ✅ | ✅ | Supports both text and file Sends |
 | Import / Export | ✅ | ✅ | Supports Bitwarden JSON / CSV / **ZIP import with attachments** |
-| **Cloud Backup Center** | ❌ | ✅ | Scheduled backup with WebDAV / E3 |
-| Password hint (web) | ⚠️ Limited | ✅ | Supports registration, login assist, unlock, and settings |
+| **Cloud Backup Center** | ❌ | ✅ | **Supports scheduled backups with WebDAV / E3** |
+| Password hint (web) | ⚠️ Limited | ✅ | **No email required** |
 | TOTP / Steam TOTP | ✅ | ✅ | Includes `steam://` support |
 | Multi-user | ✅ | ✅ | Invite-based registration |
 | Organizations / Collections / Member roles | ✅ | ❌ | Not implemented |
