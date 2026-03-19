@@ -5,6 +5,7 @@ interface BackupIncludeAttachmentsFieldProps {
   checked: boolean;
   disabled?: boolean;
   showHelp?: boolean;
+  showLabel?: boolean;
   onChange: (checked: boolean) => void;
 }
 
@@ -34,7 +35,7 @@ export function BackupIncludeAttachmentsField(props: BackupIncludeAttachmentsFie
           disabled={props.disabled}
           onInput={(event) => props.onChange((event.currentTarget as HTMLInputElement).checked)}
         />
-        <span>{t('txt_backup_include_attachments')}</span>
+        {props.showLabel !== false ? <span>{t('txt_backup_include_attachments')}</span> : null}
       </label>
       {props.showHelp !== false ? (
         <div ref={wrapRef} className={`backup-help-wrap ${open ? 'open' : ''}`}>
