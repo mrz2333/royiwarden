@@ -17,6 +17,9 @@ import {
   buildCipherDuplicateSignature,
   firstCipherUri,
   firstPasskeyCreationTime,
+  isCipherVisibleInArchive,
+  isCipherVisibleInNormalVault,
+  isCipherVisibleInTrash,
   sortTimeValue,
   type SidebarFilter,
   type VaultSortMode,
@@ -36,9 +39,13 @@ interface VaultPageProps {
   onCreate: (draft: VaultDraft, attachments?: File[]) => Promise<void>;
   onUpdate: (cipher: Cipher, draft: VaultDraft, options?: { addFiles?: File[]; removeAttachmentIds?: string[] }) => Promise<void>;
   onDelete: (cipher: Cipher) => Promise<void>;
+  onArchive: (cipher: Cipher) => Promise<void>;
+  onUnarchive: (cipher: Cipher) => Promise<void>;
   onBulkDelete: (ids: string[]) => Promise<void>;
   onBulkPermanentDelete: (ids: string[]) => Promise<void>;
   onBulkRestore: (ids: string[]) => Promise<void>;
+  onBulkArchive: (ids: string[]) => Promise<void>;
+  onBulkUnarchive: (ids: string[]) => Promise<void>;
   onBulkMove: (ids: string[], folderId: string | null) => Promise<void>;
   onVerifyMasterPassword: (email: string, password: string) => Promise<void>;
   onNotify: (type: 'success' | 'error' | 'warning', text: string) => void;
@@ -229,8 +236,7 @@ export default function VaultPage(props: VaultPageProps) {
   const duplicateSignatureCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const cipher of props.ciphers) {
-      const isDeleted = !!(cipher.deletedDate || (cipher as { deletedAt?: string | null }).deletedAt);
-      if (isDeleted) continue;
+      if (!isCipherVisibleInNormalVault(cipher)) continue;
       const signature = buildCipherDuplicateSignature(cipher);
       counts.set(signature, (counts.get(signature) || 0) + 1);
     }
@@ -239,11 +245,12 @@ export default function VaultPage(props: VaultPageProps) {
 
   const filteredCiphers = useMemo(() => {
     const next = props.ciphers.filter((cipher) => {
-      const isDeleted = !!(cipher.deletedDate || (cipher as any).deletedAt);
       if (sidebarFilter.kind === 'trash') {
-        if (!isDeleted) return false;
+        if (!isCipherVisibleInTrash(cipher)) return false;
+      } else if (sidebarFilter.kind === 'archive') {
+        if (!isCipherVisibleInArchive(cipher)) return false;
       } else {
-        if (isDeleted) return false;
+        if (!isCipherVisibleInNormalVault(cipher)) return false;
         if (sidebarFilter.kind === 'duplicates' && (duplicateSignatureCounts.get(buildCipherDuplicateSignature(cipher)) || 0) < 2) {
           return false;
         }
@@ -677,6 +684,34 @@ function folderName(id: string | null | undefined): string {
     }
   }
 
+  async function confirmBulkArchive(): Promise<void> {
+    const ids = Object.entries(selectedMap)
+      .filter(([, selected]) => selected)
+      .map(([id]) => id);
+    if (!ids.length) return;
+    setBusy(true);
+    try {
+      await props.onBulkArchive(ids);
+      setSelectedMap({});
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmBulkUnarchive(): Promise<void> {
+    const ids = Object.entries(selectedMap)
+      .filter(([, selected]) => selected)
+      .map(([id]) => id);
+    if (!ids.length) return;
+    setBusy(true);
+    try {
+      await props.onBulkUnarchive(ids);
+      setSelectedMap({});
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function confirmDeleteAllFolders(): Promise<void> {
     if (!props.folders.length) return;
     setBusy(true);
@@ -760,6 +795,8 @@ function folderName(id: string | null | undefined): string {
           onToggleCreateMenu={() => setCreateMenuOpen((open) => !open)}
           onStartCreate={startCreate}
           onBulkRestore={() => void confirmBulkRestore()}
+          onBulkArchive={() => void confirmBulkArchive()}
+          onBulkUnarchive={() => void confirmBulkUnarchive()}
           onOpenMove={() => {
             setMoveFolderId('__none__');
             setMoveOpen(true);
@@ -851,6 +888,8 @@ function folderName(id: string | null | undefined): string {
               attachmentDownloadPercent={props.attachmentDownloadPercent}
               onStartEdit={startEdit}
               onDelete={setPendingDelete}
+              onArchive={props.onArchive}
+              onUnarchive={props.onUnarchive}
             />
           )}
 

@@ -280,6 +280,18 @@ const messages: Record<Locale, Record<string, string>> = {
     txt_delete_item: "Delete Item",
     txt_delete_item_failed: "Delete item failed",
     txt_delete_permanently: "Delete Permanently",
+    txt_archive: "Archive",
+    txt_archived: "Archived",
+    txt_archive_selected: "Archive",
+    txt_item_archived: "Item archived",
+    txt_item_unarchived: "Item unarchived",
+    txt_archived_selected_items: "Archived selected items",
+    txt_unarchived_selected_items: "Unarchived selected items",
+    txt_archive_item_failed: "Archive item failed",
+    txt_unarchive_item_failed: "Unarchive item failed",
+    txt_bulk_archive_failed: "Bulk archive failed",
+    txt_bulk_unarchive_failed: "Bulk unarchive failed",
+    txt_unarchive: "Unarchive",
     txt_delete_selected: "Delete Selected",
     txt_delete_selected_items: "Delete Selected Items",
     txt_delete_selected_items_permanently: "Delete Selected Items Permanently",
@@ -1363,6 +1375,18 @@ zhCNOverrides.txt_import_encrypted_zip_message = '该 ZIP 压缩包已加密，�
 zhCNOverrides.txt_import_export_title = '导入导出';
 zhCNOverrides.txt_new_type_header = '新建{type}';
 zhCNOverrides.txt_edit_type_header = '编辑{type}';
+zhCNOverrides.txt_archive = '归档';
+zhCNOverrides.txt_archived = '已归档';
+zhCNOverrides.txt_archive_selected = '归档';
+zhCNOverrides.txt_item_archived = '项目已归档';
+zhCNOverrides.txt_item_unarchived = '项目已取消归档';
+zhCNOverrides.txt_archived_selected_items = '已归档所选项目';
+zhCNOverrides.txt_unarchived_selected_items = '已取消归档所选项目';
+zhCNOverrides.txt_archive_item_failed = '归档项目失败';
+zhCNOverrides.txt_unarchive_item_failed = '取消归档项目失败';
+zhCNOverrides.txt_bulk_archive_failed = '批量归档失败';
+zhCNOverrides.txt_bulk_unarchive_failed = '批量取消归档失败';
+zhCNOverrides.txt_unarchive = '取消归档';
 zhCNOverrides.txt_delete_folder = '删除文件夹';
 zhCNOverrides.txt_delete_folder_message = '删除文件夹「{name}」？其中的项目将移至无文件夹。';
 zhCNOverrides.txt_delete_all_folders = '删除全部文件夹';
