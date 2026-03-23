@@ -700,6 +700,27 @@ function folderName(id: string | null | undefined): string {
     }
   }
 
+  async function handleUnarchiveSelected(cipher: Cipher): Promise<void> {
+    setBusy(true);
+    try {
+      await props.onUnarchive(cipher);
+      if (sidebarFilter.kind === 'archive') {
+        const remaining = filteredCiphers.filter((item) => item.id !== cipher.id);
+        setSelectedMap((prev) => {
+          const next = { ...prev };
+          delete next[cipher.id];
+          return next;
+        });
+        setSelectedCipherId(remaining[0]?.id || '');
+        if (isMobileLayout && remaining.length === 0) {
+          setMobilePanel('list');
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function confirmBulkArchive(): Promise<void> {
     const ids = Object.entries(selectedMap)
       .filter(([, selected]) => selected)
@@ -906,7 +927,7 @@ function folderName(id: string | null | undefined): string {
               onStartEdit={startEdit}
               onDelete={setPendingDelete}
               onArchive={(cipher) => setPendingArchive(cipher)}
-              onUnarchive={props.onUnarchive}
+              onUnarchive={(cipher) => void handleUnarchiveSelected(cipher)}
             />
           )}
 
