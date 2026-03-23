@@ -3615,6 +3615,9 @@ input[type='file'].input::file-selector-button:hover {
 
 :root[data-theme='dark'] .search-input,
 :root[data-theme='dark'] .list-head .search-input,
+:root[data-theme='dark'] .mobile-settings-card,
+:root[data-theme='dark'] .mobile-settings-link,
+:root[data-theme='dark'] .table tr,
 :root[data-theme='dark'] .settings-subcard,
 :root[data-theme='dark'] .backup-operations-sidebar,
 :root[data-theme='dark'] .backup-destination-sidebar,
@@ -3644,6 +3647,7 @@ input[type='file'].input::file-selector-button:hover {
 :root[data-theme='dark'] .list-item:hover,
 :root[data-theme='dark'] .sort-menu-item:hover,
 :root[data-theme='dark'] .create-menu-item:hover,
+:root[data-theme='dark'] .mobile-settings-link:hover,
 :root[data-theme='dark'] .backup-destination-item:hover,
 :root[data-theme='dark'] .import-export-feature-item:hover {
   background: #13243a;
@@ -3658,6 +3662,7 @@ input[type='file'].input::file-selector-button:hover {
 
 :root[data-theme='dark'] .backup-destination-item.active,
 :root[data-theme='dark'] .backup-interval-preset.active,
+:root[data-theme='dark'] .mobile-settings-link.active,
 :root[data-theme='dark'] .tree-btn.active {
   background: #1d4f99;
   border-color: #4d86d7;
@@ -3667,6 +3672,7 @@ input[type='file'].input::file-selector-button:hover {
 :root[data-theme='dark'] .totp-code-name,
 :root[data-theme='dark'] .backup-destination-name,
 :root[data-theme='dark'] .backup-browser-entry,
+:root[data-theme='dark'] .mobile-settings-link,
 :root[data-theme='dark'] .backup-browser-path strong,
 :root[data-theme='dark'] .backup-status-grid strong,
 :root[data-theme='dark'] .backup-option-label,
@@ -3683,6 +3689,7 @@ input[type='file'].input::file-selector-button:hover {
 :root[data-theme='dark'] .totp-code-username,
 :root[data-theme='dark'] .backup-destination-meta,
 :root[data-theme='dark'] .backup-browser-meta,
+:root[data-theme='dark'] .table td::before,
 :root[data-theme='dark'] .backup-file-meta,
 :root[data-theme='dark'] .backup-list,
 :root[data-theme='dark'] .backup-recommendation-step,
@@ -3734,6 +3741,10 @@ input[type='file'].input::file-selector-button:hover {
   background: var(--panel);
   border-left-color: var(--line);
   border-top-color: var(--line);
+}
+
+:root[data-theme='dark'] .table td {
+  border-bottom-color: #203047;
 }
 
 :root[data-theme='dark'] .dialog-icon {
