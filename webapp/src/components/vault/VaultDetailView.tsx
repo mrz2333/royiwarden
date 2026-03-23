@@ -31,8 +31,8 @@ interface VaultDetailViewProps {
   onDownloadAttachment: (cipher: Cipher, attachmentId: string) => void;
   onStartEdit: () => void;
   onDelete: (cipher: Cipher) => void;
-  onArchive: (cipher: Cipher) => Promise<void>;
-  onUnarchive: (cipher: Cipher) => Promise<void>;
+  onArchive: (cipher: Cipher) => void | Promise<void>;
+  onUnarchive: (cipher: Cipher) => void | Promise<void>;
 }
 
 export default function VaultDetailView(props: VaultDetailViewProps) {
