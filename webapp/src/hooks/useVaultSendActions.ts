@@ -30,6 +30,7 @@ import {
   bulkMoveCiphers,
   bulkPermanentDeleteCiphers,
   bulkRestoreCiphers,
+  bulkUnarchiveCiphers,
   createCipher,
   createFolder,
   deleteCipher,
