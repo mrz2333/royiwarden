@@ -503,7 +503,16 @@ function folderName(id: string | null | undefined): string {
     setDraft((prev) => {
       if (!prev) return prev;
       const next = [...prev.loginUris];
-      next[index] = value;
+      next[index] = { ...(next[index] || { uri: '', match: null }), uri: value };
+      return { ...prev, loginUris: next };
+    });
+  }
+
+  function updateDraftLoginUriMatch(index: number, value: number | null): void {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const next = [...prev.loginUris];
+      next[index] = { ...(next[index] || { uri: '', match: null }), match: value };
       return { ...prev, loginUris: next };
     });
   }
@@ -885,6 +894,7 @@ function folderName(id: string | null | undefined): string {
               onSeedSshDefaults={(force) => void seedSshDefaults(force)}
               onUpdateSshPublicKey={updateSshPublicKey}
               onUpdateDraftLoginUri={updateDraftLoginUri}
+              onUpdateDraftLoginUriMatch={updateDraftLoginUriMatch}
               onQueueAttachmentFiles={queueAttachmentFiles}
               onToggleExistingAttachmentRemoval={toggleExistingAttachmentRemoval}
               onRemoveQueuedAttachment={removeQueuedAttachment}

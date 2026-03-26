@@ -2,7 +2,7 @@ import type { RefObject } from 'preact';
 import { CheckCheck, Download, Paperclip, Plus, RefreshCw, Star, StarOff, Trash2, Upload, X } from 'lucide-preact';
 import type { Cipher, Folder, VaultDraft, VaultDraftField } from '@/lib/types';
 import { t } from '@/lib/i18n';
-import { CREATE_TYPE_OPTIONS, cipherTypeLabel, formatAttachmentSize, toBooleanFieldValue } from '@/components/vault/vault-page-helpers';
+import { CREATE_TYPE_OPTIONS, cipherTypeLabel, createEmptyLoginUri, formatAttachmentSize, toBooleanFieldValue, WEBSITE_MATCH_OPTIONS } from '@/components/vault/vault-page-helpers';
 
 interface VaultEditorProps {
   draft: VaultDraft;
@@ -24,6 +24,7 @@ interface VaultEditorProps {
   onSeedSshDefaults: (force?: boolean) => void;
   onUpdateSshPublicKey: (value: string) => void;
   onUpdateDraftLoginUri: (index: number, value: string) => void;
+  onUpdateDraftLoginUriMatch: (index: number, value: number | null) => void;
   onQueueAttachmentFiles: (list: FileList | null) => void;
   onToggleExistingAttachmentRemoval: (attachmentId: string) => void;
   onRemoveQueuedAttachment: (index: number) => void;
@@ -119,13 +120,27 @@ export default function VaultEditor(props: VaultEditorProps) {
           </label>
           <div className="section-head">
             <h4>{t('txt_websites')}</h4>
-            <button type="button" className="btn btn-secondary small" onClick={() => props.onUpdateDraft({ loginUris: [...props.draft.loginUris, ''] })}>
+            <button type="button" className="btn btn-secondary small" onClick={() => props.onUpdateDraft({ loginUris: [...props.draft.loginUris, createEmptyLoginUri()] })}>
               <Plus size={14} className="btn-icon" /> {t('txt_add_website')}
             </button>
           </div>
-          {props.draft.loginUris.map((uri, index) => (
+          {props.draft.loginUris.map((uriEntry, index) => (
             <div key={`uri-${index}`} className="website-row">
-              <input className="input" value={uri} onInput={(e) => props.onUpdateDraftLoginUri(index, (e.currentTarget as HTMLInputElement).value)} />
+              <input className="input" value={uriEntry.uri} onInput={(e) => props.onUpdateDraftLoginUri(index, (e.currentTarget as HTMLInputElement).value)} />
+              <select
+                className="input website-match-select"
+                value={uriEntry.match == null ? '' : String(uriEntry.match)}
+                onInput={(e) => {
+                  const raw = (e.currentTarget as HTMLSelectElement).value;
+                  props.onUpdateDraftLoginUriMatch(index, raw === '' ? null : Number(raw));
+                }}
+              >
+                {WEBSITE_MATCH_OPTIONS.map((option) => (
+                  <option key={`website-match-${String(option.value)}`} value={option.value == null ? '' : String(option.value)}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
               {props.draft.loginUris.length > 1 && (
                 <button type="button" className="btn btn-secondary small" onClick={() => props.onUpdateDraft({ loginUris: props.draft.loginUris.filter((_, i) => i !== index) })}>
                   <X size={14} className="btn-icon" />
@@ -322,23 +337,31 @@ export default function VaultEditor(props: VaultEditorProps) {
           .map((field, originalIndex) => ({ field, originalIndex }))
           .filter((entry) => entry.field.type !== 3)
           .map(({ field, originalIndex }) => (
-            <div key={`field-${originalIndex}`} className="uri-row">
-              <input className="input" value={field.label} onInput={(e) => props.onPatchDraftCustomField(originalIndex, { label: (e.currentTarget as HTMLInputElement).value })} />
-              {field.type === 2 ? (
-                <label className="check-line cf-check">
-                  <input
-                    type="checkbox"
-                    checked={toBooleanFieldValue(field.value)}
-                    onInput={(e) => props.onPatchDraftCustomField(originalIndex, { value: (e.currentTarget as HTMLInputElement).checked ? 'true' : 'false' })}
-                  />
-                </label>
-              ) : (
-                <input className="input" value={field.value} onInput={(e) => props.onPatchDraftCustomField(originalIndex, { value: (e.currentTarget as HTMLInputElement).value })} />
-              )}
-              <button type="button" className="btn btn-secondary small" onClick={() => props.onUpdateDraftCustomFields(props.draft.customFields.filter((_, i) => i !== originalIndex))}>
-                <X size={14} className="btn-icon" />
-                {t('txt_remove')}
-              </button>
+            <div key={`field-${originalIndex}`} className="custom-field-card">
+              <label className="field custom-field-label">
+                <span>{t('txt_field_label')}</span>
+                <input className="input" value={field.label} onInput={(e) => props.onPatchDraftCustomField(originalIndex, { label: (e.currentTarget as HTMLInputElement).value })} />
+              </label>
+              <div className="custom-field-body">
+                <div className="custom-field-value">
+                  {field.type === 2 ? (
+                    <label className="check-line cf-check custom-field-check">
+                      <input
+                        type="checkbox"
+                        checked={toBooleanFieldValue(field.value)}
+                        onInput={(e) => props.onPatchDraftCustomField(originalIndex, { value: (e.currentTarget as HTMLInputElement).checked ? 'true' : 'false' })}
+                      />
+                      <span>{toBooleanFieldValue(field.value) ? t('txt_checked') : t('txt_unchecked')}</span>
+                    </label>
+                  ) : (
+                    <input className="input" value={field.value} onInput={(e) => props.onPatchDraftCustomField(originalIndex, { value: (e.currentTarget as HTMLInputElement).value })} />
+                  )}
+                </div>
+                <button type="button" className="btn btn-secondary small custom-field-remove" onClick={() => props.onUpdateDraftCustomFields(props.draft.customFields.filter((_, i) => i !== originalIndex))}>
+                  <X size={14} className="btn-icon" />
+                  {t('txt_remove')}
+                </button>
+              </div>
             </div>
           ))}
       </div>

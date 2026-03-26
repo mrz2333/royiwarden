@@ -1427,10 +1427,6 @@ input[type='file'].input::file-selector-button:hover {
   padding: 8px 0 2px;
 }
 
-.custom-field-row {
-  grid-template-columns: minmax(110px, 220px) minmax(0, 1fr) auto;
-}
-
 .boolean-main {
   min-width: 0;
   gap: 8px;
@@ -1438,6 +1434,61 @@ input[type='file'].input::file-selector-button:hover {
 
 .boolean-text {
   min-width: 0;
+}
+
+.custom-field-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #ecf0f5;
+}
+
+.custom-field-card:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.custom-field-label {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-field-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.custom-field-value {
+  min-width: 0;
+}
+
+.custom-field-value > .input {
+  width: 100%;
+}
+
+.custom-field-check {
+  margin-bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-field-check span {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.custom-field-remove {
+  white-space: nowrap;
 }
 
 .notes {
@@ -2218,9 +2269,22 @@ input[type='file'].input::file-selector-button:hover {
 
 .website-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 160px) auto;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.website-match-select {
+  height: 48px;
+  font-size: 13px;
+  line-height: 1.2;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-right: 38px;
+}
+
+.website-match-select option {
+  font-size: 13px;
 }
 
 .website-row .btn {
