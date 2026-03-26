@@ -1620,7 +1620,7 @@ input[type='file'].input::file-selector-button:hover {
 
 .totp-code-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   padding: 12px;
@@ -1630,6 +1630,19 @@ input[type='file'].input::file-selector-button:hover {
   width: 100%;
   min-width: 0;
   max-width: none;
+  transition:
+    transform 220ms var(--ease-out-soft),
+    box-shadow var(--dur-fast) var(--ease-out-soft),
+    border-color var(--dur-fast) var(--ease-smooth),
+    background-color var(--dur-fast) var(--ease-smooth),
+    opacity var(--dur-fast) var(--ease-smooth);
+}
+
+.totp-code-row.is-dragging {
+  z-index: 2;
+  border-color: rgba(37, 99, 235, 0.3);
+  background: color-mix(in srgb, var(--panel) 88%, white 12%);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
 }
 
 .totp-code-info {
@@ -1637,6 +1650,53 @@ input[type='file'].input::file-selector-button:hover {
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+.totp-drag-btn {
+  min-width: 24px;
+  width: 24px;
+  height: 34px;
+  padding: 0;
+  gap: 0;
+  color: var(--muted);
+  cursor: grab;
+  align-self: center;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 10px;
+  position: relative;
+  overflow: visible;
+  opacity: 0.82;
+}
+
+.totp-drag-btn:hover {
+  color: var(--primary-strong);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  opacity: 1;
+}
+
+.totp-drag-btn:active {
+  cursor: grabbing;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.totp-drag-btn::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 12px;
+}
+
+.totp-drag-btn .btn-icon {
+  opacity: 0.9;
 }
 
 .totp-code-main {
@@ -2630,9 +2690,87 @@ input[type='file'].input::file-selector-button:hover {
 
 .website-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(130px, 160px) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(130px, 160px) auto;
   gap: 8px;
   margin-bottom: 8px;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 84%, transparent);
+  transition:
+    border-color var(--dur-fast) var(--ease-smooth),
+    background-color var(--dur-fast) var(--ease-smooth),
+    box-shadow var(--dur-fast) var(--ease-out-soft),
+    transform 220ms var(--ease-out-soft),
+    opacity var(--dur-fast) var(--ease-smooth);
+}
+
+.website-row.is-dragging {
+  opacity: 0.48;
+  border-color: rgba(37, 99, 235, 0.24);
+  background: color-mix(in srgb, var(--panel-soft) 92%, white 8%);
+  box-shadow: var(--shadow-sm);
+}
+
+.website-row.is-shift-up {
+  transform: translateY(calc(-100% - 8px));
+}
+
+.website-row.is-shift-down {
+  transform: translateY(calc(100% + 8px));
+}
+
+.website-row.is-drop-target {
+  border-color: rgba(37, 99, 235, 0.34);
+  background: rgba(37, 99, 235, 0.08);
+  box-shadow: 0 16px 28px rgba(37, 99, 235, 0.1);
+}
+
+.website-drag-btn {
+  min-width: 28px;
+  width: 28px;
+  height: 48px;
+  padding: 0;
+  gap: 0;
+  cursor: grab;
+  color: var(--muted);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 10px;
+  position: relative;
+  overflow: visible;
+  opacity: 0.82;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.website-drag-btn:hover {
+  color: var(--primary-strong);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  opacity: 1;
+}
+
+.website-drag-btn:active {
+  cursor: grabbing;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.website-drag-btn::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 12px;
+}
+
+.website-drag-btn .btn-icon {
+  opacity: 0.9;
 }
 
 .website-match-select {
@@ -2651,6 +2789,35 @@ input[type='file'].input::file-selector-button:hover {
 .website-row .btn {
   justify-self: start;
   width: auto;
+}
+
+@media (max-width: 760px) {
+  .website-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .website-row > :nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .website-row > :nth-child(2) {
+    grid-column: 2 / span 2;
+    grid-row: 1;
+  }
+
+  .website-row > :nth-child(3) {
+    grid-column: 1 / span 2;
+    grid-row: 2;
+  }
+
+  .website-row > :nth-child(4) {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: start;
+  }
 }
 
 .cf-check {

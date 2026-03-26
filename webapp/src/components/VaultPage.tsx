@@ -521,6 +521,20 @@ function folderName(id: string | null | undefined): string {
     });
   }
 
+  function reorderDraftLoginUri(fromIndex: number, toIndex: number): void {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      if (fromIndex < 0 || toIndex < 0 || fromIndex >= prev.loginUris.length || toIndex >= prev.loginUris.length || fromIndex === toIndex) {
+        return prev;
+      }
+      const next = [...prev.loginUris];
+      const [moved] = next.splice(fromIndex, 1);
+      if (!moved) return prev;
+      next.splice(toIndex, 0, moved);
+      return { ...prev, loginUris: next };
+    });
+  }
+
   function queueAttachmentFiles(list: FileList | null): void {
     if (!list || !list.length) return;
     const next = Array.from(list).filter((file) => file && file.size >= 0);
@@ -908,6 +922,7 @@ function folderName(id: string | null | undefined): string {
                 onUpdateSshPublicKey={updateSshPublicKey}
                 onUpdateDraftLoginUri={updateDraftLoginUri}
                 onUpdateDraftLoginUriMatch={updateDraftLoginUriMatch}
+                onReorderDraftLoginUri={reorderDraftLoginUri}
                 onQueueAttachmentFiles={queueAttachmentFiles}
                 onToggleExistingAttachmentRemoval={toggleExistingAttachmentRemoval}
                 onRemoveQueuedAttachment={removeQueuedAttachment}

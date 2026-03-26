@@ -1,5 +1,23 @@
 import type { RefObject } from 'preact';
-import { CheckCheck, Download, Paperclip, Plus, RefreshCw, Star, StarOff, Trash2, Upload, X } from 'lucide-preact';
+import { CheckCheck, Download, GripVertical, Paperclip, Plus, RefreshCw, Star, StarOff, Trash2, Upload, X } from 'lucide-preact';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  type DragStartEvent,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Cipher, Folder, VaultDraft, VaultDraftField } from '@/lib/types';
 import { t } from '@/lib/i18n';
 import { CREATE_TYPE_OPTIONS, cipherTypeLabel, createEmptyLoginUri, formatAttachmentSize, toBooleanFieldValue, WEBSITE_MATCH_OPTIONS } from '@/components/vault/vault-page-helpers';
@@ -25,6 +43,7 @@ interface VaultEditorProps {
   onUpdateSshPublicKey: (value: string) => void;
   onUpdateDraftLoginUri: (index: number, value: string) => void;
   onUpdateDraftLoginUriMatch: (index: number, value: number | null) => void;
+  onReorderDraftLoginUri: (fromIndex: number, toIndex: number) => void;
   onQueueAttachmentFiles: (list: FileList | null) => void;
   onToggleExistingAttachmentRemoval: (attachmentId: string) => void;
   onRemoveQueuedAttachment: (index: number) => void;
@@ -37,7 +56,108 @@ interface VaultEditorProps {
   onDeleteSelected: () => void;
 }
 
+interface SortableWebsiteRowProps {
+  id: string;
+  uriEntry: VaultDraft['loginUris'][number];
+  index: number;
+  canRemove: boolean;
+  isDragging: boolean;
+  onUpdateUri: (index: number, value: string) => void;
+  onUpdateMatch: (index: number, value: number | null) => void;
+  onRemove: (index: number) => void;
+}
+
+function SortableWebsiteRow(props: SortableWebsiteRowProps) {
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`website-row${isDragging || props.isDragging ? ' is-dragging' : ''}`}
+    >
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        className="btn btn-secondary small website-drag-btn"
+        title={t('txt_drag_to_reorder')}
+        aria-label={t('txt_drag_to_reorder')}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={14} className="btn-icon" />
+      </button>
+      <input
+        className="input"
+        value={props.uriEntry.uri}
+        onInput={(e) => props.onUpdateUri(props.index, (e.currentTarget as HTMLInputElement).value)}
+      />
+      <select
+        className="input website-match-select"
+        value={props.uriEntry.match == null ? '' : String(props.uriEntry.match)}
+        onInput={(e) => {
+          const raw = (e.currentTarget as HTMLSelectElement).value;
+          props.onUpdateMatch(props.index, raw === '' ? null : Number(raw));
+        }}
+      >
+        {WEBSITE_MATCH_OPTIONS.map((option) => (
+          <option key={`website-match-${String(option.value)}`} value={option.value == null ? '' : String(option.value)}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {props.canRemove && (
+        <button type="button" className="btn btn-secondary small" onClick={() => props.onRemove(props.index)}>
+          <X size={14} className="btn-icon" />
+          {t('txt_remove')}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function VaultEditor(props: VaultEditorProps) {
+  const uriIdSeedRef = useRef(0);
+  const [uriItemIds, setUriItemIds] = useState<string[]>([]);
+  const [activeUriId, setActiveUriId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 120,
+        tolerance: 8,
+      },
+    }),
+  );
+
+  const createUriId = () => `login-uri-${uriIdSeedRef.current++}`;
+
+  useEffect(() => {
+    setUriItemIds((prev) => {
+      if (prev.length === props.draft.loginUris.length) return prev;
+      if (prev.length < props.draft.loginUris.length) {
+        return [...prev, ...Array.from({ length: props.draft.loginUris.length - prev.length }, () => createUriId())];
+      }
+      return prev.slice(0, props.draft.loginUris.length);
+    });
+  }, [props.draft.loginUris.length]);
+
+  useEffect(() => {
+    setUriItemIds(props.draft.loginUris.map(() => createUriId()));
+    setActiveUriId(null);
+  }, [props.draft.id, props.isCreating]);
+
   const formatDownloadLabel = (attachmentId: string) => {
     const downloadKey = `${props.selectedCipher?.id || ''}:${attachmentId}`;
     if (props.downloadingAttachmentKey !== downloadKey) return t('txt_download');
@@ -52,6 +172,32 @@ export default function VaultEditor(props: VaultEditorProps) {
           name: props.uploadingAttachmentName || t('txt_attachment'),
           percent: props.attachmentUploadPercent,
         });
+
+  const addLoginUri = () => {
+    setUriItemIds((prev) => [...prev, createUriId()]);
+    props.onUpdateDraft({ loginUris: [...props.draft.loginUris, createEmptyLoginUri()] });
+  };
+
+  const removeLoginUri = (index: number) => {
+    setUriItemIds((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
+    props.onUpdateDraft({ loginUris: props.draft.loginUris.filter((_, itemIndex) => itemIndex !== index) });
+  };
+
+  const handleWebsiteDragStart = (event: DragStartEvent) => {
+    setActiveUriId(String(event.active.id));
+  };
+
+  const handleWebsiteDragEnd = (event: DragEndEvent) => {
+    const activeId = String(event.active.id);
+    const overId = event.over ? String(event.over.id) : null;
+    setActiveUriId(null);
+    if (!overId || activeId === overId) return;
+    const fromIndex = uriItemIds.indexOf(activeId);
+    const toIndex = uriItemIds.indexOf(overId);
+    if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
+    setUriItemIds((prev) => arrayMove(prev, fromIndex, toIndex));
+    props.onReorderDraftLoginUri(fromIndex, toIndex);
+  };
 
   return (
     <>
@@ -120,35 +266,27 @@ export default function VaultEditor(props: VaultEditorProps) {
           </label>
           <div className="section-head">
             <h4>{t('txt_websites')}</h4>
-            <button type="button" className="btn btn-secondary small" onClick={() => props.onUpdateDraft({ loginUris: [...props.draft.loginUris, createEmptyLoginUri()] })}>
+            <button type="button" className="btn btn-secondary small" onClick={addLoginUri}>
               <Plus size={14} className="btn-icon" /> {t('txt_add_website')}
             </button>
           </div>
-          {props.draft.loginUris.map((uriEntry, index) => (
-            <div key={`uri-${index}`} className="website-row">
-              <input className="input" value={uriEntry.uri} onInput={(e) => props.onUpdateDraftLoginUri(index, (e.currentTarget as HTMLInputElement).value)} />
-              <select
-                className="input website-match-select"
-                value={uriEntry.match == null ? '' : String(uriEntry.match)}
-                onInput={(e) => {
-                  const raw = (e.currentTarget as HTMLSelectElement).value;
-                  props.onUpdateDraftLoginUriMatch(index, raw === '' ? null : Number(raw));
-                }}
-              >
-                {WEBSITE_MATCH_OPTIONS.map((option) => (
-                  <option key={`website-match-${String(option.value)}`} value={option.value == null ? '' : String(option.value)}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {props.draft.loginUris.length > 1 && (
-                <button type="button" className="btn btn-secondary small" onClick={() => props.onUpdateDraft({ loginUris: props.draft.loginUris.filter((_, i) => i !== index) })}>
-                  <X size={14} className="btn-icon" />
-                  {t('txt_remove')}
-                </button>
-              )}
-            </div>
-          ))}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleWebsiteDragStart} onDragEnd={handleWebsiteDragEnd}>
+            <SortableContext items={uriItemIds} strategy={verticalListSortingStrategy}>
+              {props.draft.loginUris.map((uriEntry, index) => (
+                <SortableWebsiteRow
+                  key={uriItemIds[index] ?? `uri-${index}`}
+                  id={uriItemIds[index] ?? `uri-fallback-${index}`}
+                  uriEntry={uriEntry}
+                  index={index}
+                  canRemove={props.draft.loginUris.length > 1}
+                  isDragging={activeUriId === uriItemIds[index]}
+                  onUpdateUri={props.onUpdateDraftLoginUri}
+                  onUpdateMatch={props.onUpdateDraftLoginUriMatch}
+                  onRemove={removeLoginUri}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 
