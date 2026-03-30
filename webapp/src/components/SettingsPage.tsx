@@ -14,6 +14,10 @@ interface SettingsPageProps {
   onOpenDisableTotp: () => void;
   onGetRecoveryCode: (masterPassword: string) => Promise<string>;
   onNotify?: (type: 'success' | 'error', text: string) => void;
+  passkeys: Array<{ id: string; name: string; creationDate: string; lastUsedDate: string | null }>;
+  onCreatePasskey: (name: string) => Promise<void>;
+  onRenamePasskey: (id: string, name: string) => Promise<void>;
+  onDeletePasskey: (id: string) => Promise<void>;
 }
 
 function randomBase32Secret(length: number): string {
@@ -47,6 +51,7 @@ export default function SettingsPage(props: SettingsPageProps) {
   const [totpLocked, setTotpLocked] = useState(props.totpEnabled);
   const [recoveryMasterPassword, setRecoveryMasterPassword] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
+  const [passkeyName, setPasskeyName] = useState('');
 
   useEffect(() => {
     if (!props.totpEnabled) {
@@ -138,6 +143,33 @@ export default function SettingsPage(props: SettingsPageProps) {
           <KeyRound size={14} className="btn-icon" />
           {t('txt_change_password')}
         </button>
+      </section>
+
+      <section className="card">
+        <h3>Passkey</h3>
+        <div className="field-grid">
+          <label className="field">
+            <span>名称</span>
+            <input className="input" value={passkeyName} onInput={(e) => setPasskeyName((e.currentTarget as HTMLInputElement).value)} placeholder="例如：MacBook Touch ID" />
+          </label>
+          <div className="field" style={{ alignSelf: 'end' }}>
+            <button type="button" className="btn btn-primary" disabled={!passkeyName.trim()} onClick={() => void props.onCreatePasskey(passkeyName.trim()).then(() => setPasskeyName(''))}>
+              创建 Passkey
+            </button>
+          </div>
+        </div>
+        <p className="muted-inline" style={{ marginBottom: 8 }}>最多 5 个，支持重命名和删除。</p>
+        <div className="stack">
+          {props.passkeys.map((item) => (
+            <div key={item.id} className="card" style={{ marginBottom: 0 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input className="input" style={{ flex: 1, minWidth: 180 }} value={item.name} onInput={(e) => void props.onRenamePasskey(item.id, (e.currentTarget as HTMLInputElement).value)} />
+                <button type="button" className="btn btn-danger" onClick={() => void props.onDeletePasskey(item.id)}>删除</button>
+              </div>
+            </div>
+          ))}
+          {!props.passkeys.length && <div className="empty">暂无 Passkey</div>}
+        </div>
       </section>
 
       <section className="card">
