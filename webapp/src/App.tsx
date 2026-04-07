@@ -53,6 +53,17 @@ import { APP_NOTIFY_EVENT, type AppNotifyDetail } from '@/lib/app-notify';
 import { dispatchBackupProgress, type BackupProgressDetail } from '@/lib/backup-restore-progress';
 import type { AppPhase, Cipher, Folder as VaultFolder, Profile, Send, SessionState } from '@/lib/types';
 
+function isBackupProgressDetail(value: unknown): value is BackupProgressDetail {
+  if (!value || typeof value !== 'object') return false;
+  const detail = value as Record<string, unknown>;
+  const operation = detail.operation;
+  return (
+    (operation === 'backup-restore' || operation === 'backup-export' || operation === 'backup-remote-run')
+    && typeof detail.step === 'string'
+    && typeof detail.fileName === 'string'
+  );
+}
+
 const IMPORT_ROUTE = '/backup/import-export';
 const IMPORT_ROUTE_PATHS = [IMPORT_ROUTE, '/tools/import', '/tools/import-export', '/tools/import-data', '/import', '/import-export'] as const;
 const IMPORT_ROUTE_ALIASES: ReadonlySet<string> = new Set(IMPORT_ROUTE_PATHS.filter((path) => path !== IMPORT_ROUTE));
@@ -927,17 +938,7 @@ export default function App() {
           }
           if (updateType === SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS) {
             const payload = frame.arguments?.[0]?.Payload;
-            if (
-              payload
-              && typeof payload === 'object'
-              && (
-                payload.operation === 'backup-restore'
-                || payload.operation === 'backup-export'
-                || payload.operation === 'backup-remote-run'
-              )
-            ) {
-              dispatchBackupProgress(payload as BackupProgressDetail);
-            }
+            if (isBackupProgressDetail(payload)) dispatchBackupProgress(payload);
             continue;
           }
           if (updateType !== SIGNALR_UPDATE_TYPE_SYNC_VAULT) continue;

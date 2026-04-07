@@ -16,6 +16,7 @@ import {
   type AuthedFetch,
 } from './shared';
 import { readResponseBytesWithProgress } from '../download';
+import { toBufferSource } from '../crypto';
 import { unzipSync, zipSync } from 'fflate';
 
 export type {
@@ -367,7 +368,7 @@ export function extractBackupFileChecksumPrefix(fileName: string): string | null
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  const digest = await crypto.subtle.digest('SHA-256', toBufferSource(bytes));
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
