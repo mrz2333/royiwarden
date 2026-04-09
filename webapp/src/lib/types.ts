@@ -1,9 +1,10 @@
 export type AppPhase = 'register' | 'login' | 'locked' | 'app';
 
 export interface SessionState {
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string;
+  refreshToken?: string;
   email: string;
+  authMode?: 'token' | 'web-cookie';
   symEncKey?: string;
   symMacKey?: string;
 }
@@ -48,11 +49,17 @@ export interface CipherAttachment {
   object?: string;
 }
 
+export interface CipherLoginPasskey {
+  creationDate?: string | null;
+  [key: string]: unknown;
+}
+
 export interface CipherLogin {
   username?: string | null;
   password?: string | null;
   totp?: string | null;
   uris?: CipherLoginUri[] | null;
+  fido2Credentials?: CipherLoginPasskey[] | null;
   decUsername?: string;
   decPassword?: string;
   decTotp?: string;
@@ -222,6 +229,7 @@ export interface VaultDraft {
   loginPassword: string;
   loginTotp: string;
   loginUris: VaultDraftLoginUri[];
+  loginFido2Credentials: Array<Record<string, unknown>>;
   cardholderName: string;
   cardNumber: string;
   cardBrand: string;
@@ -265,7 +273,8 @@ export interface WebBootstrapResponse {
 
 export interface TokenSuccess {
   access_token: string;
-  refresh_token: string;
+  refresh_token?: string;
+  web_session?: boolean;
   expires_in?: number;
   token_type?: string;
   TwoFactorToken?: string;
