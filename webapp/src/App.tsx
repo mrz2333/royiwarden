@@ -1196,6 +1196,7 @@ export default function App() {
     onOpenDisableTotp: () => setDisableTotpOpen(true),
     onGetRecoveryCode: accountSecurityActions.getRecoveryCode,
     onRefreshAuthorizedDevices: accountSecurityActions.refreshAuthorizedDevices,
+    onRenameAuthorizedDevice: accountSecurityActions.renameAuthorizedDevice,
     onRevokeDeviceTrust: accountSecurityActions.openRevokeDeviceTrust,
     onRemoveDevice: accountSecurityActions.openRemoveDevice,
     onRevokeAllDeviceTrust: accountSecurityActions.openRevokeAllDeviceTrust,

@@ -338,10 +338,14 @@ export interface AdminInvite {
 export interface AuthorizedDevice {
   id: string;
   name: string;
+  systemName?: string | null;
+  deviceNote?: string | null;
   identifier: string;
   type: number;
   creationDate: string | null;
   revisionDate: string | null;
+  lastSeenAt?: string | null;
+  hasStoredDevice?: boolean;
   online: boolean;
   trusted: boolean;
   trustedTokenCount: number;
