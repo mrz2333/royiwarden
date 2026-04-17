@@ -766,6 +766,14 @@ export default function App() {
                 ),
               };
             }
+            if (Array.isArray(cipher.passwordHistory)) {
+              nextCipher.passwordHistory = await Promise.all(
+                cipher.passwordHistory.map(async (entry) => ({
+                  ...entry,
+                  decPassword: await decryptField(entry?.password || '', itemEnc, itemMac),
+                }))
+              );
+            }
             if (cipher.card) {
               nextCipher.card = {
                 ...cipher.card,

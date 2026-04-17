@@ -148,6 +148,12 @@ export interface CipherField {
   decValue?: string;
 }
 
+export interface CipherPasswordHistoryEntry {
+  password?: string | null;
+  lastUsedDate?: string | null;
+  decPassword?: string;
+}
+
 export interface Cipher {
   id: string;
   type: number;
@@ -167,7 +173,7 @@ export interface Cipher {
   identity?: CipherIdentity | null;
   sshKey?: CipherSshKey | null;
   secureNote?: { type?: number | null } | null;
-  passwordHistory?: Array<{ password?: string | null; lastUsedDate?: string | null }> | null;
+  passwordHistory?: CipherPasswordHistoryEntry[] | null;
   fields?: CipherField[] | null;
   decName?: string;
   decNotes?: string;
