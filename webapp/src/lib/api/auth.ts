@@ -596,7 +596,7 @@ export async function deleteAllAuthorizedDevices(authedFetch: AuthedFetch): Prom
 }
 
 export async function getApiKey(authedFetch: AuthedFetch, masterPasswordHash: string): Promise<string> {
-  const resp = await authedFetch('/api/accounts/api_key', {
+  const resp = await authedFetch('/api/accounts/api-key', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ masterPasswordHash }),
@@ -610,7 +610,7 @@ export async function getApiKey(authedFetch: AuthedFetch, masterPasswordHash: st
 }
 
 export async function rotateApiKey(authedFetch: AuthedFetch, masterPasswordHash: string): Promise<string> {
-  const resp = await authedFetch('/api/accounts/rotate_api_key', {
+  const resp = await authedFetch('/api/accounts/rotate-api-key', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ masterPasswordHash }),

@@ -121,11 +121,11 @@ export async function handleAuthenticatedRoute(
     return handleSetVerifyDevices(request, env, userId);
   }
 
-  if (path === '/api/accounts/api_key' && method === 'POST') {
+  if ((path === '/api/accounts/api-key' || path === '/api/accounts/api_key') && method === 'POST') {
     return handleGetApiKey(request, env, userId);
   }
 
-  if (path === '/api/accounts/rotate_api_key' && method === 'POST') {
+  if ((path === '/api/accounts/rotate-api-key' || path === '/api/accounts/rotate_api_key') && method === 'POST') {
     return handleRotateApiKey(request, env, userId);
   }
 

@@ -294,21 +294,58 @@ export default function SettingsPage(props: SettingsPageProps) {
       <ConfirmDialog
         open={apiKeyDialogOpen}
         title={t('txt_api_key')}
-        message=""
+        message={t('txt_api_key_dialog_intro')}
         hideCancel
         confirmText={t('txt_close')}
         onConfirm={() => setApiKeyDialogOpen(false)}
         onCancel={() => setApiKeyDialogOpen(false)}
       >
-        <div className="stack" style={{ gap: 8, marginTop: 4 }}>
+        <div
+          style={{
+            border: '1px solid color-mix(in srgb, var(--danger) 24%, transparent)',
+            background: 'color-mix(in srgb, var(--danger) 7%, var(--surface))',
+            borderRadius: 8,
+            padding: 14,
+            marginTop: 12,
+            marginBottom: 14,
+          }}
+        >
+          <div style={{ fontWeight: 800, color: 'var(--danger)', marginBottom: 8 }}>{t('txt_warning')}</div>
+          <div style={{ color: 'var(--text)', lineHeight: 1.55 }}>{t('txt_api_key_warning_body')}</div>
+        </div>
+
+        <div
+          style={{
+            border: '1px solid color-mix(in srgb, var(--primary) 25%, transparent)',
+            background: 'color-mix(in srgb, var(--primary) 7%, var(--surface))',
+            borderRadius: 8,
+            padding: 14,
+            marginBottom: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, color: 'var(--primary)', marginBottom: 10 }}>
+            <KeyRound size={15} />
+            <span>{t('txt_oauth_client_credentials')}</span>
+          </div>
           {([
             [t('txt_client_id'), `user.${props.profile.id}`],
             [t('txt_client_secret'), apiKey],
             [t('txt_scope'), 'api'],
+            [t('txt_grant_type'), 'client_credentials'],
           ] as [string, string][]).map(([label, value]) => (
             <label key={label} className="field">
               <span>{label}</span>
-              <input className="input" readOnly value={value} onFocus={(e) => (e.currentTarget as HTMLInputElement).select()} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8 }}>
+                <input className="input" readOnly value={value} onFocus={(e) => (e.currentTarget as HTMLInputElement).select()} />
+                <button
+                  type="button"
+                  className="btn btn-secondary small"
+                  onClick={() => void copyTextToClipboard(value, { successMessage: t('txt_copied') })}
+                >
+                  <Clipboard size={14} className="btn-icon" />
+                  {t('txt_copy')}
+                </button>
+              </div>
             </label>
           ))}
         </div>

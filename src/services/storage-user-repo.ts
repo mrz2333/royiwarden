@@ -105,7 +105,7 @@ export async function createFirstUser(db: D1Database, safeBind: SafeBind, user: 
   const email = user.email.toLowerCase();
   const stmt = db.prepare(
     'INSERT INTO users(id, email, name, master_password_hint, master_password_hash, key, private_key, public_key, kdf_type, kdf_iterations, kdf_memory, kdf_parallelism, security_stamp, role, status, verify_devices, totp_secret, totp_recovery_code, api_key, created_at, updated_at) ' +
-    'SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?' +
+    'SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ' +
     'WHERE NOT EXISTS (SELECT 1 FROM users LIMIT 1)'
   );
   const result = await safeBind(

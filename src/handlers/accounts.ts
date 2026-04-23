@@ -754,7 +754,7 @@ export async function handleVerifyPassword(request: Request, env: Env, userId: s
 }
 
 // POST /api/accounts/api-key
-export async function handleGetApiKey(request: Request, env: Env, userId: string): Promise<Response>{
+export async function handleGetApiKey(request: Request, env: Env, userId: string): Promise<Response> {
   return apiKey(request, env, userId, false);
 }
 
@@ -763,7 +763,7 @@ export async function handleRotateApiKey(request: Request, env: Env, userId: str
   return apiKey(request, env, userId, true);
 }
 
-async function apiKey(request: Request, env: Env, userId: string,rotate: boolean): Promise<Response> {
+async function apiKey(request: Request, env: Env, userId: string, rotate: boolean): Promise<Response> {
   const storage = new StorageService(env.DB);
   const auth = new AuthService(env);
   const user = await storage.getUserById(userId);
@@ -786,28 +786,32 @@ async function apiKey(request: Request, env: Env, userId: string,rotate: boolean
   if (!currentHash) return errorResponse('masterPasswordHash is required', 400);
   const valid = await auth.verifyPassword(currentHash, user.masterPasswordHash, user.email);
   if (!valid) return errorResponse('Invalid password', 400);
-  
+
   if (rotate || user.apiKey === null) {
     // Upstream apikeys are 30-character random alphanumeric strings
     user.apiKey = randomStringAlphanum(LIMITS.auth.clientSecretLength);
+    if (rotate) {
+      user.securityStamp = generateUUID();
+      await storage.deleteRefreshTokensByUserId(user.id);
+    }
     user.updatedAt = new Date().toISOString();
     await storage.saveUser(user);
   }
 
-  return  jsonResponse({
+  return jsonResponse({
     apiKey: user.apiKey,
-    revisionDate: user.updatedAt, 
+    revisionDate: user.updatedAt,
     object: 'apiKey',
-  }); 
+  });
 }
 
 // Generate a random alphanumeric string of the given length using crypto.getRandomValues.
 function randomStringAlphanum(length: number): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
-  
-  let result = "";
+
+  let result = '';
   for (let i = 0; i < length; i++) {
     result += chars[array[i] % chars.length];
   }

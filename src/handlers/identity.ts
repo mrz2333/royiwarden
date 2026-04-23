@@ -48,6 +48,18 @@ function parseCookieValue(request: Request, name: string): string | null {
   return null;
 }
 
+function constantTimeEquals(a: string, b: string): boolean {
+  const encA = new TextEncoder().encode(a);
+  const encB = new TextEncoder().encode(b);
+  if (encA.length !== encB.length) return false;
+
+  let diff = 0;
+  for (let i = 0; i < encA.length; i++) {
+    diff |= encA[i] ^ encB[i];
+  }
+  return diff === 0;
+}
+
 function buildRefreshCookie(request: Request, refreshToken: string, maxAgeSeconds: number): string {
   const isHttps = new URL(request.url).protocol === 'https:';
   const parts = [
@@ -395,8 +407,12 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       return identityErrorResponse('Account is disabled', 'invalid_grant', 400);
     }
 
+    if (!user.apiKey || !constantTimeEquals(clientSecret, user.apiKey)) {
+      await rateLimit.recordFailedLogin(loginIdentifier);
+      return identityErrorResponse('ClientId or clientSecret is incorrect. Try again', 'invalid_grant', 400);
+    }
 
-     // Persist device only after successful password + (optional) 2FA verification.
+    // Persist device only after successful client credential verification.
     const deviceSession =
       deviceInfo.deviceIdentifier
         ? { identifier: deviceInfo.deviceIdentifier, sessionStamp: generateUUID() }
@@ -423,7 +439,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       access_token: accessToken,
       expires_in: LIMITS.auth.accessTokenTtlSeconds,
       token_type: 'Bearer',
-      ...(shouldUseWebSession(request) ? { web_session: true } : { refresh_token: refreshToken } ),
+      ...(shouldUseWebSession(request) ? { web_session: true } : { refresh_token: refreshToken }),
       Key: user.key,
       PrivateKey: user.privateKey,
       AccountKeys: accountKeys,
@@ -643,10 +659,10 @@ export async function handleRevocation(request: Request, env: Env): Promise<Resp
 }
 
 export function checkClientCredentialsParam(clientId: string, clientSecret: string, scope: string): boolean {
-  if (scope !== "api") {
+  if (scope !== 'api') {
     return false;
   }
-  if (!clientId.startsWith("user.")) {
+  if (!clientId.startsWith('user.')) {
     return false;
   }
   if (!clientSecret) {
