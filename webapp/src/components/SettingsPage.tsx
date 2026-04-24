@@ -268,7 +268,7 @@ export default function SettingsPage(props: SettingsPageProps) {
 
           <div className="settings-subcard">
             <h3>{t('txt_recovery_code')}</h3>
-            <p className="muted-inline" style={{ marginBottom: 8 }}>
+            <p className="muted-inline settings-field-note">
               {t('txt_this_is_a_one_time_code_after_it_is_used_a_new_code_is_generated_automatically')}
             </p>
             <label className="field">
@@ -298,8 +298,8 @@ export default function SettingsPage(props: SettingsPageProps) {
               </button>
             </div>
             {recoveryCode && (
-              <div className="card" style={{ marginTop: 10, marginBottom: 0 }}>
-                <div style={{ fontWeight: 800, letterSpacing: '0.08em' }}>{recoveryCode}</div>
+              <div className="card recovery-code-card">
+                <div className="recovery-code-value">{recoveryCode}</div>
               </div>
             )}
           </div>
@@ -341,30 +341,13 @@ export default function SettingsPage(props: SettingsPageProps) {
         onConfirm={() => setApiKeyDialogOpen(false)}
         onCancel={() => setApiKeyDialogOpen(false)}
       >
-        <div
-          style={{
-            border: '1px solid color-mix(in srgb, var(--danger) 24%, transparent)',
-            background: 'color-mix(in srgb, var(--danger) 7%, var(--surface))',
-            borderRadius: 8,
-            padding: 14,
-            marginTop: 12,
-            marginBottom: 14,
-          }}
-        >
-          <div style={{ fontWeight: 800, color: 'var(--danger)', marginBottom: 8 }}>{t('txt_warning')}</div>
-          <div style={{ color: 'var(--text)', lineHeight: 1.55 }}>{t('txt_api_key_warning_body')}</div>
+        <div className="api-key-warning-panel">
+          <div className="api-key-warning-title">{t('txt_warning')}</div>
+          <div className="api-key-warning-body">{t('txt_api_key_warning_body')}</div>
         </div>
 
-        <div
-          style={{
-            border: '1px solid color-mix(in srgb, var(--primary) 25%, transparent)',
-            background: 'color-mix(in srgb, var(--primary) 7%, var(--surface))',
-            borderRadius: 8,
-            padding: 14,
-            marginBottom: 10,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, color: 'var(--primary)', marginBottom: 10 }}>
+        <div className="api-key-credentials-panel">
+          <div className="api-key-credentials-title">
             <KeyRound size={15} />
             <span>{t('txt_oauth_client_credentials')}</span>
           </div>
@@ -376,7 +359,7 @@ export default function SettingsPage(props: SettingsPageProps) {
           ] as [string, string][]).map(([label, value]) => (
             <label key={label} className="field">
               <span>{label}</span>
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8 }}>
+              <div className="api-key-credential-row">
                 <input className="input" readOnly value={value} onFocus={(e) => (e.currentTarget as HTMLInputElement).select()} />
                 <button
                   type="button"

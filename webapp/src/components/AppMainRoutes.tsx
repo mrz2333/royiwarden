@@ -33,6 +33,7 @@ export interface AppMainRoutesProps {
   profile: Profile | null;
   session: SessionState | null;
   mobileLayout: boolean;
+  mobileSidebarToggleKey: number;
   importRoute: string;
   settingsHomeRoute: string;
   settingsAccountRoute: string;
@@ -167,6 +168,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
             onBulkDelete={props.onBulkDeleteSends}
             uploadingSendFileName={props.uploadingSendFileName}
             sendUploadPercent={props.sendUploadPercent}
+            mobileSidebarToggleKey={props.mobileSidebarToggleKey}
             onNotify={props.onNotify}
           />
         </Suspense>
@@ -206,6 +208,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
             attachmentDownloadPercent={props.attachmentDownloadPercent}
             uploadingAttachmentName={props.uploadingAttachmentName}
             attachmentUploadPercent={props.attachmentUploadPercent}
+            mobileSidebarToggleKey={props.mobileSidebarToggleKey}
           />
         </Suspense>
       </Route>

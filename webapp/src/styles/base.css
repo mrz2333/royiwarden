@@ -5,9 +5,7 @@
 html,
 body,
 #root {
-  margin: 0;
-  padding: 0;
-  @apply h-full w-full;
+  @apply m-0 h-full w-full p-0;
   color: var(--text);
   background: var(--bg-accent);
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;

@@ -155,6 +155,7 @@ export default function App() {
 
   const [confirm, setConfirm] = useState<AppConfirmState | null>(null);
   const [mobileLayout, setMobileLayout] = useState(false);
+  const [mobileSidebarToggleKey, setMobileSidebarToggleKey] = useState(0);
   const [decryptedFolders, setDecryptedFolders] = useState<VaultFolder[]>([]);
   const [decryptedCiphers, setDecryptedCiphers] = useState<Cipher[]>([]);
   const [decryptedSends, setDecryptedSends] = useState<Send[]>([]);
@@ -1198,6 +1199,7 @@ export default function App() {
     profile,
     session,
     mobileLayout,
+    mobileSidebarToggleKey,
     importRoute: IMPORT_ROUTE,
     settingsHomeRoute: SETTINGS_HOME_ROUTE,
     settingsAccountRoute: SETTINGS_ACCOUNT_ROUTE,
@@ -1403,6 +1405,7 @@ export default function App() {
         onLock={handleLock}
         onLogout={handleLogout}
         onToggleTheme={handleToggleTheme}
+        onToggleMobileSidebar={() => setMobileSidebarToggleKey((key) => key + 1)}
         mainRoutesProps={mainRoutesProps}
       />
 
