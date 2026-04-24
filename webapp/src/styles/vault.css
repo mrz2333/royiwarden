@@ -355,7 +355,7 @@
 
 .list-icon {
   @apply h-6 w-6 rounded-md;
-  opacity: 1;
+  opacity: 0;
   transition: opacity var(--dur-fast) var(--ease-smooth);
 }
 
@@ -369,7 +369,7 @@
 }
 
 .list-icon-stack > .list-icon {
-  opacity: 0;
+  z-index: 2;
 }
 
 .list-icon-stack > .list-icon.loaded {
@@ -378,6 +378,11 @@
 
 .list-icon-fallback.hidden {
   opacity: 0;
+}
+
+.list-icon-stack > .list-icon-fallback {
+  opacity: 0;
+  z-index: 1;
 }
 
 .list-icon-fallback {
