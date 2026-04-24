@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 interface SettingsPageProps {
   profile: Profile;
   totpEnabled: boolean;
+  lockTimeoutMinutes: 0 | 1 | 5 | 15 | 30;
   onChangePassword: (currentPassword: string, nextPassword: string, nextPassword2: string) => Promise<void>;
   onSavePasswordHint: (masterPasswordHint: string) => Promise<void>;
   onEnableTotp: (secret: string, token: string) => Promise<void>;
@@ -16,8 +17,17 @@ interface SettingsPageProps {
   onGetRecoveryCode: (masterPassword: string) => Promise<string>;
   onGetApiKey: (masterPassword: string) => Promise<string>;
   onRotateApiKey: (masterPassword: string) => Promise<string>;
+  onLockTimeoutChange: (minutes: 0 | 1 | 5 | 15 | 30) => void;
   onNotify?: (type: 'success' | 'error', text: string) => void;
 }
+
+const LOCK_TIMEOUT_OPTIONS = [
+  { value: 1, labelKey: 'txt_lock_after_1_minute' },
+  { value: 5, labelKey: 'txt_lock_after_5_minutes' },
+  { value: 15, labelKey: 'txt_lock_after_15_minutes' },
+  { value: 30, labelKey: 'txt_lock_after_30_minutes' },
+  { value: 0, labelKey: 'txt_lock_after_never' },
+] as const;
 
 function randomBase32Secret(length: number): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -124,25 +134,42 @@ export default function SettingsPage(props: SettingsPageProps) {
   return (
     <div className="stack">
       <section className="card">
-        <h3>{t('txt_profile')}</h3>
-        <label className="field">
-          <span>{t('txt_password_hint_optional')}</span>
-          <input
-            className="input"
-            maxLength={120}
-            value={passwordHint}
-            placeholder={t('txt_password_hint_placeholder')}
-            onInput={(e) => setPasswordHint((e.currentTarget as HTMLInputElement).value)}
-          />
-          <div className="field-help">{t('txt_password_hint_register_help')}</div>
-        </label>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => void props.onSavePasswordHint(passwordHint)}
-        >
-          {t('txt_save_profile')}
-        </button>
+        <h3>{t('txt_security_preferences')}</h3>
+        <div className="field-grid">
+          <label className="field">
+            <span>{t('txt_auto_lock')}</span>
+            <select
+              className="input"
+              value={String(props.lockTimeoutMinutes)}
+              onInput={(e) => props.onLockTimeoutChange(Number((e.currentTarget as HTMLSelectElement).value) as 0 | 1 | 5 | 15 | 30)}
+            >
+              {LOCK_TIMEOUT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {t(option.labelKey)}
+                </option>
+              ))}
+            </select>
+            <div className="field-help">{t('txt_auto_lock_description')}</div>
+          </label>
+          <label className="field">
+            <span>{t('txt_password_hint_optional')}</span>
+            <input
+              className="input"
+              maxLength={120}
+              value={passwordHint}
+              placeholder={t('txt_password_hint_placeholder')}
+              onInput={(e) => setPasswordHint((e.currentTarget as HTMLInputElement).value)}
+            />
+            <div className="field-help">{t('txt_password_hint_register_help')}</div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void props.onSavePasswordHint(passwordHint)}
+            >
+              {t('txt_save_profile')}
+            </button>
+          </label>
+        </div>
       </section>
 
       <section className="card">

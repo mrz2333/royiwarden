@@ -45,6 +45,7 @@ export interface AppMainRoutesProps {
   users: AdminUser[];
   invites: AdminInvite[];
   totpEnabled: boolean;
+  lockTimeoutMinutes: 0 | 1 | 5 | 15 | 30;
   authorizedDevices: AuthorizedDevice[];
   authorizedDevicesLoading: boolean;
   onNavigate: (path: string) => void;
@@ -96,6 +97,7 @@ export interface AppMainRoutesProps {
   onGetRecoveryCode: (masterPassword: string) => Promise<string>;
   onGetApiKey: (masterPassword: string) => Promise<string>;
   onRotateApiKey: (masterPassword: string) => Promise<string>;
+  onLockTimeoutChange: (minutes: 0 | 1 | 5 | 15 | 30) => void;
   onRefreshAuthorizedDevices: () => Promise<void>;
   onRenameAuthorizedDevice: (device: AuthorizedDevice, name: string) => Promise<void>;
   onRevokeDeviceTrust: (device: AuthorizedDevice) => void;
@@ -222,6 +224,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
               <SettingsPage
                 profile={props.profile}
                 totpEnabled={props.totpEnabled}
+                lockTimeoutMinutes={props.lockTimeoutMinutes}
                 onChangePassword={props.onChangePassword}
                 onSavePasswordHint={props.onSavePasswordHint}
                 onEnableTotp={props.onEnableTotp}
@@ -229,6 +232,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
                 onGetRecoveryCode={props.onGetRecoveryCode}
                 onGetApiKey={props.onGetApiKey}
                 onRotateApiKey={props.onRotateApiKey}
+                onLockTimeoutChange={props.onLockTimeoutChange}
                 onNotify={props.onNotify}
               />
             </Suspense>
