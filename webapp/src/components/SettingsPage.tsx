@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { Clipboard, KeyRound, RefreshCw, ShieldCheck, ShieldOff } from 'lucide-preact';
+import { Clipboard, KeyRound, Lightbulb, RefreshCw, ShieldCheck, ShieldOff } from 'lucide-preact';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import qrcode from 'qrcode-generator';
 import type { Profile } from '@/lib/types';
@@ -10,6 +10,7 @@ interface SettingsPageProps {
   profile: Profile;
   totpEnabled: boolean;
   lockTimeoutMinutes: 0 | 1 | 5 | 15 | 30;
+  sessionTimeoutAction: 'lock' | 'logout';
   onChangePassword: (currentPassword: string, nextPassword: string, nextPassword2: string) => Promise<void>;
   onSavePasswordHint: (masterPasswordHint: string) => Promise<void>;
   onEnableTotp: (secret: string, token: string) => Promise<void>;
@@ -18,15 +19,16 @@ interface SettingsPageProps {
   onGetApiKey: (masterPassword: string) => Promise<string>;
   onRotateApiKey: (masterPassword: string) => Promise<string>;
   onLockTimeoutChange: (minutes: 0 | 1 | 5 | 15 | 30) => void;
+  onSessionTimeoutActionChange: (action: 'lock' | 'logout') => void;
   onNotify?: (type: 'success' | 'error', text: string) => void;
 }
 
 const LOCK_TIMEOUT_OPTIONS = [
-  { value: 1, labelKey: 'txt_lock_after_1_minute' },
-  { value: 5, labelKey: 'txt_lock_after_5_minutes' },
-  { value: 15, labelKey: 'txt_lock_after_15_minutes' },
-  { value: 30, labelKey: 'txt_lock_after_30_minutes' },
-  { value: 0, labelKey: 'txt_lock_after_never' },
+  { value: 1, labelKey: 'txt_timeout_1_minute' },
+  { value: 5, labelKey: 'txt_timeout_5_minutes' },
+  { value: 15, labelKey: 'txt_timeout_15_minutes' },
+  { value: 30, labelKey: 'txt_timeout_30_minutes' },
+  { value: 0, labelKey: 'txt_timeout_never' },
 ] as const;
 
 function randomBase32Secret(length: number): string {
@@ -70,12 +72,13 @@ export default function SettingsPage(props: SettingsPageProps) {
   const [secret, setSecret] = useState(() => randomBase32Secret(32));
   const [token, setToken] = useState('');
   const [totpLocked, setTotpLocked] = useState(props.totpEnabled);
-  const [recoveryMasterPassword, setRecoveryMasterPassword] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
-  const [apiKeyMasterPassword, setApiKeyMasterPassword] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [rotateApiKeyConfirmOpen, setRotateApiKeyConfirmOpen] = useState(false);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
+  const [masterPasswordPrompt, setMasterPasswordPrompt] = useState<null | 'recovery' | 'apiKey' | 'rotateApiKey'>(null);
+  const [masterPasswordPromptValue, setMasterPasswordPromptValue] = useState('');
+  const [masterPasswordPromptSubmitting, setMasterPasswordPromptSubmitting] = useState(false);
 
   useEffect(() => {
     clearLegacyTotpSetupSecrets();
@@ -111,32 +114,51 @@ export default function SettingsPage(props: SettingsPageProps) {
     }
   }
 
-  async function loadRecoveryCode(): Promise<void> {
-    const code = await props.onGetRecoveryCode(recoveryMasterPassword);
-    setRecoveryCode(code);
-    props.onNotify?.('success', t('txt_recovery_code_loaded'));
+  function openMasterPasswordPrompt(action: 'recovery' | 'apiKey' | 'rotateApiKey'): void {
+    setMasterPasswordPrompt(action);
+    setMasterPasswordPromptValue('');
   }
 
-  async function loadApiKey(): Promise<void> {
+  function closeMasterPasswordPrompt(): void {
+    if (masterPasswordPromptSubmitting) return;
+    setMasterPasswordPrompt(null);
+    setMasterPasswordPromptValue('');
+  }
+
+  async function submitMasterPasswordPrompt(): Promise<void> {
+    if (!masterPasswordPrompt || masterPasswordPromptSubmitting) return;
+    const masterPassword = masterPasswordPromptValue;
+    setMasterPasswordPromptSubmitting(true);
     try {
-      const key = await props.onGetApiKey(apiKeyMasterPassword);
-      setApiKey(key);
-      setApiKeyDialogOpen(true);
+      if (masterPasswordPrompt === 'recovery') {
+        const code = await props.onGetRecoveryCode(masterPassword);
+        setRecoveryCode(code);
+        props.onNotify?.('success', t('txt_recovery_code_loaded'));
+      } else if (masterPasswordPrompt === 'apiKey') {
+        const key = await props.onGetApiKey(masterPassword);
+        setApiKey(key);
+        setApiKeyDialogOpen(true);
+      } else {
+        const key = await props.onRotateApiKey(masterPassword);
+        setApiKey(key);
+        setApiKeyDialogOpen(true);
+        props.onNotify?.('success', t('txt_api_key_rotated'));
+      }
+      setMasterPasswordPrompt(null);
+      setMasterPasswordPromptValue('');
     } catch (error) {
-      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_api_key_is_empty'));
+      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_master_password_is_required_2'));
+    } finally {
+      setMasterPasswordPromptSubmitting(false);
     }
   }
 
-  async function doRotateApiKey(): Promise<void> {
-    try {
-      const key = await props.onRotateApiKey(apiKeyMasterPassword);
-      setApiKey(key);
-      setApiKeyDialogOpen(true);
-      props.onNotify?.('success', t('txt_api_key_rotated'));
-    } catch (error) {
-      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_api_key_is_empty'));
-    }
-  }
+  const masterPasswordPromptTitle =
+    masterPasswordPrompt === 'recovery'
+      ? t('txt_view_recovery_code')
+      : masterPasswordPrompt === 'rotateApiKey'
+        ? t('txt_rotate_api_key')
+        : t('txt_view_api_key');
 
   function formatDateTime(value: string | null | undefined): string {
     if (!value) return t('txt_dash');
@@ -146,12 +168,12 @@ export default function SettingsPage(props: SettingsPageProps) {
   }
 
   return (
-    <div className="stack">
-      <section className="card">
-        <h3>{t('txt_security_preferences')}</h3>
-        <div className="field-grid">
+    <div className="settings-modules-grid">
+      <section className="card settings-module">
+        <h3>{t('txt_session_timeout')}</h3>
+        <div className="session-timeout-fields">
           <label className="field">
-            <span>{t('txt_auto_lock')}</span>
+            <span>{t('txt_timeout_time')}</span>
             <select
               className="input"
               value={String(props.lockTimeoutMinutes)}
@@ -163,30 +185,27 @@ export default function SettingsPage(props: SettingsPageProps) {
                 </option>
               ))}
             </select>
-            <div className="field-help">{t('txt_auto_lock_description')}</div>
           </label>
           <label className="field">
-            <span>{t('txt_password_hint_optional')}</span>
-            <input
+            <span>{t('txt_timeout_action')}</span>
+            <select
               className="input"
-              maxLength={120}
-              value={passwordHint}
-              placeholder={t('txt_password_hint_placeholder')}
-              onInput={(e) => setPasswordHint((e.currentTarget as HTMLInputElement).value)}
-            />
-            <div className="field-help">{t('txt_password_hint_register_help')}</div>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => void props.onSavePasswordHint(passwordHint)}
+              value={props.sessionTimeoutAction}
+              onInput={(e) => props.onSessionTimeoutActionChange((e.currentTarget as HTMLSelectElement).value === 'logout' ? 'logout' : 'lock')}
             >
-              {t('txt_save_profile')}
-            </button>
+              <option value="logout">{t('txt_timeout_action_logout')}</option>
+              <option value="lock">{t('txt_timeout_action_lock')}</option>
+            </select>
           </label>
         </div>
       </section>
 
-      <section className="card">
+      <section className="card settings-module settings-module-placeholder">
+        <Lightbulb size={26} aria-hidden="true" />
+        <span>{t('txt_in_planning')}</span>
+      </section>
+
+      <section className="card settings-module">
         <h3>{t('txt_change_master_password')}</h3>
         <label className="field">
           <span>{t('txt_current_password')}</span>
@@ -217,71 +236,87 @@ export default function SettingsPage(props: SettingsPageProps) {
         </button>
       </section>
 
-      <section className="card">
-        <div className="settings-twofactor-grid">
-          <div className="settings-subcard">
-            <h3>{t('txt_totp')}</h3>
-            {totpLocked && <div className="status-ok">{t('txt_totp_is_enabled_for_this_account')}</div>}
-            <div className="totp-grid">
-              <div className="totp-qr">
-                <img src={qrDataUrl} alt="TOTP QR" />
-              </div>
-              <div>
-                <div>
-                  <label className="field">
-                    <span>{t('txt_authenticator_key')}</span>
-                    <input className="input" value={secret} disabled={totpLocked} onInput={(e) => setSecret((e.currentTarget as HTMLInputElement).value.toUpperCase())} />
-                  </label>
-                  <label className="field">
-                    <span>{t('txt_verification_code')}</span>
-                    <input className="input" value={token} disabled={totpLocked} onInput={(e) => setToken((e.currentTarget as HTMLInputElement).value)} />
-                  </label>
-                  <div className="actions">
-                    <button type="button" className="btn btn-primary" disabled={totpLocked} onClick={() => void enableTotp()}>
-                      <ShieldCheck size={14} className="btn-icon" />
-                      {totpLocked ? t('txt_enabled') : t('txt_enable_totp')}
-                    </button>
-                    <button type="button" className="btn btn-secondary" disabled={totpLocked} onClick={() => setSecret(randomBase32Secret(32))}>
-                      <RefreshCw size={14} className="btn-icon" />
-                      {t('txt_regenerate')}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      disabled={totpLocked}
-                      onClick={() => {
-                        void copyTextToClipboard(secret, { successMessage: t('txt_secret_copied') });
-                      }}
-                    >
-                      <Clipboard size={14} className="btn-icon" />
-                      {t('txt_copy_secret')}
-                    </button>
-                  </div>
-                </div>
+      <section className="card settings-module">
+        <h3>{t('txt_password_hint_optional')}</h3>
+        <label className="field">
+          <span>{t('txt_password_hint')}</span>
+          <input
+            className="input"
+            maxLength={120}
+            value={passwordHint}
+            placeholder={t('txt_password_hint_placeholder')}
+            onInput={(e) => setPasswordHint((e.currentTarget as HTMLInputElement).value)}
+          />
+          <div className="field-help">{t('txt_password_hint_register_help')}</div>
+        </label>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => void props.onSavePasswordHint(passwordHint)}
+        >
+          {t('txt_save_profile')}
+        </button>
+      </section>
+
+      <section className="card settings-module">
+        <h3>{t('txt_totp')}</h3>
+        {totpLocked && <div className="status-ok">{t('txt_totp_is_enabled_for_this_account')}</div>}
+        <div className="totp-grid">
+          <div className="totp-qr">
+            <img src={qrDataUrl} alt="TOTP QR" />
+          </div>
+          <div>
+            <div>
+              <label className="field">
+                <span>{t('txt_authenticator_key')}</span>
+                <input className="input" value={secret} disabled={totpLocked} onInput={(e) => setSecret((e.currentTarget as HTMLInputElement).value.toUpperCase())} />
+              </label>
+              <label className="field">
+                <span>{t('txt_verification_code')}</span>
+                <input className="input" value={token} disabled={totpLocked} onInput={(e) => setToken((e.currentTarget as HTMLInputElement).value)} />
+              </label>
+              <div className="actions">
+                <button type="button" className="btn btn-primary" disabled={totpLocked} onClick={() => void enableTotp()}>
+                  <ShieldCheck size={14} className="btn-icon" />
+                  {totpLocked ? t('txt_enabled') : t('txt_enable_totp')}
+                </button>
+                <button type="button" className="btn btn-secondary" disabled={totpLocked} onClick={() => setSecret(randomBase32Secret(32))}>
+                  <RefreshCw size={14} className="btn-icon" />
+                  {t('txt_regenerate')}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={totpLocked}
+                  onClick={() => {
+                    void copyTextToClipboard(secret, { successMessage: t('txt_secret_copied') });
+                  }}
+                >
+                  <Clipboard size={14} className="btn-icon" />
+                  {t('txt_copy_secret')}
+                </button>
               </div>
             </div>
-            <button type="button" className="btn btn-danger" disabled={!totpLocked} onClick={props.onOpenDisableTotp}>
-              <ShieldOff size={14} className="btn-icon" />
-              {t('txt_disable_totp')}
-            </button>
           </div>
+        </div>
+        <button type="button" className="btn btn-danger" disabled={!totpLocked} onClick={props.onOpenDisableTotp}>
+          <ShieldOff size={14} className="btn-icon" />
+          {t('txt_disable_totp')}
+        </button>
+      </section>
 
-          <div className="settings-subcard">
-            <h3>{t('txt_recovery_code')}</h3>
-            <p className="muted-inline settings-field-note">
-              {t('txt_this_is_a_one_time_code_after_it_is_used_a_new_code_is_generated_automatically')}
-            </p>
-            <label className="field">
-              <span>{t('txt_master_password')}</span>
-              <input
-                className="input"
-                type="password"
-                value={recoveryMasterPassword}
-                onInput={(e) => setRecoveryMasterPassword((e.currentTarget as HTMLInputElement).value)}
-              />
-            </label>
+      <section className="card settings-module">
+        <h3>{t('txt_recovery_code_and_api_key')}</h3>
+        <div className="sensitive-actions-grid">
+          <div className="sensitive-action">
+            <div>
+              <h4>{t('txt_recovery_code')}</h4>
+              <p className="muted-inline settings-field-note">
+                {t('txt_this_is_a_one_time_code_after_it_is_used_a_new_code_is_generated_automatically')}
+              </p>
+            </div>
             <div className="actions">
-              <button type="button" className="btn btn-secondary" onClick={() => void loadRecoveryCode()}>
+              <button type="button" className="btn btn-secondary" onClick={() => openMasterPasswordPrompt('recovery')}>
                 <ShieldCheck size={14} className="btn-icon" />
                 {t('txt_view_recovery_code')}
               </button>
@@ -298,25 +333,19 @@ export default function SettingsPage(props: SettingsPageProps) {
               </button>
             </div>
             {recoveryCode && (
-              <div className="card recovery-code-card">
+              <div className="recovery-code-card">
                 <div className="recovery-code-value">{recoveryCode}</div>
               </div>
             )}
           </div>
 
-          <div className="settings-subcard">
-            <h3>{t('txt_api_key')}</h3>
-            <label className="field">
-              <span>{t('txt_master_password')}</span>
-              <input
-                className="input"
-                type="password"
-                value={apiKeyMasterPassword}
-                onInput={(e) => setApiKeyMasterPassword((e.currentTarget as HTMLInputElement).value)}
-              />
-            </label>
+          <div className="sensitive-action">
+            <div>
+              <h4>{t('txt_api_key')}</h4>
+              <p className="muted-inline settings-field-note">{t('txt_api_key_dialog_intro')}</p>
+            </div>
             <div className="actions">
-              <button type="button" className="btn btn-secondary" onClick={() => void loadApiKey()}>
+              <button type="button" className="btn btn-secondary" onClick={() => openMasterPasswordPrompt('apiKey')}>
                 <KeyRound size={14} className="btn-icon" />
                 {t('txt_view_api_key')}
               </button>
@@ -332,6 +361,28 @@ export default function SettingsPage(props: SettingsPageProps) {
           </div>
         </div>
       </section>
+      <ConfirmDialog
+        open={masterPasswordPrompt !== null}
+        title={masterPasswordPromptTitle}
+        message={t('txt_enter_master_password_to_continue')}
+        confirmText={t('txt_continue')}
+        cancelText={t('txt_cancel')}
+        confirmDisabled={masterPasswordPromptSubmitting || !masterPasswordPromptValue.trim()}
+        cancelDisabled={masterPasswordPromptSubmitting}
+        onConfirm={() => void submitMasterPasswordPrompt()}
+        onCancel={closeMasterPasswordPrompt}
+      >
+        <label className="field">
+          <span>{t('txt_master_password')}</span>
+          <input
+            className="input"
+            type="password"
+            autoComplete="current-password"
+            value={masterPasswordPromptValue}
+            onInput={(e) => setMasterPasswordPromptValue((e.currentTarget as HTMLInputElement).value)}
+          />
+        </label>
+      </ConfirmDialog>
       <ConfirmDialog
         open={apiKeyDialogOpen}
         title={t('txt_api_key')}
@@ -381,7 +432,7 @@ export default function SettingsPage(props: SettingsPageProps) {
         danger
         onConfirm={() => {
           setRotateApiKeyConfirmOpen(false);
-          void doRotateApiKey();
+          openMasterPasswordPrompt('rotateApiKey');
         }}
         onCancel={() => setRotateApiKeyConfirmOpen(false)}
       />

@@ -84,8 +84,10 @@ const SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS = 13;
 
 type ThemePreference = 'system' | 'light' | 'dark';
 type LockTimeoutMinutes = 0 | 1 | 5 | 15 | 30;
+type SessionTimeoutAction = 'lock' | 'logout';
 
 const LOCK_TIMEOUT_STORAGE_KEY = 'nodewarden.lock.timeout-minutes.v1';
+const SESSION_TIMEOUT_ACTION_STORAGE_KEY = 'nodewarden.session.timeout-action.v1';
 const LOCK_TIMEOUT_VALUES = new Set<LockTimeoutMinutes>([0, 1, 5, 15, 30]);
 
 function readThemePreference(): ThemePreference {
@@ -104,6 +106,12 @@ function readLockTimeoutMinutes(): LockTimeoutMinutes {
   if (typeof window === 'undefined') return 15;
   const value = Number(window.localStorage.getItem(LOCK_TIMEOUT_STORAGE_KEY));
   return LOCK_TIMEOUT_VALUES.has(value as LockTimeoutMinutes) ? (value as LockTimeoutMinutes) : 15;
+}
+
+function readSessionTimeoutAction(): SessionTimeoutAction {
+  if (typeof window === 'undefined') return 'lock';
+  const value = String(window.localStorage.getItem(SESSION_TIMEOUT_ACTION_STORAGE_KEY) || '').trim();
+  return value === 'logout' ? 'logout' : 'lock';
 }
 
 export default function App() {
@@ -151,6 +159,7 @@ export default function App() {
   const [themePreference, setThemePreference] = useState<ThemePreference>(() => readThemePreference());
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(() => resolveSystemTheme());
   const [lockTimeoutMinutes, setLockTimeoutMinutesState] = useState<LockTimeoutMinutes>(() => readLockTimeoutMinutes());
+  const [sessionTimeoutAction, setSessionTimeoutActionState] = useState<SessionTimeoutAction>(() => readSessionTimeoutAction());
   const [unlockPreparing, setUnlockPreparing] = useState(() => initialBootstrap.phase === 'locked' && !initialBootstrap.session?.email);
 
   const [confirm, setConfirm] = useState<AppConfirmState | null>(null);
@@ -269,6 +278,11 @@ export default function App() {
     window.localStorage.setItem(LOCK_TIMEOUT_STORAGE_KEY, String(lockTimeoutMinutes));
   }, [lockTimeoutMinutes]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(SESSION_TIMEOUT_ACTION_STORAGE_KEY, sessionTimeoutAction);
+  }, [sessionTimeoutAction]);
+
   function handleToggleTheme() {
     setThemePreference((prev) => {
       const current = prev === 'system' ? systemTheme : prev;
@@ -284,7 +298,12 @@ export default function App() {
 
   function setLockTimeoutMinutes(next: LockTimeoutMinutes) {
     setLockTimeoutMinutesState(next);
-    pushToast('success', t('txt_auto_lock_updated'));
+    pushToast('success', t('txt_session_timeout_updated'));
+  }
+
+  function setSessionTimeoutAction(next: SessionTimeoutAction) {
+    setSessionTimeoutActionState(next);
+    pushToast('success', t('txt_session_timeout_updated'));
   }
 
   const authedFetch = useMemo(
@@ -639,25 +658,32 @@ export default function App() {
         timerId = null;
       }
     };
-    const scheduleLock = () => {
+    const runTimeoutAction = () => {
+      if (sessionTimeoutAction === 'logout') {
+        logoutNow();
+        return;
+      }
+      if (sessionRef.current?.symEncKey || sessionRef.current?.symMacKey) {
+        lockCurrentSession();
+      }
+    };
+    const scheduleTimeout = () => {
       clearTimer();
       timerId = window.setTimeout(() => {
-        if (sessionRef.current?.symEncKey || sessionRef.current?.symMacKey) {
-          lockCurrentSession();
-        }
+        runTimeoutAction();
       }, timeoutMs);
     };
     const markActivity = () => {
       const now = Date.now();
       if (now - lastActivityAt < 1000) return;
       lastActivityAt = now;
-      scheduleLock();
+      scheduleTimeout();
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') markActivity();
     };
 
-    scheduleLock();
+    scheduleTimeout();
     window.addEventListener('pointerdown', markActivity, { passive: true });
     window.addEventListener('keydown', markActivity);
     window.addEventListener('scroll', markActivity, { passive: true });
@@ -672,7 +698,7 @@ export default function App() {
       window.removeEventListener('touchstart', markActivity);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [phase, lockTimeoutMinutes]);
+  }, [phase, lockTimeoutMinutes, sessionTimeoutAction]);
 
   function renderPassiveOverlays() {
     return (
@@ -1213,6 +1239,7 @@ export default function App() {
     invites: invitesQuery.data || [],
     totpEnabled: !!totpStatusQuery.data?.enabled,
     lockTimeoutMinutes,
+    sessionTimeoutAction,
     authorizedDevices: authorizedDevicesQuery.data || [],
     authorizedDevicesLoading: authorizedDevicesQuery.isFetching,
     onNavigate: navigate,
@@ -1260,6 +1287,7 @@ export default function App() {
     onGetApiKey: accountSecurityActions.getApiKey,
     onRotateApiKey: accountSecurityActions.rotateApiKey,
     onLockTimeoutChange: setLockTimeoutMinutes,
+    onSessionTimeoutActionChange: setSessionTimeoutAction,
     onRefreshAuthorizedDevices: accountSecurityActions.refreshAuthorizedDevices,
     onRenameAuthorizedDevice: accountSecurityActions.renameAuthorizedDevice,
     onRevokeDeviceTrust: accountSecurityActions.openRevokeDeviceTrust,

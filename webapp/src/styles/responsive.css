@@ -462,6 +462,11 @@
     gap: 10px;
   }
 
+  .settings-modules-grid,
+  .password-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
   .import-export-panel .actions .btn,
   .settings-subcard .actions .btn,
   .section-head .actions .btn {

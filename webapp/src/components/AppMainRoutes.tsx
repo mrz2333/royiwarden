@@ -47,6 +47,7 @@ export interface AppMainRoutesProps {
   invites: AdminInvite[];
   totpEnabled: boolean;
   lockTimeoutMinutes: 0 | 1 | 5 | 15 | 30;
+  sessionTimeoutAction: 'lock' | 'logout';
   authorizedDevices: AuthorizedDevice[];
   authorizedDevicesLoading: boolean;
   onNavigate: (path: string) => void;
@@ -99,6 +100,7 @@ export interface AppMainRoutesProps {
   onGetApiKey: (masterPassword: string) => Promise<string>;
   onRotateApiKey: (masterPassword: string) => Promise<string>;
   onLockTimeoutChange: (minutes: 0 | 1 | 5 | 15 | 30) => void;
+  onSessionTimeoutActionChange: (action: 'lock' | 'logout') => void;
   onRefreshAuthorizedDevices: () => Promise<void>;
   onRenameAuthorizedDevice: (device: AuthorizedDevice, name: string) => Promise<void>;
   onRevokeDeviceTrust: (device: AuthorizedDevice) => void;
@@ -228,6 +230,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
                 profile={props.profile}
                 totpEnabled={props.totpEnabled}
                 lockTimeoutMinutes={props.lockTimeoutMinutes}
+                sessionTimeoutAction={props.sessionTimeoutAction}
                 onChangePassword={props.onChangePassword}
                 onSavePasswordHint={props.onSavePasswordHint}
                 onEnableTotp={props.onEnableTotp}
@@ -236,6 +239,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
                 onGetApiKey={props.onGetApiKey}
                 onRotateApiKey={props.onRotateApiKey}
                 onLockTimeoutChange={props.onLockTimeoutChange}
+                onSessionTimeoutActionChange={props.onSessionTimeoutActionChange}
                 onNotify={props.onNotify}
               />
             </Suspense>
