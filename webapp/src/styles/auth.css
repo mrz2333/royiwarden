@@ -1,19 +1,9 @@
 .loading-screen {
-  height: 100%;
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-  font-size: 18px;
-  animation: fade-in-up var(--dur-panel) var(--ease-out-strong) both;
+  @apply grid h-full place-items-center text-lg text-muted;
 }
 
 .auth-page {
-  min-height: 100%;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  position: relative;
-  background: transparent;
+  @apply relative grid min-h-full place-items-center bg-transparent p-6;
 }
 
 .public-send-page {
@@ -23,16 +13,9 @@
 }
 
 .auth-card {
-  width: 100%;
-  position: relative;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  box-shadow: var(--shadow-lg);
-  padding: 30px;
-  overflow: hidden;
-  transform-origin: 50% 24%;
-  animation: surface-enter 520ms var(--ease-out-strong) both;
+  @apply relative w-full overflow-hidden border bg-panel p-[30px] shadow-elevated;
+  border-color: var(--line);
+  border-radius: 22px;
 }
 
 .auth-card h1 {
@@ -41,17 +24,12 @@
 }
 
 .standalone-shell {
+  @apply grid gap-3.5;
   width: min(640px, 100%);
-  display: grid;
-  gap: 14px;
-  animation: fade-in-up 420ms var(--ease-out-strong) both;
 }
 
 .standalone-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 12px;
+  @apply mb-3 inline-flex items-center gap-3.5;
 }
 
 .standalone-brand-outside {
@@ -61,10 +39,7 @@
 }
 
 .standalone-brand-logo {
-  width: 56px;
-  height: 56px;
-  object-fit: contain;
-  flex-shrink: 0;
+  @apply h-14 w-14 flex-shrink-0 object-contain;
   filter: drop-shadow(0 8px 18px rgba(43, 102, 217, 0.22));
 }
 
@@ -77,11 +52,7 @@
 }
 
 .standalone-title {
-  margin: 0 0 4px 0;
-  text-align: left;
-  font-size: 31px;
-  line-height: 1.15;
-  letter-spacing: -0.035em;
+  @apply m-0 mb-1 text-left text-3xl font-bold leading-tight tracking-normal;
 }
 
 .standalone-muted {
@@ -99,10 +70,7 @@
 }
 
 .jwt-warning-box {
-  border: 1px solid #f1d8a5;
-  border-radius: 12px;
-  background: #fffaf0;
-  padding: 12px 14px;
+  @apply rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3;
 }
 
 .jwt-warning-label {
@@ -157,11 +125,7 @@
 }
 
 .jwt-generator-actions {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  @apply mt-2.5 flex flex-wrap items-center gap-2.5;
 }
 
 .jwt-copy-hint {
@@ -171,10 +135,7 @@
 }
 
 .standalone-footer {
-  width: 100%;
-  text-align: center;
-  font-size: 13px;
-  color: #64748b;
+  @apply w-full text-center text-[13px] text-slate-500;
 }
 
 .standalone-footer a {

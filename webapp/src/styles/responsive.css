@@ -213,7 +213,7 @@
   }
 
   .mobile-tab:hover {
-    transform: translate3d(var(--mag-x), calc(var(--mag-y) - 1px), 0);
+    transform: translateY(-1px);
   }
 
   .mobile-tab.active {

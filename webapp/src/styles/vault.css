@@ -1,42 +1,27 @@
 .vault-grid {
-  display: grid;
+  @apply grid h-full min-h-0 gap-3 p-0.5;
   grid-template-columns: 240px minmax(420px, 46%) minmax(575px, 1fr);
-  gap: 12px;
-  height: 100%;
-  min-height: 0;
-  padding: 2px;
 }
 
 .sidebar,
 .list-panel,
 .card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: var(--shadow-sm);
+  @apply border bg-panel shadow-soft;
+  border-color: var(--line);
+  border-radius: 16px;
 }
 
 .sidebar {
-  padding: 0;
-  overflow: auto;
-  border: none;
-  box-shadow: none;
-  background: transparent;
+  @apply overflow-auto border-0 bg-transparent p-0 shadow-none;
 }
 
 .sidebar-block {
-  border: 1px solid var(--line);
-  border-radius: 19px;
-  padding: 12px;
-  margin-bottom: 8px;
-  background: var(--panel);
+  @apply mb-2 rounded-2xl border bg-panel p-3;
+  border-color: var(--line);
 }
 
 .sidebar-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #344054;
-  margin-bottom: 8px;
+  @apply mb-2 text-[13px] font-bold text-slate-700;
 }
 
 .sidebar-title-row {
@@ -51,21 +36,11 @@
 }
 
 .folder-title-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  @apply inline-flex items-center gap-2;
 }
 
 .folder-add-btn {
-  border: none;
-  background: transparent;
-  color: #334155;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
+  @apply inline-flex cursor-pointer items-center justify-center border-0 bg-transparent p-0 leading-none text-slate-700;
 }
 
 .folder-add-btn:hover {
@@ -73,21 +48,10 @@
 }
 
 .search-input {
-  width: 100%;
-  height: 48px;
-  border: 1px solid rgba(74, 103, 150, 0.42);
-  border-radius: 14px;
-  padding: 10px 14px;
-  font-size: 16px;
-  outline: none;
-  color: var(--text);
+  @apply h-12 w-full rounded-xl border px-3.5 py-2.5 text-base text-ink outline-none transition;
   background: var(--panel);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transition:
-    border-color var(--dur-fast) var(--ease-smooth),
-    box-shadow var(--dur-fast) var(--ease-out-soft),
-    background-color var(--dur-fast) var(--ease-smooth),
-    transform var(--dur-fast) var(--ease-out-soft);
+  border-color: rgba(74, 103, 150, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .search-input-wrap {
@@ -99,8 +63,7 @@
 .search-input:focus {
   border-color: rgba(43, 102, 217, 0.6);
   background-color: #fbfdff;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.11), 0 10px 20px rgba(37, 99, 235, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  transform: translateY(-1px);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .search-input-wrap .search-input {
@@ -137,27 +100,11 @@
 }
 
 .tree-btn {
-  width: 100%;
-  min-width: 0;
-  border: none;
-  background: transparent;
-  text-align: left;
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin-bottom: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition:
-    background-color var(--dur-fast) var(--ease-smooth),
-    color var(--dur-fast) var(--ease-smooth),
-    transform var(--dur-fast) var(--ease-out-soft),
-    box-shadow var(--dur-fast) var(--ease-out-soft);
+  @apply mb-1 flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent px-2.5 py-2 text-left transition;
 }
 
 .tree-btn:hover {
-  transform: translateX(2px);
+  background: rgba(37, 99, 235, 0.05);
 }
 
 .tree-btn.active {
@@ -218,11 +165,7 @@
 }
 
 .list-col {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  max-width: 540px;
+  @apply flex min-h-0 min-w-0 max-w-[540px] flex-col;
 }
 
 .toolbar {
@@ -241,10 +184,7 @@
 }
 
 .list-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  @apply mb-2 flex items-center gap-2.5;
 }
 
 .list-head .search-input-wrap {
@@ -343,32 +283,13 @@
 }
 
 .list-panel {
-  overflow: auto;
-  min-height: 0;
-  padding: 8px;
+  @apply min-h-0 overflow-auto p-2;
 }
 
 .list-item {
-  width: 100%;
-  background: rgba(249, 251, 255, 0.88);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-  min-height: 66px;
-  box-sizing: border-box;
-  position: relative;
-  cursor: pointer;
-  overflow: hidden;
-  transform-origin: 50% 50%;
-  transition:
-    background-color var(--dur-fast) var(--ease-smooth),
-    border-color var(--dur-fast) var(--ease-smooth),
-    box-shadow var(--dur-fast) var(--ease-out-soft),
-    transform var(--dur-fast) var(--ease-out-soft);
+  @apply relative mb-2 flex min-h-[66px] w-full cursor-pointer items-center gap-2.5 overflow-hidden rounded-xl border px-3 py-2.5 transition;
+  background: rgba(249, 251, 255, 0.9);
+  border-color: var(--line);
   contain: paint;
 }
 
@@ -395,8 +316,7 @@
 .list-item:hover {
   background: #fcfdff;
   border-color: rgba(148, 163, 184, 0.26);
-  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.06);
-  transform: translate3d(0, -2px, 0) scale(1.008);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
 }
 
 .list-item:hover::before {
@@ -407,8 +327,7 @@
 .list-item.active {
   background: rgba(37, 99, 235, 0.1);
   border-color: rgba(43, 102, 217, 0.26);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), 0 14px 24px rgba(43, 102, 217, 0.08);
-  transform: translate3d(0, -1px, 0) scale(1.004);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
 .list-item.active::before {
@@ -564,8 +483,7 @@
 }
 
 .card {
-  padding: 16px 18px;
-  margin-bottom: 10px;
+  @apply mb-2.5 px-[18px] py-4;
 }
 
 .detail-col > .card {
