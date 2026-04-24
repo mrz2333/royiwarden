@@ -49,13 +49,25 @@ function buildOtpUri(email: string, secret: string): string {
   return `otpauth://totp/${encodeURIComponent(`${issuer}:${email}`)}?secret=${encodeURIComponent(secret)}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
 }
 
+function clearLegacyTotpSetupSecrets(): void {
+  if (typeof window === 'undefined') return;
+  const prefix = 'nodewarden.totp.secret.';
+  const keys: string[] = [];
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (key?.startsWith(prefix)) keys.push(key);
+  }
+  for (const key of keys) {
+    window.localStorage.removeItem(key);
+  }
+}
+
 export default function SettingsPage(props: SettingsPageProps) {
-  const totpSecretStorageKey = `nodewarden.totp.secret.${props.profile.id}`;
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPassword2, setNewPassword2] = useState('');
   const [passwordHint, setPasswordHint] = useState(props.profile.masterPasswordHint || '');
-  const [secret, setSecret] = useState(() => localStorage.getItem(totpSecretStorageKey) || randomBase32Secret(32));
+  const [secret, setSecret] = useState(() => randomBase32Secret(32));
   const [token, setToken] = useState('');
   const [totpLocked, setTotpLocked] = useState(props.totpEnabled);
   const [recoveryMasterPassword, setRecoveryMasterPassword] = useState('');
@@ -64,6 +76,10 @@ export default function SettingsPage(props: SettingsPageProps) {
   const [apiKey, setApiKey] = useState('');
   const [rotateApiKeyConfirmOpen, setRotateApiKeyConfirmOpen] = useState(false);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
+
+  useEffect(() => {
+    clearLegacyTotpSetupSecrets();
+  }, []);
 
   useEffect(() => {
     if (!props.totpEnabled) {
@@ -89,8 +105,6 @@ export default function SettingsPage(props: SettingsPageProps) {
   async function enableTotp(): Promise<void> {
     try {
       await props.onEnableTotp(secret, token);
-      // Secret is now stored on the server; remove plaintext copy from localStorage.
-      localStorage.removeItem(totpSecretStorageKey);
       setTotpLocked(true);
     } catch {
       // Keep inputs editable after a failed attempt.

@@ -35,6 +35,14 @@ const TOTP_RING_CIRCUMFERENCE = 2 * Math.PI * TOTP_RING_RADIUS;
 const TOTP_ORDER_STORAGE_KEY = 'nodewarden.totp-order';
 const failedIconHosts = new Set<string>();
 
+function getTotpTimeState(): { windowId: number; remain: number } {
+  const epoch = Math.floor(Date.now() / 1000);
+  return {
+    windowId: Math.floor(epoch / TOTP_PERIOD_SECONDS),
+    remain: TOTP_PERIOD_SECONDS - (epoch % TOTP_PERIOD_SECONDS),
+  };
+}
+
 function formatTotp(code: string): string {
   if (!code) return code;
   if (code.length === 5) return `${code.slice(0, 2)} ${code.slice(2)}`;
@@ -168,7 +176,8 @@ function SortableTotpRow(props: SortableTotpRowProps) {
 }
 
 export default function TotpCodesPage(props: TotpCodesPageProps) {
-  const [totpMap, setTotpMap] = useState<Record<string, { code: string; remain: number } | null>>({});
+  const [totpCodes, setTotpCodes] = useState<Record<string, string | null>>({});
+  const [remainingSeconds, setRemainingSeconds] = useState(() => getTotpTimeState().remain);
   const [columnCount, setColumnCount] = useState(1);
   const [orderedIds, setOrderedIds] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -251,26 +260,39 @@ export default function TotpCodesPage(props: TotpCodesPageProps) {
 
   useEffect(() => {
     if (!totpItems.length) {
-      setTotpMap({});
+      setTotpCodes({});
       return;
     }
     let stopped = false;
+    let activeRun = 0;
     let timer = 0;
-    const tick = async () => {
+    let currentWindowId = -1;
+
+    const refreshCodes = async () => {
+      const runId = ++activeRun;
       const entries = await Promise.all(
         totpItems.map(async (cipher) => {
           try {
             const next = await calcTotpNow(cipher.login?.decTotp || '');
-            return [cipher.id, next] as const;
+            return [cipher.id, next?.code || null] as const;
           } catch {
             return [cipher.id, null] as const;
           }
         })
       );
-      if (!stopped) setTotpMap(Object.fromEntries(entries));
+      if (!stopped && runId === activeRun) setTotpCodes(Object.fromEntries(entries));
     };
-    void tick();
-    timer = window.setInterval(() => void tick(), 1000);
+
+    const tick = () => {
+      const next = getTotpTimeState();
+      setRemainingSeconds((prev) => (prev === next.remain ? prev : next.remain));
+      if (next.windowId === currentWindowId) return;
+      currentWindowId = next.windowId;
+      void refreshCodes();
+    };
+
+    tick();
+    timer = window.setInterval(tick, 1000);
     return () => {
       stopped = true;
       window.clearInterval(timer);
@@ -326,7 +348,7 @@ export default function TotpCodesPage(props: TotpCodesPageProps) {
                 <SortableTotpRow
                   key={cipher.id}
                   cipher={cipher}
-                  live={totpMap[cipher.id] || null}
+                  live={totpCodes[cipher.id] ? { code: totpCodes[cipher.id] || '', remain: remainingSeconds } : null}
                   onCopy={(value) => void copyToClipboard(value)}
                 />
               ))}
