@@ -217,7 +217,7 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const media = window.matchMedia('(max-width: 900px)');
+    const media = window.matchMedia('(max-width: 1180px)');
     const sync = () => setMobileLayout(media.matches);
     sync();
     if (typeof media.addEventListener === 'function') {

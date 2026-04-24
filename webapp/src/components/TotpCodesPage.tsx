@@ -73,23 +73,31 @@ function TotpListIcon({ cipher }: { cipher: Cipher }) {
   const uri = firstCipherUri(cipher);
   const host = hostFromUri(uri);
   const [errored, setErrored] = useState(() => (host ? failedIconHosts.has(host) : false));
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     setErrored(host ? failedIconHosts.has(host) : false);
+    setLoaded(false);
   }, [host]);
 
   if (host && !errored) {
     return (
-      <img
-        className="list-icon"
-        src={websiteIconUrl(host)}
-        alt=""
-        loading="lazy"
-        referrerPolicy="no-referrer"
-        onError={() => {
-          failedIconHosts.add(host);
-          setErrored(true);
-        }}
-      />
+      <span className="list-icon-stack">
+        <span className={`list-icon-fallback ${loaded ? 'hidden' : ''}`}>
+          <Globe size={18} />
+        </span>
+        <img
+          className={`list-icon ${loaded ? 'loaded' : ''}`}
+          src={websiteIconUrl(host)}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onLoad={() => setLoaded(true)}
+          onError={() => {
+            failedIconHosts.add(host);
+            setErrored(true);
+          }}
+        />
+      </span>
     );
   }
   return (

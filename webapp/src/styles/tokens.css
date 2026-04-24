@@ -29,7 +29,7 @@
   --dur-fast: 180ms;
   --dur-medium: 240ms;
   --dur-panel: 280ms;
-  --actions-gap: clamp(0px, calc((100vw - 520px) * 1), 10px);
+  --actions-gap: clamp(5px, calc((100vw - 520px) * 1), 10px);
 }
 
 :root[data-theme='dark'] {

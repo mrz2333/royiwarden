@@ -1,6 +1,6 @@
 .vault-grid {
   @apply grid h-full min-h-0 gap-3 p-0.5;
-  grid-template-columns: 240px minmax(420px, 46%) minmax(575px, 1fr);
+  grid-template-columns: 270px minmax(400px, 36%) minmax(400px, 1fr);
 }
 
 .sidebar,
@@ -355,12 +355,38 @@
 
 .list-icon {
   @apply h-6 w-6 rounded-md;
+  opacity: 1;
+  transition: opacity var(--dur-fast) var(--ease-smooth);
+}
+
+.list-icon-stack {
+  @apply grid h-6 w-6 place-items-center;
+}
+
+.list-icon-stack > .list-icon,
+.list-icon-stack > .list-icon-fallback {
+  grid-area: 1 / 1;
+}
+
+.list-icon-stack > .list-icon {
+  opacity: 0;
+}
+
+.list-icon-stack > .list-icon.loaded {
+  opacity: 1;
+}
+
+.list-icon-fallback.hidden {
+  opacity: 0;
 }
 
 .list-icon-fallback {
   @apply grid place-items-center;
   color: #64748b;
-  transition: color var(--dur-fast) var(--ease-smooth), transform 240ms var(--ease-out-soft);
+  transition:
+    color var(--dur-fast) var(--ease-smooth),
+    opacity var(--dur-fast) var(--ease-smooth),
+    transform 240ms var(--ease-out-soft);
 }
 
 .list-icon-fallback svg {
@@ -615,7 +641,7 @@
 
 .totp-codes-list {
   @apply grid w-full items-start gap-2.5;
-  grid-template-columns: repeat(var(--totp-columns, 1), minmax(320px, 1fr));
+  grid-template-columns: repeat(var(--totp-columns, 1), minmax(300px, 1fr));
 }
 
 .totp-code-row {

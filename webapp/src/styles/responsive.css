@@ -59,7 +59,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .auth-page {
     @apply items-start p-3.5;
   }
@@ -112,6 +112,10 @@
 
   .brand-logo {
     @apply h-[34px] w-[34px];
+  }
+
+  .brand-wordmark {
+    @apply hidden;
   }
 
   .mobile-page-title {
@@ -410,7 +414,7 @@
   .detail-actions {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 5px;
   }
 
   .detail-actions .actions {
@@ -624,7 +628,7 @@
 }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .backup-grid {
     grid-template-columns: 1fr;
   }

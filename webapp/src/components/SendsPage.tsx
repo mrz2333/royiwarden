@@ -20,7 +20,7 @@ interface SendsPageProps {
 
 type SendTypeFilter = 'all' | 'text' | 'file';
 const AUTO_COPY_KEY = 'nodewarden.send.auto_copy_link.v1';
-const MOBILE_LAYOUT_QUERY = '(max-width: 900px)';
+const MOBILE_LAYOUT_QUERY = '(max-width: 1180px)';
 
 function daysFromNow(iso: string | null | undefined, fallback: number): string {
   if (!iso) return String(fallback);
