@@ -25,12 +25,55 @@ function onePasswordTypeHints(typeName: string): 1 | 2 | 3 | 4 {
   return 1;
 }
 
-function onePasswordCategoryType(categoryUuid: string): 1 | 2 | 3 | 4 {
+function onePasswordCategoryType(categoryUuid: string): 1 | 2 | 3 | 4 | 5 {
   const c = txt(categoryUuid);
   if (['002', '101'].includes(c)) return 3;
   if (['004', '103', '104', '105', '106', '107', '108'].includes(c)) return 4;
-  if (['003', '100', '113'].includes(c)) return 2;
+  if (['003', '100', '111', '113'].includes(c)) return 2;
+  if (c === '114') return 5;
   return 1;
+}
+
+function onePasswordCsvFieldLabel(property: string): string {
+  return txt(property)
+    .toLowerCase()
+    .replace(/^.*?:\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isOnePasswordUriField(property: string): boolean {
+  const label = onePasswordCsvFieldLabel(property);
+  return ['url', 'urls', 'website', 'web site'].includes(label);
+}
+
+function isOnePasswordUsernameField(property: string): boolean {
+  return ['username', 'user name', 'email', 'e-mail', 'login'].includes(onePasswordCsvFieldLabel(property));
+}
+
+function isOnePasswordPasswordField(property: string): boolean {
+  return ['password', 'passphrase'].includes(onePasswordCsvFieldLabel(property));
+}
+
+function readOnePasswordFieldValue(rawValue: unknown): { value: string; kind: string; raw: unknown } {
+  if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) {
+    return { value: txt(rawValue), kind: '', raw: rawValue };
+  }
+
+  const obj = rawValue as Record<string, unknown>;
+  const keys = Object.keys(obj);
+  const kind = keys.find((key) => obj[key] !== null && obj[key] !== undefined && txt(obj[key]) !== '') || keys[0] || '';
+  const raw = kind ? obj[kind] : undefined;
+  if (kind === 'date') {
+    const iso = parseEpochMaybe(raw);
+    return { value: iso ? new Date(iso).toUTCString() : txt(raw), kind, raw };
+  }
+  if (kind === 'monthYear') return { value: txt(raw), kind, raw };
+  if (kind === 'email' && raw && typeof raw === 'object') {
+    return { value: txt((raw as Record<string, unknown>).email_address), kind, raw };
+  }
+  if (kind === 'address' || kind === 'sshKey') return { value: '', kind, raw };
+  return { value: txt(raw), kind, raw };
 }
 
 export function parseOnePasswordCsv(textRaw: string, isMac: boolean): CiphersImportPayload {
@@ -87,19 +130,19 @@ export function parseOnePasswordCsv(textRaw: string, isMac: boolean): CiphersImp
 
       if (Number(cipher.type) === 1) {
         const login = cipher.login as Record<string, unknown>;
-        if (!txt(login.username) && lower === 'username') {
+        if (!txt(login.username) && isOnePasswordUsernameField(lower)) {
           login.username = rawVal;
           continue;
         }
-        if (!txt(login.password) && lower === 'password') {
+        if (!txt(login.password) && isOnePasswordPasswordField(lower)) {
           login.password = rawVal;
           continue;
         }
-        if (lower === 'url' || lower === 'website') {
+        if (isOnePasswordUriField(lower)) {
           addLoginUri(login, rawVal);
           continue;
         }
-        if (!txt(login.totp) && isTotpFieldName(lower)) {
+        if (!txt(login.totp) && isTotpFieldName(onePasswordCsvFieldLabel(lower))) {
           login.totp = rawVal;
           continue;
         }
@@ -156,7 +199,7 @@ export function parseOnePasswordCsv(textRaw: string, isMac: boolean): CiphersImp
         }
       }
 
-      if (!ignored.has(lower) && !isTotpFieldName(lower) && !lower.startsWith('section:') && !lower.startsWith('section ')) {
+      if (!ignored.has(lower) && !isTotpFieldName(onePasswordCsvFieldLabel(lower)) && !lower.startsWith('section:') && !lower.startsWith('section ')) {
         if (!altUsername && lower === 'email') altUsername = rawVal;
         if (lower === 'created date' || lower === 'modified date') {
           const readable = parseEpochMaybe(rawVal);
@@ -388,6 +431,15 @@ export function parseOnePassword1PuxJson(textRaw: string): CiphersImportPayload 
             ssn: null,
             licenseNumber: null,
           };
+        } else if (categoryType === 5) {
+          cipher.type = 5;
+          cipher.login = null;
+          cipher.sshKey = {
+            privateKey: null,
+            publicKey: null,
+            keyFingerprint: null,
+            fingerprint: null,
+          };
         }
         cipher.favorite = Number(item?.favIndex) === 1;
         cipher.name = val(item?.overview?.title, '--');
@@ -399,9 +451,14 @@ export function parseOnePassword1PuxJson(textRaw: string): CiphersImportPayload 
             const uri = normalizeUri(u?.url || '');
             if (uri) urls.push(uri);
           }
-          const fallbackUrl = normalizeUri(item?.overview?.url || '');
-          if (fallbackUrl) urls.push(fallbackUrl);
+          if (!urls.length) {
+            const fallbackUrl = normalizeUri(item?.overview?.url || '');
+            if (fallbackUrl) urls.push(fallbackUrl);
+          }
           setLoginUris(cipher.login as Record<string, unknown>, urls);
+          if (txt(item?.categoryUuid) === '005' && !txt((cipher.login as Record<string, unknown>).password)) {
+            (cipher.login as Record<string, unknown>).password = val(item?.details?.password);
+          }
         }
 
         for (const loginField of item?.details?.loginFields || []) {
@@ -409,14 +466,15 @@ export function parseOnePassword1PuxJson(textRaw: string): CiphersImportPayload 
           if (!lv) continue;
           const designation = txt(loginField?.designation).toLowerCase();
           const fieldName = txt(loginField?.name);
+          const fieldLabel = onePasswordCsvFieldLabel(fieldName || designation);
           const fieldType = txt(loginField?.fieldType);
           if (Number(cipher.type) === 1) {
             const login = cipher.login as Record<string, unknown>;
-            if (designation === 'username') {
+            if (designation === 'username' || isOnePasswordUsernameField(fieldLabel)) {
               login.username = lv;
               continue;
             }
-            if (designation === 'password') {
+            if (designation === 'password' || isOnePasswordPasswordField(fieldLabel)) {
               login.password = lv;
               continue;
             }
@@ -432,14 +490,11 @@ export function parseOnePassword1PuxJson(textRaw: string): CiphersImportPayload 
           const fieldTitle = txt(section?.title);
           for (const field of section?.fields || []) {
             const fieldId = txt(field?.id);
-            const fieldType = txt(field?.value?.fieldType).toLowerCase();
+            const parsedField = readOnePasswordFieldValue(field?.value);
+            const fieldType = parsedField.kind.toLowerCase();
             const fieldTitleLocal = txt(field?.title) || fieldTitle;
-            const fieldValueObj = field?.value?.value;
-            let fieldValue = txt(fieldValueObj);
-            if (!fieldValue && typeof fieldValueObj === 'number') {
-              const iso = parseEpochMaybe(fieldValueObj);
-              fieldValue = iso ? new Date(iso).toUTCString() : String(fieldValueObj);
-            }
+            const fieldValueObj = parsedField.raw;
+            const fieldValue = parsedField.value;
             if (!fieldValue && !(fieldValueObj && typeof fieldValueObj === 'object')) continue;
 
             if (Number(cipher.type) === 3 && cipher.card) {
@@ -516,34 +571,55 @@ export function parseOnePassword1PuxJson(textRaw: string): CiphersImportPayload 
               }
             } else if (Number(cipher.type) === 1) {
               const login = cipher.login as Record<string, unknown>;
-              if (fieldId === 'url') {
+              if (fieldId === 'url' || fieldType === 'url') {
                 addLoginUri(login, fieldValue);
                 continue;
               }
-              if (fieldId === 'username' && !txt(login.username)) {
+              if ((fieldId === 'username' || onePasswordCsvFieldLabel(fieldTitleLocal) === 'username') && !txt(login.username)) {
                 login.username = fieldValue;
                 continue;
               }
-              if (fieldId === 'password' && !txt(login.password)) {
+              if ((fieldId === 'password' || onePasswordCsvFieldLabel(fieldTitleLocal) === 'password') && !txt(login.password)) {
                 login.password = fieldValue;
                 continue;
               }
+              if (txt(item?.categoryUuid) === '112' && onePasswordCsvFieldLabel(fieldTitleLocal) === 'credential' && !txt(login.password)) {
+                login.password = fieldValue;
+                continue;
+              }
+              if (txt(item?.categoryUuid) === '112' && onePasswordCsvFieldLabel(fieldTitleLocal) === 'hostname') {
+                addLoginUri(login, fieldValue);
+                continue;
+              }
               if (
-                (fieldId === 'oneTimePassword' || fieldId === 'totp' || fieldType === 'otp' || isTotpFieldName(fieldTitleLocal)) &&
+                (fieldId === 'oneTimePassword' || fieldId === 'totp' || fieldId.startsWith('TOTP_') || fieldType === 'totp' || fieldType === 'otp' || isTotpFieldName(fieldTitleLocal)) &&
                 !txt(login.totp)
               ) {
                 login.totp = extractTotpValue(fieldValueObj) || fieldValue;
                 continue;
               }
+            } else if (Number(cipher.type) === 5 && cipher.sshKey && fieldType === 'sshkey' && fieldValueObj && typeof fieldValueObj === 'object') {
+              const ssh = fieldValueObj as Record<string, any>;
+              const metadata = ssh.metadata && typeof ssh.metadata === 'object' ? ssh.metadata : {};
+              cipher.sshKey = {
+                privateKey: val(metadata.privateKey ?? ssh.privateKey),
+                publicKey: val(metadata.publicKey),
+                keyFingerprint: val(metadata.fingerprint),
+                fingerprint: val(metadata.fingerprint),
+              };
+              continue;
             }
 
-            const hidden = fieldType === 'concealed' || fieldType === 'otp';
+            const hidden = fieldType === 'concealed' || fieldType === 'totp' || fieldType === 'otp';
             processKvp(cipher, fieldTitleLocal || fieldId || 'field', fieldValue, hidden);
           }
         }
+        parseOnePasswordPasswordHistory(cipher, item?.details?.passwordHistory || []);
         convertToNoteIfNeeded(cipher);
         const idx = result.ciphers.push(cipher) - 1;
-        if (vaultName) addFolder(result, vaultName, idx);
+        const tagFolder = Array.isArray(item?.overview?.tags) ? txt(item.overview.tags[0]) : '';
+        if (tagFolder) addFolder(result, tagFolder, idx);
+        else if (vaultName) addFolder(result, vaultName, idx);
       }
     }
   }

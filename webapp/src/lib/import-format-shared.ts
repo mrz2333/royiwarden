@@ -205,7 +205,7 @@ export function parseCsv(raw: string): CsvRow[] {
   rows.push(row);
   const nonEmpty = rows.filter((r) => r.some((c) => txt(c)));
   if (!nonEmpty.length) return [];
-  const headers = nonEmpty[0].map((h) => txt(h));
+  const headers = nonEmpty[0].map((h, index) => txt(index === 0 ? h.replace(/^\uFEFF/, '') : h));
   const out: CsvRow[] = [];
   for (let i = 1; i < nonEmpty.length; i++) {
     const values = nonEmpty[i];
@@ -263,9 +263,12 @@ export function processKvp(cipher: Record<string, unknown>, key: string, value: 
   const v = txt(value);
   if (!v) return;
   const fields = Array.isArray(cipher.fields) ? (cipher.fields as Array<Record<string, unknown>>) : [];
+  if (fields.some((field) => txt(field.name) === k && txt(field.value) === v)) return;
   if (v.length > 200 || /\r\n|\r|\n/.test(v)) {
     const existing = txt(cipher.notes);
-    cipher.notes = `${existing}${existing ? '\n' : ''}${k ? `${k}: ` : ''}${v}`;
+    const entry = `${k ? `${k}: ` : ''}${v}`;
+    if (existing.split('\n').some((line) => line === entry)) return;
+    cipher.notes = `${existing}${existing ? '\n' : ''}${entry}`;
     return;
   }
   fields.push({ type: hidden ? 1 : 0, name: k, value: v, linkedId: null });
