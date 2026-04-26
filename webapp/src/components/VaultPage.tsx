@@ -127,6 +127,7 @@ export default function VaultPage(props: VaultPageProps) {
   const folderSortMenuRef = useRef<HTMLDivElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const listPanelRef = useRef<HTMLDivElement | null>(null);
+  const mobileSidebarToggleKeyRef = useRef(props.mobileSidebarToggleKey);
   const suppressNextSortScrollRef = useRef(false);
   const sshSeedTicketRef = useRef(0);
   const sshFingerprintTicketRef = useRef(0);
@@ -147,7 +148,8 @@ export default function VaultPage(props: VaultPageProps) {
   }, []);
 
   useEffect(() => {
-    if (!props.mobileSidebarToggleKey) return;
+    if (props.mobileSidebarToggleKey === mobileSidebarToggleKeyRef.current) return;
+    mobileSidebarToggleKeyRef.current = props.mobileSidebarToggleKey;
     setMobileSidebarOpen((open) => !open);
   }, [props.mobileSidebarToggleKey]);
 
