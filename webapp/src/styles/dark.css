@@ -57,6 +57,7 @@
 :root[data-theme='dark'] .backup-recommendation-linked-item,
 :root[data-theme='dark'] .backup-inline-suffix,
 :root[data-theme='dark'] .folder-delete-btn,
+:root[data-theme='dark'] .folder-sort-btn,
 :root[data-theme='dark'] .tree-label {
   color: var(--muted);
 }

@@ -135,6 +135,27 @@
   background: #dbeafe;
 }
 
+.folder-sort-btn {
+  @apply inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0;
+  border: none;
+  color: #64748b;
+  transition:
+    color var(--dur-fast) var(--ease-smooth),
+    background-color var(--dur-fast) var(--ease-smooth),
+    transform var(--dur-fast) var(--ease-out-soft);
+}
+
+.folder-sort-btn:hover {
+  color: #1d4ed8;
+  background: #dbeafe;
+  transform: scale(1.06);
+}
+
+.folder-sort-btn.active {
+  color: #175ddc;
+  background: #e9f1ff;
+}
+
 .list-col {
   @apply flex min-h-0 min-w-0 max-w-[540px] flex-col;
 }
