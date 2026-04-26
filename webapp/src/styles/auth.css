@@ -51,7 +51,12 @@
 }
 
 .standalone-brand-wordmark {
-  @apply block max-w-full whitespace-nowrap text-[34px] font-extrabold leading-none tracking-normal text-ink;
+  @apply block max-w-full;
+  width: clamp(200px, 30vw, 340px);
+  aspect-ratio: 862 / 102;
+  background: #116ff9;
+  mask: url('/nodewarden-wordmark.svg') center / contain no-repeat;
+  -webkit-mask: url('/nodewarden-wordmark.svg') center / contain no-repeat;
 }
 
 .standalone-title {

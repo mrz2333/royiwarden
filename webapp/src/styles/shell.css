@@ -22,7 +22,12 @@
 }
 
 .brand-wordmark {
-  @apply block max-w-full whitespace-nowrap text-[28px] font-extrabold leading-none tracking-normal text-ink;
+  @apply block max-w-full;
+  width: clamp(168px, 17vw, 224px);
+  aspect-ratio: 862 / 102;
+  background: #116ff9;
+  mask: url('/nodewarden-wordmark.svg') center / contain no-repeat;
+  -webkit-mask: url('/nodewarden-wordmark.svg') center / contain no-repeat;
 }
 
 .mobile-page-title {
