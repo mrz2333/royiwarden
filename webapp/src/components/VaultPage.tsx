@@ -908,6 +908,8 @@ function folderName(id: string | null | undefined): string {
           selectedCipherId={selectedCipherId}
           selectedMap={selectedMap}
           sidebarFilter={sidebarFilter}
+          isMobileLayout={isMobileLayout}
+          mobileFabVisible={!isMobileLayout || mobilePanel === 'list'}
           createMenuOpen={createMenuOpen}
           createMenuRef={createMenuRef}
           sortMenuRef={sortMenuRef}

@@ -184,7 +184,6 @@
 
 .route-stage {
   @apply h-full min-h-0 overflow-auto;
-  animation: route-stage-in 220ms var(--ease-out-expo) both;
 }
 
 .mobile-sidebar-mask {

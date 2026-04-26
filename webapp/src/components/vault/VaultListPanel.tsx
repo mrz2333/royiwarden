@@ -1,4 +1,5 @@
 import type { RefObject } from 'preact';
+import { createPortal } from 'preact/compat';
 import { Archive, ArrowUpDown, Check, CheckCheck, FolderInput, Plus, RefreshCw, RotateCcw, Trash2, X } from 'lucide-preact';
 import type { Cipher } from '@/lib/types';
 import { t } from '@/lib/i18n';
@@ -32,6 +33,8 @@ interface VaultListPanelProps {
   selectedCipherId: string;
   selectedMap: Record<string, boolean>;
   sidebarFilter: SidebarFilter;
+  isMobileLayout: boolean;
+  mobileFabVisible: boolean;
   createMenuOpen: boolean;
   createMenuRef: RefObject<HTMLDivElement>;
   sortMenuRef: RefObject<HTMLDivElement>;
@@ -60,6 +63,30 @@ interface VaultListPanelProps {
 }
 
 export default function VaultListPanel(props: VaultListPanelProps) {
+  const createMenu = (
+    <div className="create-menu-wrap mobile-fab-wrap" ref={props.createMenuRef}>
+      <button
+        type="button"
+        className="btn btn-primary small mobile-fab-trigger"
+        aria-label={t('txt_add')}
+        title={t('txt_add')}
+        onClick={props.onToggleCreateMenu}
+      >
+        <Plus size={14} className="btn-icon" />
+      </button>
+      {props.createMenuOpen && (
+        <div className="create-menu">
+          {CREATE_TYPE_OPTIONS.map((option) => (
+            <button key={option.type} type="button" className="create-menu-item" onClick={() => props.onStartCreate(option.type)}>
+              <CreateTypeIcon type={option.type} />
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <section className="list-col">
       <div className="list-head">
@@ -159,27 +186,9 @@ export default function VaultListPanel(props: VaultListPanelProps) {
         <button type="button" className="btn btn-secondary small" disabled={!props.filteredCiphers.length} onClick={props.onSelectAll}>
           <CheckCheck size={14} className="btn-icon" /> {t('txt_select_all')}
         </button>
-        <div className="create-menu-wrap mobile-fab-wrap" ref={props.createMenuRef}>
-          <button
-            type="button"
-            className="btn btn-primary small mobile-fab-trigger"
-            aria-label={t('txt_add')}
-            title={t('txt_add')}
-            onClick={props.onToggleCreateMenu}
-          >
-            <Plus size={14} className="btn-icon" />
-          </button>
-          {props.createMenuOpen && (
-            <div className="create-menu">
-              {CREATE_TYPE_OPTIONS.map((option) => (
-                <button key={option.type} type="button" className="create-menu-item" onClick={() => props.onStartCreate(option.type)}>
-                  <CreateTypeIcon type={option.type} />
-                  <span>{option.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {props.isMobileLayout && typeof document !== 'undefined'
+          ? props.mobileFabVisible ? createPortal(createMenu, document.body) : null
+          : createMenu}
       </div>
 
       <div className="list-panel" ref={props.listPanelRef} onScroll={(event) => props.onScroll((event.currentTarget as HTMLDivElement).scrollTop)}>
