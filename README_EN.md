@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  ABitwarden-compatible server running on Cloudflare Workers
+  Bitwarden-compatible server running on Cloudflare Workers
 
 </p>
 
