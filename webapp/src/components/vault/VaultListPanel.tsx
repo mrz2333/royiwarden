@@ -203,10 +203,9 @@ export default function VaultListPanel(props: VaultListPanelProps) {
     })
   );
 
-  const sortableCiphers = props.canReorder ? props.filteredCiphers : props.visibleCiphers;
-  const virtualPadTop = props.canReorder ? 0 : props.virtualRange.padTop;
-  const virtualPadBottom = props.canReorder ? 0 : props.virtualRange.padBottom;
-  const activeDragCipher = activeDragId ? sortableCiphers.find((cipher) => cipher.id === activeDragId) || null : null;
+  const sortableItems = props.filteredCiphers.map((cipher) => cipher.id);
+  const renderedCiphers = props.visibleCiphers;
+  const activeDragCipher = activeDragId ? props.filteredCiphers.find((cipher) => cipher.id === activeDragId) || null : null;
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragId(String(event.active.id));
@@ -357,10 +356,10 @@ export default function VaultListPanel(props: VaultListPanelProps) {
 
       <div className="list-panel" ref={props.listPanelRef} onScroll={(event) => props.onScroll((event.currentTarget as HTMLDivElement).scrollTop)}>
         {!!props.filteredCiphers.length && (
-          <div style={{ paddingTop: `${virtualPadTop}px`, paddingBottom: `${virtualPadBottom}px` }}>
+          <div style={{ paddingTop: `${props.virtualRange.padTop}px`, paddingBottom: `${props.virtualRange.padBottom}px` }}>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
-              <SortableContext items={sortableCiphers.map((cipher) => cipher.id)} strategy={verticalListSortingStrategy}>
-                {sortableCiphers.map((cipher) => (
+              <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
+                {renderedCiphers.map((cipher) => (
                   <SortableCipherListItem
                     key={cipher.id}
                     cipher={cipher}
