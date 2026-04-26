@@ -22,9 +22,7 @@
 }
 
 .brand-wordmark {
-  @apply block h-auto max-w-full;
-  width: clamp(210px, 20vw, 290px);
-  filter: drop-shadow(0 12px 24px rgba(43, 102, 217, 0.12));
+  @apply block max-w-full whitespace-nowrap text-[28px] font-extrabold leading-none tracking-normal text-ink;
 }
 
 .mobile-page-title {
@@ -33,7 +31,7 @@
 }
 
 .brand-logo {
-  @apply h-[42px] w-[42px] object-contain;
+  @apply h-[42px] w-[53px] object-contain;
   filter: drop-shadow(0 10px 22px rgba(43, 102, 217, 0.22));
 }
 
