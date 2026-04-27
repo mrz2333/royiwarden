@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import VaultDialogs from '@/components/vault/VaultDialogs';
 import VaultDetailView from '@/components/vault/VaultDetailView';
 import VaultEditor from '@/components/vault/VaultEditor';
@@ -474,7 +474,7 @@ export default function VaultPage(props: VaultPageProps) {
     !props.loading &&
     !busy;
 
-  function handleReorderVaultCipher(activeId: string, overId: string): void {
+  const handleReorderVaultCipher = useCallback((activeId: string, overId: string): void => {
     if (!canReorderVaultList || activeId === overId) return;
     const currentIds = filteredCiphers.map((cipher) => cipher.id);
     const fromIndex = currentIds.indexOf(activeId);
@@ -498,7 +498,7 @@ export default function VaultPage(props: VaultPageProps) {
       suppressNextSortScrollRef.current = true;
       setSortMode('manual');
     }
-  }
+  }, [canReorderVaultList, filteredCiphers, props.ciphers, sortMode]);
 
   useEffect(() => {
     if (isCreating) return;
@@ -575,27 +575,27 @@ export default function VaultPage(props: VaultPageProps) {
   );
   const totalCipherCount = filteredCiphers.length;
 
-function folderName(id: string | null | undefined): string {
+const folderName = useCallback((id: string | null | undefined): string => {
   if (!id) return t('txt_no_folder');
   const folder = folderById.get(id);
   return folder?.decName || folder?.name || id;
-}
+}, [folderById]);
 
-  function listSubtitle(cipher: Cipher): string {
+  const listSubtitle = useCallback((cipher: Cipher): string => {
     if (Number(cipher.type || 1) === 1) {
       return cipher.login?.decUsername || cipherMetaById.get(cipher.id)?.firstUri || '';
     }
     return cipherTypeLabel(Number(cipher.type || 1));
-  }
+  }, [cipherMetaById]);
 
-  function handleListScroll(top: number): void {
+  const handleListScroll = useCallback((top: number): void => {
     const bucket = Math.floor(Math.max(0, top) / VAULT_LIST_ROW_HEIGHT);
     if (bucket === listScrollBucketRef.current) return;
     listScrollBucketRef.current = bucket;
     setListScrollTop(top);
-  }
+  }, []);
 
-  function startCreate(type: number): void {
+  const startCreate = useCallback((type: number): void => {
     setDraft(createEmptyDraft(type));
     setIsCreating(true);
     setIsEditing(true);
@@ -608,9 +608,9 @@ function folderName(id: string | null | undefined): string {
     if (isMobileLayout) setMobilePanel('edit');
     setMobileSidebarOpen(false);
     if (type === 5) void seedSshDefaults();
-  }
+  }, [isMobileLayout]);
 
-  function startEdit(): void {
+  const startEdit = useCallback((): void => {
     if (!selectedCipher) return;
     setDraft(draftFromCipher(selectedCipher));
     setIsCreating(false);
@@ -621,9 +621,9 @@ function folderName(id: string | null | undefined): string {
     setRemovedAttachmentIds({});
     if (isMobileLayout) setMobilePanel('edit');
     setMobileSidebarOpen(false);
-  }
+  }, [selectedCipher, isMobileLayout]);
 
-  function cancelEdit(): void {
+  const cancelEdit = useCallback((): void => {
     const returnToDetail = isMobileLayout && !isCreating && !!selectedCipher;
     setDraft(null);
     setIsEditing(false);
@@ -633,11 +633,11 @@ function folderName(id: string | null | undefined): string {
     setRemovedAttachmentIds({});
     setPendingDeletePasskeyIndex(null);
     if (isMobileLayout) setMobilePanel(returnToDetail ? 'detail' : 'list');
-  }
+  }, [isMobileLayout, isCreating, selectedCipher]);
 
-  function updateDraft(patch: Partial<VaultDraft>): void {
+  const updateDraft = useCallback((patch: Partial<VaultDraft>): void => {
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
-  }
+  }, []);
 
   function confirmDeleteLoginPasskey(): void {
     if (pendingDeletePasskeyIndex == null) return;
@@ -1002,16 +1002,88 @@ function folderName(id: string | null | undefined): string {
     }
   }
 
+  const handleClearSearch = useCallback(() => setSearchInput(''), []);
+  const handleSearchCompositionStart = useCallback(() => setSearchComposing(true), []);
+  const handleSearchCompositionEnd = useCallback((value: string) => {
+    setSearchComposing(false);
+    setSearchInput(value);
+  }, []);
+  const handleToggleSortMenu = useCallback(() => setSortMenuOpen((open) => !open), []);
+  const handleSelectSortMode = useCallback((value: VaultSortMode) => {
+    setSortMode(value);
+    setSortMenuOpen(false);
+  }, []);
+  const handleSyncVault = useCallback(() => { void syncVault(); }, [props.onRefresh]);
+  const handleOpenBulkDelete = useCallback(() => setBulkDeleteOpen(true), []);
+  const handleSelectDuplicates = useCallback(() => {
+    const map: Record<string, boolean> = {};
+    const seen = new Set<string>();
+    for (const cipher of filteredCiphers) {
+      const signature = duplicateSignatureInfo?.byId.get(cipher.id) || buildCipherDuplicateSignature(cipher);
+      if (seen.has(signature)) {
+        map[cipher.id] = true;
+        continue;
+      }
+      seen.add(signature);
+    }
+    setSelectedMap(map);
+  }, [filteredCiphers, duplicateSignatureInfo]);
+  const handleSelectAll = useCallback(() => {
+    const map: Record<string, boolean> = {};
+    for (const cipher of filteredCiphers) map[cipher.id] = true;
+    setSelectedMap(map);
+  }, [filteredCiphers]);
+  const handleToggleCreateMenu = useCallback(() => setCreateMenuOpen((open) => !open), []);
+  const handleBulkRestore = useCallback(() => { void confirmBulkRestore(); }, [selectedMap, props.onBulkRestore]);
+  const handleBulkArchive = useCallback(() => setBulkArchiveOpen(true), []);
+  const handleBulkUnarchive = useCallback(() => { void confirmBulkUnarchive(); }, [selectedMap, props.onBulkUnarchive]);
+  const handleOpenMove = useCallback(() => {
+    setMoveFolderId('__none__');
+    setMoveOpen(true);
+  }, []);
+  const handleClearSelection = useCallback(() => setSelectedMap({}), []);
+  const handleToggleSelected = useCallback((cipherId: string, checked: boolean) =>
+    setSelectedMap((prev) => {
+      if (checked) return { ...prev, [cipherId]: true };
+      if (!prev[cipherId]) return prev;
+      const next = { ...prev };
+      delete next[cipherId];
+      return next;
+    })
+  , []);
+  const handleSelectCipher = useCallback((cipherId: string) => {
+    if (isEditing || isCreating) {
+      cancelEdit();
+    }
+    setSelectedCipherId(cipherId);
+    setRepromptApprovedCipherId(null);
+    if (isMobileLayout) setMobilePanel('detail');
+    setMobileSidebarOpen(false);
+  }, [isEditing, isCreating, cancelEdit, isMobileLayout]);
+  const handleCloseMobileSidebar = useCallback(() => setMobileSidebarOpen(false), []);
+  const handleOpenDeleteAllFolders = useCallback(() => setDeleteAllFoldersOpen(true), []);
+  const handleOpenCreateFolder = useCallback(() => setCreateFolderOpen(true), []);
+  const handleOpenRenameFolder = useCallback((folder: Folder) => {
+    setPendingRenameFolder(folder);
+    setRenameFolderName(folder.decName || folder.name || '');
+  }, []);
+  const handleToggleFolderSortMenu = useCallback(() => setFolderSortMenuOpen((open) => !open), []);
+  const handleSelectFolderSortMode = useCallback((value: VaultSortMode) => {
+    setFolderSortMode(value);
+    setFolderSortMenuOpen(false);
+  }, []);
+  const handleMobileSidebarMaskClick = useCallback(() => {
+    if (!mobileSidebarOpen) return;
+    setMobileSidebarOpen(false);
+  }, [mobileSidebarOpen]);
+
   return (
     <>
       <div className={`vault-grid ${isMobileLayout ? `mobile-panel-${mobilePanel}` : ''}`}>
         {isMobileLayout && (
           <div
             className={`mobile-sidebar-mask ${mobileSidebarOpen ? 'open' : ''}`}
-            onClick={() => {
-              if (!mobileSidebarOpen) return;
-              setMobileSidebarOpen(false);
-            }}
+            onClick={handleMobileSidebarMaskClick}
           />
         )}
         <VaultSidebar
@@ -1023,20 +1095,14 @@ function folderName(id: string | null | undefined): string {
           folderSortMode={folderSortMode}
           folderSortMenuOpen={folderSortMenuOpen}
           folderSortMenuRef={folderSortMenuRef}
-          onCloseMobileSidebar={() => setMobileSidebarOpen(false)}
+          onCloseMobileSidebar={handleCloseMobileSidebar}
           onChangeFilter={setSidebarFilter}
-          onOpenDeleteAllFolders={() => setDeleteAllFoldersOpen(true)}
-          onOpenCreateFolder={() => setCreateFolderOpen(true)}
-          onOpenRenameFolder={(folder) => {
-            setPendingRenameFolder(folder);
-            setRenameFolderName(folder.decName || folder.name || '');
-          }}
+          onOpenDeleteAllFolders={handleOpenDeleteAllFolders}
+          onOpenCreateFolder={handleOpenCreateFolder}
+          onOpenRenameFolder={handleOpenRenameFolder}
           onOpenDeleteFolder={setPendingDeleteFolder}
-          onToggleFolderSortMenu={() => setFolderSortMenuOpen((open) => !open)}
-          onSelectFolderSortMode={(value) => {
-            setFolderSortMode(value);
-            setFolderSortMenuOpen(false);
-          }}
+          onToggleFolderSortMenu={handleToggleFolderSortMenu}
+          onSelectFolderSortMode={handleSelectFolderSortMode}
         />
 
         <VaultListPanel
@@ -1061,67 +1127,26 @@ function folderName(id: string | null | undefined): string {
           sortMenuRef={sortMenuRef}
           listPanelRef={listPanelRef}
           onSearchInput={setSearchInput}
-          onClearSearch={() => setSearchInput('')}
-          onSearchCompositionStart={() => setSearchComposing(true)}
-          onSearchCompositionEnd={(value) => {
-            setSearchComposing(false);
-            setSearchInput(value);
-          }}
-          onToggleSortMenu={() => setSortMenuOpen((open) => !open)}
-          onSelectSortMode={(value) => {
-            setSortMode(value);
-            setSortMenuOpen(false);
-          }}
-          onSyncVault={() => void syncVault()}
-          onOpenBulkDelete={() => setBulkDeleteOpen(true)}
-          onSelectDuplicates={() => {
-            const map: Record<string, boolean> = {};
-            const seen = new Set<string>();
-            for (const cipher of filteredCiphers) {
-              const signature = duplicateSignatureInfo?.byId.get(cipher.id) || buildCipherDuplicateSignature(cipher);
-              if (seen.has(signature)) {
-                map[cipher.id] = true;
-                continue;
-              }
-              seen.add(signature);
-            }
-            setSelectedMap(map);
-          }}
-          onSelectAll={() => {
-            const map: Record<string, boolean> = {};
-            for (const cipher of filteredCiphers) map[cipher.id] = true;
-            setSelectedMap(map);
-          }}
-          onToggleCreateMenu={() => setCreateMenuOpen((open) => !open)}
+          onClearSearch={handleClearSearch}
+          onSearchCompositionStart={handleSearchCompositionStart}
+          onSearchCompositionEnd={handleSearchCompositionEnd}
+          onToggleSortMenu={handleToggleSortMenu}
+          onSelectSortMode={handleSelectSortMode}
+          onSyncVault={handleSyncVault}
+          onOpenBulkDelete={handleOpenBulkDelete}
+          onSelectDuplicates={handleSelectDuplicates}
+          onSelectAll={handleSelectAll}
+          onToggleCreateMenu={handleToggleCreateMenu}
           onStartCreate={startCreate}
-          onBulkRestore={() => void confirmBulkRestore()}
-          onBulkArchive={() => setBulkArchiveOpen(true)}
-          onBulkUnarchive={() => void confirmBulkUnarchive()}
-          onOpenMove={() => {
-            setMoveFolderId('__none__');
-            setMoveOpen(true);
-          }}
-          onClearSelection={() => setSelectedMap({})}
+          onBulkRestore={handleBulkRestore}
+          onBulkArchive={handleBulkArchive}
+          onBulkUnarchive={handleBulkUnarchive}
+          onOpenMove={handleOpenMove}
+          onClearSelection={handleClearSelection}
           onReorderCipher={handleReorderVaultCipher}
           onScroll={handleListScroll}
-          onToggleSelected={(cipherId, checked) =>
-            setSelectedMap((prev) => {
-              if (checked) return { ...prev, [cipherId]: true };
-              if (!prev[cipherId]) return prev;
-              const next = { ...prev };
-              delete next[cipherId];
-              return next;
-            })
-          }
-          onSelectCipher={(cipherId) => {
-            if (isEditing || isCreating) {
-              cancelEdit();
-            }
-            setSelectedCipherId(cipherId);
-            setRepromptApprovedCipherId(null);
-            if (isMobileLayout) setMobilePanel('detail');
-            setMobileSidebarOpen(false);
-          }}
+          onToggleSelected={handleToggleSelected}
+          onSelectCipher={handleSelectCipher}
           listSubtitle={listSubtitle}
         />
 

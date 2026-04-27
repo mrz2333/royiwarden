@@ -1,4 +1,5 @@
 import type { JSX, RefObject } from 'preact';
+import { memo } from 'preact/compat';
 import { createPortal } from 'preact/compat';
 import { useMemo, useState } from 'preact/hooks';
 import { Archive, ArrowUpDown, Check, CheckCheck, FolderInput, GripVertical, Plus, RefreshCw, RotateCcw, Trash2, X } from 'lucide-preact';
@@ -106,7 +107,7 @@ interface CipherListItemBodyProps {
   onSelectCipher?: (cipherId: string) => void;
 }
 
-function CipherListItemBody(props: CipherListItemBodyProps) {
+const CipherListItemBody = memo(function CipherListItemBody(props: CipherListItemBodyProps) {
   return (
     <>
       <input
@@ -143,12 +144,12 @@ function CipherListItemBody(props: CipherListItemBodyProps) {
       </button>
     </>
   );
-}
+});
 
 const animateLayoutChanges: AnimateLayoutChanges = (args) =>
   args.isSorting || args.wasDragging ? defaultAnimateLayoutChanges(args) : false;
 
-function SortableCipherListItem(props: SortableCipherListItemProps) {
+const SortableCipherListItem = memo(function SortableCipherListItem(props: SortableCipherListItemProps) {
   const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({
     id: props.cipher.id,
     disabled: !props.canReorder,
@@ -184,9 +185,9 @@ function SortableCipherListItem(props: SortableCipherListItemProps) {
       />
     </div>
   );
-}
+});
 
-function PlainCipherListItem(props: SortableCipherListItemProps) {
+const PlainCipherListItem = memo(function PlainCipherListItem(props: SortableCipherListItemProps) {
   return (
     <div
       className={`list-item ${props.selected ? 'active' : ''}`}
@@ -206,7 +207,7 @@ function PlainCipherListItem(props: SortableCipherListItemProps) {
       />
     </div>
   );
-}
+});
 
 export default function VaultListPanel(props: VaultListPanelProps) {
   const [activeDragId, setActiveDragId] = useState('');
