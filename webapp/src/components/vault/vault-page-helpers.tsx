@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
   CreditCard,
   FileKey2,
@@ -438,8 +438,7 @@ export function firstPasskeyCreationTime(cipher: Cipher | null): string | null {
 const failedIconHosts = new Set<string>();
 
 export function VaultListIcon({ cipher }: { cipher: Cipher }) {
-  const uri = firstCipherUri(cipher);
-  const host = hostFromUri(uri);
+  const host = useMemo(() => hostFromUri(firstCipherUri(cipher)), [cipher]);
   const [errored, setErrored] = useState(() => (host ? failedIconHosts.has(host) : false));
   const [loaded, setLoaded] = useState(false);
   const markIconError = () => {

@@ -1,6 +1,6 @@
 import type { JSX, RefObject } from 'preact';
 import { createPortal } from 'preact/compat';
-import { useState } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import { Archive, ArrowUpDown, Check, CheckCheck, FolderInput, GripVertical, Plus, RefreshCw, RotateCcw, Trash2, X } from 'lucide-preact';
 import {
   closestCenter,
@@ -186,6 +186,28 @@ function SortableCipherListItem(props: SortableCipherListItemProps) {
   );
 }
 
+function PlainCipherListItem(props: SortableCipherListItemProps) {
+  return (
+    <div
+      className={`list-item ${props.selected ? 'active' : ''}`}
+      onClick={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('.row-check') || target.closest('.cipher-drag-btn')) return;
+        props.onSelectCipher(props.cipher.id);
+      }}
+    >
+      <CipherListItemBody
+        cipher={props.cipher}
+        checked={props.checked}
+        canReorder={false}
+        subtitle={props.subtitle}
+        onToggleSelected={props.onToggleSelected}
+        onSelectCipher={props.onSelectCipher}
+      />
+    </div>
+  );
+}
+
 export default function VaultListPanel(props: VaultListPanelProps) {
   const [activeDragId, setActiveDragId] = useState('');
   const [activeDragWidth, setActiveDragWidth] = useState<number | null>(null);
@@ -203,7 +225,7 @@ export default function VaultListPanel(props: VaultListPanelProps) {
     })
   );
 
-  const sortableItems = props.filteredCiphers.map((cipher) => cipher.id);
+  const sortableItems = useMemo(() => props.visibleCiphers.map((cipher) => cipher.id), [props.visibleCiphers]);
   const renderedCiphers = props.visibleCiphers;
   const activeDragCipher = activeDragId ? props.filteredCiphers.find((cipher) => cipher.id === activeDragId) || null : null;
 
@@ -249,6 +271,22 @@ export default function VaultListPanel(props: VaultListPanelProps) {
       )}
     </div>
   );
+
+  const listItems = renderedCiphers.map((cipher) => {
+    const ItemComponent = props.canReorder ? SortableCipherListItem : PlainCipherListItem;
+    return (
+      <ItemComponent
+        key={cipher.id}
+        cipher={cipher}
+        selected={props.selectedCipherId === cipher.id}
+        checked={!!props.selectedMap[cipher.id]}
+        canReorder={props.canReorder}
+        subtitle={props.listSubtitle(cipher)}
+        onToggleSelected={props.onToggleSelected}
+        onSelectCipher={props.onSelectCipher}
+      />
+    );
+  });
 
   return (
     <section className="list-col">
@@ -357,34 +395,25 @@ export default function VaultListPanel(props: VaultListPanelProps) {
       <div className="list-panel" ref={props.listPanelRef} onScroll={(event) => props.onScroll((event.currentTarget as HTMLDivElement).scrollTop)}>
         {!!props.filteredCiphers.length && (
           <div style={{ paddingTop: `${props.virtualRange.padTop}px`, paddingBottom: `${props.virtualRange.padBottom}px` }}>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
-              <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
-                {renderedCiphers.map((cipher) => (
-                  <SortableCipherListItem
-                    key={cipher.id}
-                    cipher={cipher}
-                    selected={props.selectedCipherId === cipher.id}
-                    checked={!!props.selectedMap[cipher.id]}
-                    canReorder={props.canReorder}
-                    subtitle={props.listSubtitle(cipher)}
-                    onToggleSelected={props.onToggleSelected}
-                    onSelectCipher={props.onSelectCipher}
-                  />
-                ))}
-              </SortableContext>
-              <DragOverlay adjustScale={false}>
-                {activeDragCipher ? (
-                  <div className="list-item cipher-drag-overlay" style={activeDragWidth ? { width: `${activeDragWidth}px` } : undefined}>
-                    <CipherListItemBody
-                      cipher={activeDragCipher}
-                      checked={!!props.selectedMap[activeDragCipher.id]}
-                      canReorder={true}
-                      subtitle={props.listSubtitle(activeDragCipher)}
-                    />
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
+            {props.canReorder ? (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
+                <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
+                  {listItems}
+                </SortableContext>
+                <DragOverlay adjustScale={false}>
+                  {activeDragCipher ? (
+                    <div className="list-item cipher-drag-overlay" style={activeDragWidth ? { width: `${activeDragWidth}px` } : undefined}>
+                      <CipherListItemBody
+                        cipher={activeDragCipher}
+                        checked={!!props.selectedMap[activeDragCipher.id]}
+                        canReorder={true}
+                        subtitle={props.listSubtitle(activeDragCipher)}
+                      />
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            ) : listItems}
           </div>
         )}
         {!props.filteredCiphers.length && <div className="empty">{t('txt_no_items')}</div>}
