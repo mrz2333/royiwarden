@@ -12,7 +12,7 @@ import { t } from '@/lib/i18n';
 import type { Cipher, CipherAttachment, CustomFieldType, VaultDraft, VaultDraftField, VaultDraftLoginUri } from '@/lib/types';
 
 export type TypeFilter = 'login' | 'card' | 'identity' | 'note' | 'ssh';
-export type VaultSortMode = 'manual' | 'edited' | 'created' | 'name';
+export type VaultSortMode = 'edited' | 'created' | 'name';
 export type SidebarFilter =
   | { kind: 'all' }
   | { kind: 'favorite' }
@@ -36,18 +36,16 @@ export const CREATE_TYPE_OPTIONS: TypeOption[] = [
 ];
 
 export const VAULT_SORT_STORAGE_KEY = 'nodewarden.vault.sort.v1';
-export const VAULT_ORDER_STORAGE_KEY = 'nodewarden.vault-order.v1';
 export const FOLDER_SORT_STORAGE_KEY = 'nodewarden.folder-sort.v1';
 export const MOBILE_LAYOUT_QUERY = '(max-width: 1180px)';
 export const VAULT_LIST_ROW_HEIGHT = 74;
 export const VAULT_LIST_OVERSCAN = 10;
 export const VAULT_SORT_OPTIONS: Array<{ value: VaultSortMode; label: string }> = [
-  { value: 'manual', label: t('txt_sort_manual') },
   { value: 'edited', label: t('txt_sort_last_edited') },
   { value: 'created', label: t('txt_sort_created') },
   { value: 'name', label: t('txt_sort_name') },
 ];
-export const FOLDER_SORT_OPTIONS: Array<{ value: Exclude<VaultSortMode, 'manual'>; label: string }> = [
+export const FOLDER_SORT_OPTIONS: Array<{ value: VaultSortMode; label: string }> = [
   { value: 'edited', label: t('txt_sort_last_edited') },
   { value: 'created', label: t('txt_sort_created') },
   { value: 'name', label: t('txt_sort_name') },
@@ -436,18 +434,27 @@ export function firstPasskeyCreationTime(cipher: Cipher | null): string | null {
 }
 
 const failedIconHosts = new Set<string>();
+const loadedIconHosts = new Set<string>();
 const ICON_LOAD_ROOT_MARGIN = '180px 0px';
 
 export function VaultListIcon({ cipher }: { cipher: Cipher }) {
   const host = useMemo(() => hostFromUri(firstCipherUri(cipher)), [cipher]);
   const iconStackRef = useRef<HTMLSpanElement | null>(null);
   const [errored, setErrored] = useState(() => (host ? failedIconHosts.has(host) : false));
-  const [shouldLoad, setShouldLoad] = useState(() => !host);
+  const [shouldLoad, setShouldLoad] = useState(() => {
+    if (!host) return true;
+    if (loadedIconHosts.has(host)) return true;
+    return false;
+  });
   const markIconError = () => {
-    if (host) failedIconHosts.add(host);
+    if (host) {
+      failedIconHosts.add(host);
+      loadedIconHosts.delete(host);
+    }
     setErrored(true);
   };
   const hideFallback = () => {
+    if (host) loadedIconHosts.add(host);
     const stack = iconStackRef.current;
     if (stack) {
       const fallback = stack.querySelector('.list-icon-fallback') as HTMLElement | null;
@@ -460,9 +467,16 @@ export function VaultListIcon({ cipher }: { cipher: Cipher }) {
   };
 
   useEffect(() => {
-    setErrored(host ? failedIconHosts.has(host) : false);
-    setShouldLoad(!host);
-    // Reset fallback visibility so it shows while loading the new icon
+    if (!host) {
+      setErrored(false);
+      setShouldLoad(true);
+    } else if (failedIconHosts.has(host)) {
+      setErrored(true);
+      setShouldLoad(false);
+    } else {
+      setErrored(false);
+      setShouldLoad(loadedIconHosts.has(host));
+    }
     const fallback = iconStackRef.current?.querySelector('.list-icon-fallback') as HTMLElement | null;
     if (fallback) fallback.style.display = '';
   }, [host]);

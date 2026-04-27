@@ -36,6 +36,7 @@ const TOTP_ORDER_STORAGE_KEY = 'nodewarden.totp-order';
 const TOTP_REFRESH_BATCH_SIZE = 16;
 const ICON_LOAD_ROOT_MARGIN = '180px 0px';
 const failedIconHosts = new Set<string>();
+const loadedIconHosts = new Set<string>();
 
 function getTotpTimeState(): { windowId: number; remain: number } {
   const epoch = Math.floor(Date.now() / 1000);
@@ -75,12 +76,20 @@ function TotpListIcon({ cipher }: { cipher: Cipher }) {
   const host = useMemo(() => hostFromUri(firstCipherUri(cipher)), [cipher]);
   const iconStackRef = useRef<HTMLSpanElement | null>(null);
   const [errored, setErrored] = useState(() => (host ? failedIconHosts.has(host) : false));
-  const [shouldLoad, setShouldLoad] = useState(() => !host);
+  const [shouldLoad, setShouldLoad] = useState(() => {
+    if (!host) return true;
+    if (loadedIconHosts.has(host)) return true;
+    return false;
+  });
   const markIconError = () => {
-    if (host) failedIconHosts.add(host);
+    if (host) {
+      failedIconHosts.add(host);
+      loadedIconHosts.delete(host);
+    }
     setErrored(true);
   };
   const hideFallback = () => {
+    if (host) loadedIconHosts.add(host);
     const stack = iconStackRef.current;
     if (stack) {
       const fallback = stack.querySelector('.list-icon-fallback') as HTMLElement | null;
@@ -93,8 +102,16 @@ function TotpListIcon({ cipher }: { cipher: Cipher }) {
   };
 
   useEffect(() => {
-    setErrored(host ? failedIconHosts.has(host) : false);
-    setShouldLoad(!host);
+    if (!host) {
+      setErrored(false);
+      setShouldLoad(true);
+    } else if (failedIconHosts.has(host)) {
+      setErrored(true);
+      setShouldLoad(false);
+    } else {
+      setErrored(false);
+      setShouldLoad(loadedIconHosts.has(host));
+    }
     const fallback = iconStackRef.current?.querySelector('.list-icon-fallback') as HTMLElement | null;
     if (fallback) fallback.style.display = '';
   }, [host]);

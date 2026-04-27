@@ -8,7 +8,6 @@ import {
   MOBILE_LAYOUT_QUERY,
   VAULT_LIST_OVERSCAN,
   VAULT_LIST_ROW_HEIGHT,
-  VAULT_ORDER_STORAGE_KEY,
   FOLDER_SORT_STORAGE_KEY,
   VAULT_SORT_STORAGE_KEY,
   cipherTypeKey,
@@ -73,15 +72,6 @@ export default function VaultPage(props: VaultPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchComposing, setSearchComposing] = useState(false);
   const [sortMode, setSortMode] = useState<VaultSortMode>('edited');
-  const [vaultOrderedIds, setVaultOrderedIds] = useState<string[]>(() => {
-    if (typeof localStorage === 'undefined') return [];
-    try {
-      const parsed = JSON.parse(String(localStorage.getItem(VAULT_ORDER_STORAGE_KEY) || '[]'));
-      return Array.isArray(parsed) ? parsed.map((id) => String(id || '').trim()).filter(Boolean) : [];
-    } catch {
-      return [];
-    }
-  });
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [folderSortMode, setFolderSortMode] = useState<VaultSortMode>('name');
   const [folderSortMenuOpen, setFolderSortMenuOpen] = useState(false);
@@ -128,7 +118,7 @@ export default function VaultPage(props: VaultPageProps) {
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const listPanelRef = useRef<HTMLDivElement | null>(null);
   const mobileSidebarToggleKeyRef = useRef(props.mobileSidebarToggleKey);
-  const suppressNextSortScrollRef = useRef(false);
+
   const sshSeedTicketRef = useRef(0);
   const sshFingerprintTicketRef = useRef(0);
   const listScrollBucketRef = useRef(0);
@@ -165,7 +155,7 @@ export default function VaultPage(props: VaultPageProps) {
   useEffect(() => {
     try {
       const saved = String(localStorage.getItem(VAULT_SORT_STORAGE_KEY) || '').trim() as VaultSortMode;
-      if (saved === 'manual' || saved === 'edited' || saved === 'created' || saved === 'name') {
+      if (saved === 'edited' || saved === 'created' || saved === 'name') {
         setSortMode(saved);
       }
     } catch {
@@ -180,36 +170,6 @@ export default function VaultPage(props: VaultPageProps) {
       // ignore storage write failures
     }
   }, [sortMode]);
-
-  useEffect(() => {
-    if (props.loading) return;
-    const cipherById = new Map(props.ciphers.map((cipher) => [cipher.id, cipher]));
-    const validIds = new Set(cipherById.keys());
-    setVaultOrderedIds((prev) => {
-      const filtered = prev.filter((id) => validIds.has(id));
-      const existing = new Set(filtered);
-      const missing = props.ciphers
-        .filter((cipher) => !existing.has(cipher.id))
-        .sort((a, b) => {
-          const diff = creationTimeValue(b) - creationTimeValue(a);
-          if (diff !== 0) return diff;
-          return String(b.id || '').localeCompare(String(a.id || ''));
-        })
-        .map((cipher) => cipher.id);
-      const next = [...missing, ...filtered];
-      if (next.length === prev.length && next.every((id, index) => id === prev[index])) return prev;
-      return next;
-    });
-  }, [props.ciphers, props.loading]);
-
-  useEffect(() => {
-    if (props.loading) return;
-    try {
-      localStorage.setItem(VAULT_ORDER_STORAGE_KEY, JSON.stringify(vaultOrderedIds));
-    } catch {
-      // ignore storage write failures
-    }
-  }, [vaultOrderedIds, props.loading]);
 
   useEffect(() => {
     try {
@@ -408,20 +368,10 @@ export default function VaultPage(props: VaultPageProps) {
       return !!meta?.searchText.includes(searchQuery);
     });
 
-    const orderMap = sortMode === 'manual' ? new Map(vaultOrderedIds.map((id, index) => [id, index])) : null;
     next.sort((a, b) => {
       const metaA = cipherMetaById.get(a.id);
       const metaB = cipherMetaById.get(b.id);
-      if (sortMode === 'manual' && orderMap) {
-        const orderA = orderMap.get(a.id);
-        const orderB = orderMap.get(b.id);
-        if (orderA != null && orderB != null) {
-          const diff = orderA - orderB;
-          if (diff !== 0) return diff;
-        }
-        if (orderA != null) return -1;
-        if (orderB != null) return 1;
-      } else if (sortMode === 'edited') {
+      if (sortMode === 'edited') {
         const diff = (metaB?.sortTime || 0) - (metaA?.sortTime || 0);
         if (diff !== 0) return diff;
       } else if (sortMode === 'created') {
@@ -436,7 +386,7 @@ export default function VaultPage(props: VaultPageProps) {
     });
 
     return next;
-  }, [props.ciphers, cipherMetaById, sidebarFilter, searchQuery, sortMode, duplicateSignatureInfo, vaultOrderedIds, nameCollator]);
+  }, [props.ciphers, cipherMetaById, sidebarFilter, searchQuery, sortMode, duplicateSignatureInfo, nameCollator]);
 
   const filteredCipherIds = useMemo(() => {
     const ids = new Set<string>();
@@ -451,10 +401,6 @@ export default function VaultPage(props: VaultPageProps) {
   }, [sidebarFilter]);
 
   useEffect(() => {
-    if (suppressNextSortScrollRef.current) {
-      suppressNextSortScrollRef.current = false;
-      return;
-    }
     setListScrollTop(0);
     listScrollBucketRef.current = 0;
     listPanelRef.current?.scrollTo({ top: 0 });
@@ -465,40 +411,6 @@ export default function VaultPage(props: VaultPageProps) {
       setSortMode('name');
     }
   }, [sidebarFilter.kind, sortMode]);
-
-  const canReorderVaultList =
-    !searchQuery &&
-    sidebarFilter.kind !== 'duplicates' &&
-    sidebarFilter.kind !== 'trash' &&
-    sidebarFilter.kind !== 'archive' &&
-    !props.loading &&
-    !busy;
-
-  const handleReorderVaultCipher = useCallback((activeId: string, overId: string): void => {
-    if (!canReorderVaultList || activeId === overId) return;
-    const currentIds = filteredCiphers.map((cipher) => cipher.id);
-    const fromIndex = currentIds.indexOf(activeId);
-    const toIndex = currentIds.indexOf(overId);
-    if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
-    const nextVisibleIds = [...currentIds];
-    const [moved] = nextVisibleIds.splice(fromIndex, 1);
-    nextVisibleIds.splice(toIndex, 0, moved);
-
-    setVaultOrderedIds((prev) => {
-      const validIds = new Set(props.ciphers.map((cipher) => cipher.id));
-      const nextVisibleSet = new Set(nextVisibleIds);
-      const existingHiddenIds = prev.filter((id) => validIds.has(id) && !nextVisibleSet.has(id));
-      const fallbackHiddenIds = props.ciphers
-        .map((cipher) => cipher.id)
-        .filter((id) => validIds.has(id) && !nextVisibleSet.has(id) && !existingHiddenIds.includes(id));
-      const next = [...nextVisibleIds, ...existingHiddenIds, ...fallbackHiddenIds];
-      return next;
-    });
-    if (sortMode !== 'manual') {
-      suppressNextSortScrollRef.current = true;
-      setSortMode('manual');
-    }
-  }, [canReorderVaultList, filteredCiphers, props.ciphers, sortMode]);
 
   useEffect(() => {
     if (isCreating) return;
@@ -1121,7 +1033,6 @@ const folderName = useCallback((id: string | null | undefined): string => {
           sidebarFilter={sidebarFilter}
           isMobileLayout={isMobileLayout}
           mobileFabVisible={!isMobileLayout || mobilePanel === 'list'}
-          canReorder={canReorderVaultList}
           createMenuOpen={createMenuOpen}
           createMenuRef={createMenuRef}
           sortMenuRef={sortMenuRef}
@@ -1143,7 +1054,6 @@ const folderName = useCallback((id: string | null | undefined): string => {
           onBulkUnarchive={handleBulkUnarchive}
           onOpenMove={handleOpenMove}
           onClearSelection={handleClearSelection}
-          onReorderCipher={handleReorderVaultCipher}
           onScroll={handleListScroll}
           onToggleSelected={handleToggleSelected}
           onSelectCipher={handleSelectCipher}
