@@ -9,35 +9,13 @@ import {
   preloadWebsiteIcon,
   subscribeWebsiteIconStatus,
 } from '@/lib/website-icon-cache';
+import { firstCipherUri, hostFromUri, websiteIconUrl } from '@/lib/website-utils';
 
 const ICON_LOAD_ROOT_MARGIN = '180px 0px';
 
 interface WebsiteIconProps {
   cipher: Cipher;
   fallback?: ComponentChildren;
-}
-
-function firstCipherUri(cipher: Cipher): string {
-  const uris = cipher.login?.uris || [];
-  for (const uri of uris) {
-    const raw = uri.decUri || uri.uri || '';
-    if (raw.trim()) return raw.trim();
-  }
-  return '';
-}
-
-function hostFromUri(uri: string): string {
-  if (!uri.trim()) return '';
-  try {
-    const normalized = /^https?:\/\//i.test(uri) ? uri : `https://${uri}`;
-    return new URL(normalized).hostname || '';
-  } catch {
-    return '';
-  }
-}
-
-function websiteIconUrl(host: string): string {
-  return `/icons/${encodeURIComponent(host)}/icon.png?fallback=404`;
 }
 
 export default function WebsiteIcon(props: WebsiteIconProps) {

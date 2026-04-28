@@ -148,28 +148,7 @@ export function toBooleanFieldValue(raw: string): boolean {
   return v === '1' || v === 'true' || v === 'yes' || v === 'on';
 }
 
-export function firstCipherUri(cipher: Cipher): string {
-  const uris = cipher.login?.uris || [];
-  for (const uri of uris) {
-    const raw = uri.decUri || uri.uri || '';
-    if (raw.trim()) return raw.trim();
-  }
-  return '';
-}
-
-export function hostFromUri(uri: string): string {
-  if (!uri.trim()) return '';
-  try {
-    const normalized = /^https?:\/\//i.test(uri) ? uri : `https://${uri}`;
-    return new URL(normalized).hostname || '';
-  } catch {
-    return '';
-  }
-}
-
-export function websiteIconUrl(host: string): string {
-  return `/icons/${encodeURIComponent(host)}/icon.png?fallback=404`;
-}
+export { firstCipherUri, hostFromUri, websiteIconUrl } from '@/lib/website-utils';
 
 export function createEmptyLoginUri(): VaultDraftLoginUri {
   return { uri: '', match: null, originalUri: '', extra: {} };

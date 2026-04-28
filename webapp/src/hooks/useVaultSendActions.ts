@@ -118,7 +118,9 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
       if (options?.includeFolders) {
         tasks.push(Promise.resolve(refetchFolders()));
       }
-      void Promise.all(tasks).catch(() => undefined);
+      void Promise.all(tasks).catch((err) => {
+        console.warn('Background vault sync failed:', err);
+      });
     };
 
     async function decryptAndPatch(encrypted: Cipher) {

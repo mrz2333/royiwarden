@@ -72,7 +72,6 @@ export function preloadWebsiteIcon(host: string, src: string): Promise<WebsiteIc
   record.promise = new Promise<WebsiteIconStatus>((resolve) => {
     const img = new Image();
     img.decoding = 'async';
-    img.loading = 'eager';
     img.referrerPolicy = 'no-referrer';
     img.onload = () => {
       markWebsiteIconLoaded(host);
