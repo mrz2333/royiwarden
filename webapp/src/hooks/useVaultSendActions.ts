@@ -85,6 +85,144 @@ function extractImportIdMaps(cipherMap: ImportedCipherMapEntry[] | null) {
   return { byIndex, bySourceId };
 }
 
+function createOptimisticCipherId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `optimistic:${crypto.randomUUID()}`;
+  }
+  return `optimistic:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function optimisticCipherFromDraft(draft: VaultDraft, current?: Cipher | null): Cipher {
+  const now = new Date().toISOString();
+  const type = Number(draft.type || current?.type || 1) || 1;
+  const next: Cipher = {
+    ...(current || {}),
+    id: current?.id || createOptimisticCipherId(),
+    type,
+    folderId: draft.folderId || null,
+    favorite: !!draft.favorite,
+    reprompt: draft.reprompt ? 1 : 0,
+    name: draft.name || '',
+    notes: draft.notes || '',
+    decName: draft.name || '',
+    decNotes: draft.notes || '',
+    creationDate: current?.creationDate || now,
+    revisionDate: now,
+    deletedDate: current?.deletedDate || null,
+    archivedDate: current?.archivedDate || null,
+  };
+
+  if (type === 1) {
+    next.login = {
+      ...(current?.login || {}),
+      username: draft.loginUsername || '',
+      password: draft.loginPassword || '',
+      totp: draft.loginTotp || '',
+      decUsername: draft.loginUsername || '',
+      decPassword: draft.loginPassword || '',
+      decTotp: draft.loginTotp || '',
+      uris: draft.loginUris.map((uri) => ({
+        ...(uri.extra || {}),
+        uri: uri.uri || '',
+        decUri: uri.uri || '',
+        match: uri.match ?? null,
+      })),
+      fido2Credentials: draft.loginFido2Credentials.map((credential) => ({ ...credential })),
+    };
+  } else {
+    next.login = null;
+  }
+
+  if (type === 3) {
+    next.card = {
+      ...(current?.card || {}),
+      cardholderName: draft.cardholderName || '',
+      number: draft.cardNumber || '',
+      brand: draft.cardBrand || '',
+      expMonth: draft.cardExpMonth || '',
+      expYear: draft.cardExpYear || '',
+      code: draft.cardCode || '',
+      decCardholderName: draft.cardholderName || '',
+      decNumber: draft.cardNumber || '',
+      decBrand: draft.cardBrand || '',
+      decExpMonth: draft.cardExpMonth || '',
+      decExpYear: draft.cardExpYear || '',
+      decCode: draft.cardCode || '',
+    };
+  } else {
+    next.card = null;
+  }
+
+  if (type === 4) {
+    next.identity = {
+      ...(current?.identity || {}),
+      title: draft.identTitle || '',
+      firstName: draft.identFirstName || '',
+      middleName: draft.identMiddleName || '',
+      lastName: draft.identLastName || '',
+      username: draft.identUsername || '',
+      company: draft.identCompany || '',
+      ssn: draft.identSsn || '',
+      passportNumber: draft.identPassportNumber || '',
+      licenseNumber: draft.identLicenseNumber || '',
+      email: draft.identEmail || '',
+      phone: draft.identPhone || '',
+      address1: draft.identAddress1 || '',
+      address2: draft.identAddress2 || '',
+      address3: draft.identAddress3 || '',
+      city: draft.identCity || '',
+      state: draft.identState || '',
+      postalCode: draft.identPostalCode || '',
+      country: draft.identCountry || '',
+      decTitle: draft.identTitle || '',
+      decFirstName: draft.identFirstName || '',
+      decMiddleName: draft.identMiddleName || '',
+      decLastName: draft.identLastName || '',
+      decUsername: draft.identUsername || '',
+      decCompany: draft.identCompany || '',
+      decSsn: draft.identSsn || '',
+      decPassportNumber: draft.identPassportNumber || '',
+      decLicenseNumber: draft.identLicenseNumber || '',
+      decEmail: draft.identEmail || '',
+      decPhone: draft.identPhone || '',
+      decAddress1: draft.identAddress1 || '',
+      decAddress2: draft.identAddress2 || '',
+      decAddress3: draft.identAddress3 || '',
+      decCity: draft.identCity || '',
+      decState: draft.identState || '',
+      decPostalCode: draft.identPostalCode || '',
+      decCountry: draft.identCountry || '',
+    };
+  } else {
+    next.identity = null;
+  }
+
+  if (type === 5) {
+    next.sshKey = {
+      ...(current?.sshKey || {}),
+      privateKey: draft.sshPrivateKey || '',
+      publicKey: draft.sshPublicKey || '',
+      keyFingerprint: draft.sshFingerprint || '',
+      fingerprint: draft.sshFingerprint || '',
+      decPrivateKey: draft.sshPrivateKey || '',
+      decPublicKey: draft.sshPublicKey || '',
+      decFingerprint: draft.sshFingerprint || '',
+    };
+  } else {
+    next.sshKey = null;
+  }
+
+  next.fields = draft.customFields.map((field) => ({
+    type: field.type,
+    name: field.label,
+    value: field.value,
+    decName: field.label,
+    decValue: field.value,
+  }));
+
+  return next;
+}
+
 export default function useVaultSendActions(options: UseVaultSendActionsOptions) {
   const {
     authedFetch,
@@ -139,6 +277,20 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
           return next;
         }
         return [decrypted, ...prev];
+      });
+    }
+
+    async function decryptAndReplaceOptimistic(optimisticId: string, encrypted: Cipher) {
+      if (!session?.symEncKey || !session?.symMacKey) {
+        await refetchCiphers();
+        return;
+      }
+      const encKey = base64ToBytes(session.symEncKey);
+      const macKey = base64ToBytes(session.symMacKey);
+      const decrypted = await decryptSingleCipher(encrypted, encKey, macKey);
+      patchDecryptedCiphers((prev) => {
+        const next = prev.filter((cipher) => cipher.id !== optimisticId && cipher.id !== decrypted.id);
+        return [decrypted, ...next];
       });
     }
 
@@ -244,6 +396,8 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
 
       async createVaultItem(draft: VaultDraft, attachments: File[] = []) {
         if (!session) return;
+        const optimistic = optimisticCipherFromDraft(draft, null);
+        patchDecryptedCiphers((prev) => [optimistic, ...prev.filter((cipher) => cipher.id !== optimistic.id)]);
         try {
           const created = await createCipher(authedFetch, session, draft);
           for (const file of attachments) {
@@ -251,10 +405,11 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
             setAttachmentUploadPercent(0);
             await uploadCipherAttachment(authedFetch, session, created.id, file, undefined, setAttachmentUploadPercent);
           }
-          await decryptAndPatch(created);
+          await decryptAndReplaceOptimistic(optimistic.id, created);
           syncVaultCoreInBackground({ includeFolders: !!draft.folderId || attachments.length > 0 });
           onNotify('success', t('txt_item_created'));
         } catch (error) {
+          patchDecryptedCiphers((prev) => prev.filter((cipher) => cipher.id !== optimistic.id));
           onNotify('error', error instanceof Error ? error.message : t('txt_create_item_failed'));
           throw error;
         } finally {
@@ -267,6 +422,24 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
         if (!session) return;
         const addFiles = Array.isArray(options?.addFiles) ? options.addFiles : [];
         const removeAttachmentIds = Array.isArray(options?.removeAttachmentIds) ? options.removeAttachmentIds : [];
+        const previousCipher: Cipher = {
+          ...cipher,
+          login: cipher.login ? { ...cipher.login, uris: cipher.login.uris ? [...cipher.login.uris] : cipher.login.uris } : cipher.login,
+          card: cipher.card ? { ...cipher.card } : cipher.card,
+          identity: cipher.identity ? { ...cipher.identity } : cipher.identity,
+          sshKey: cipher.sshKey ? { ...cipher.sshKey } : cipher.sshKey,
+          fields: cipher.fields ? cipher.fields.map((field) => ({ ...field })) : cipher.fields,
+          attachments: cipher.attachments ? cipher.attachments.map((attachment) => ({ ...attachment })) : cipher.attachments,
+          passwordHistory: cipher.passwordHistory ? cipher.passwordHistory.map((entry) => ({ ...entry })) : cipher.passwordHistory,
+        };
+        const optimistic = optimisticCipherFromDraft(draft, cipher);
+        if (removeAttachmentIds.length || addFiles.length) {
+          const removedSet = new Set(removeAttachmentIds.map((id) => String(id || '').trim()).filter(Boolean));
+          optimistic.attachments = (cipher.attachments || [])
+            .filter((attachment) => !removedSet.has(String(attachment?.id || '').trim()))
+            .map((attachment) => ({ ...attachment }));
+        }
+        patchCipherBatch([cipher.id], () => optimistic);
         try {
           const updated = await updateCipher(authedFetch, session, cipher, draft);
           for (const attachmentId of removeAttachmentIds) {
@@ -288,6 +461,7 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
           });
           onNotify('success', t('txt_item_updated'));
         } catch (error) {
+          patchCipherBatch([cipher.id], () => previousCipher);
           onNotify('error', error instanceof Error ? error.message : t('txt_update_item_failed'));
           throw error;
         } finally {
@@ -315,36 +489,48 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
       },
 
       async deleteVaultItem(cipher: Cipher) {
+        const previousCipher = { ...cipher };
+        const deletedDate = new Date().toISOString();
+        patchCipherBatch([cipher.id], (current) => ({ ...current, deletedDate, archivedDate: null, revisionDate: deletedDate }));
         try {
           const deleted = await deleteCipher(authedFetch, cipher.id);
           await decryptAndPatch(deleted);
           syncVaultCoreInBackground({ includeFolders: true });
           onNotify('success', t('txt_item_deleted'));
         } catch (error) {
+          patchCipherBatch([cipher.id], () => previousCipher);
           onNotify('error', error instanceof Error ? error.message : t('txt_delete_item_failed'));
           throw error;
         }
       },
 
       async archiveVaultItem(cipher: Cipher) {
+        const previousCipher = { ...cipher };
+        const archivedDate = new Date().toISOString();
+        patchCipherBatch([cipher.id], (current) => ({ ...current, archivedDate, deletedDate: null, revisionDate: archivedDate }));
         try {
           const archived = await archiveCipher(authedFetch, cipher.id);
           await decryptAndPatch(archived);
           syncVaultCoreInBackground({ includeFolders: true });
           onNotify('success', t('txt_item_archived'));
         } catch (error) {
+          patchCipherBatch([cipher.id], () => previousCipher);
           onNotify('error', error instanceof Error ? error.message : t('txt_archive_item_failed'));
           throw error;
         }
       },
 
       async unarchiveVaultItem(cipher: Cipher) {
+        const previousCipher = { ...cipher };
+        const revisionDate = new Date().toISOString();
+        patchCipherBatch([cipher.id], (current) => ({ ...current, archivedDate: null, revisionDate }));
         try {
           const unarchived = await unarchiveCipher(authedFetch, cipher.id);
           await decryptAndPatch(unarchived);
           syncVaultCoreInBackground({ includeFolders: true });
           onNotify('success', t('txt_item_unarchived'));
         } catch (error) {
+          patchCipherBatch([cipher.id], () => previousCipher);
           onNotify('error', error instanceof Error ? error.message : t('txt_unarchive_item_failed'));
           throw error;
         }

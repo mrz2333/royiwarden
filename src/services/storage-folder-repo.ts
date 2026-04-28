@@ -39,14 +39,14 @@ export async function clearFolderFromCiphers(
   folderId: string
 ): Promise<void> {
   const now = new Date().toISOString();
-  const patch = JSON.stringify({ folderId: null, updatedAt: now });
   await db
     .prepare(
       `UPDATE ciphers
-       SET folder_id = NULL, updated_at = ?, data = json_patch(data, ?)
+       SET folder_id = NULL, updated_at = ?,
+           data = json_remove(data, '$.folderId', '$.folder_id', '$.updatedAt', '$.revisionDate')
        WHERE user_id = ? AND folder_id = ?`
     )
-    .bind(now, patch, userId, folderId)
+    .bind(now, userId, folderId)
     .run();
 }
 
@@ -61,8 +61,7 @@ export async function bulkDeleteFolders(
   if (!uniqueIds.length) return null;
 
   const now = new Date().toISOString();
-  const patch = JSON.stringify({ folderId: null, updatedAt: now });
-  const chunkSize = sqlChunkSize(3);
+  const chunkSize = sqlChunkSize(2);
 
   for (let i = 0; i < uniqueIds.length; i += chunkSize) {
     const chunk = uniqueIds.slice(i, i + chunkSize);
@@ -70,10 +69,11 @@ export async function bulkDeleteFolders(
     await db
       .prepare(
         `UPDATE ciphers
-         SET folder_id = NULL, updated_at = ?, data = json_patch(data, ?)
+         SET folder_id = NULL, updated_at = ?,
+             data = json_remove(data, '$.folderId', '$.folder_id', '$.updatedAt', '$.revisionDate')
          WHERE user_id = ? AND folder_id IN (${placeholders})`
       )
-      .bind(now, patch, userId, ...chunk)
+      .bind(now, userId, ...chunk)
       .run();
 
     await db

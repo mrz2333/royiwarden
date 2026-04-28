@@ -28,6 +28,18 @@ export default defineConfig({
 
           const normalized = id.replace(/\\/g, '/');
 
+          if (normalized.includes('/src/lib/i18n/locales/en.ts')) {
+            return 'i18n-en';
+          }
+
+          if (normalized.includes('/src/lib/i18n/locales/zh-CN.ts')) {
+            return 'i18n-zh-CN';
+          }
+
+          if (normalized.includes('/src/lib/i18n.ts')) {
+            return 'i18n-core';
+          }
+
           if (
             normalized.includes('/src/components/AuthViews.tsx') ||
             normalized.includes('/src/components/PublicSendPage.tsx') ||
