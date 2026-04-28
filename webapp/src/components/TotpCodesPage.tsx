@@ -21,7 +21,8 @@ import { copyTextToClipboard as copyTextWithFeedback } from '@/lib/clipboard';
 import { calcTotpNow } from '@/lib/crypto';
 import { t } from '@/lib/i18n';
 import type { Cipher } from '@/lib/types';
-import { isCipherVisibleInNormalVault, websiteIconUrl } from '@/components/vault/vault-page-helpers';
+import LoadingState from '@/components/LoadingState';
+import { hostFromUri, isCipherVisibleInNormalVault, websiteIconUrl } from '@/components/vault/vault-page-helpers';
 
 interface TotpCodesPageProps {
   ciphers: Cipher[];
@@ -60,16 +61,6 @@ function firstCipherUri(cipher: Cipher): string {
     if (raw.trim()) return raw.trim();
   }
   return '';
-}
-
-function hostFromUri(uri: string): string {
-  if (!uri.trim()) return '';
-  try {
-    const normalized = /^https?:\/\//i.test(uri) ? uri : `https://${uri}`;
-    return new URL(normalized).hostname || '';
-  } catch {
-    return '';
-  }
 }
 
 function TotpListIcon({ cipher }: { cipher: Cipher }) {
@@ -447,6 +438,7 @@ export default function TotpCodesPage(props: TotpCodesPageProps) {
           className="totp-codes-list"
           style={{ '--totp-columns': String(columnCount) } as Record<string, string>}
         >
+          {!totpItems.length && props.loading && <LoadingState lines={6} />}
           {!totpItems.length && !props.loading && <div className="empty">{t('txt_no_verification_codes')}</div>}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={sortableTotpItems} strategy={rectSortingStrategy}>

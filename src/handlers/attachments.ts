@@ -426,9 +426,6 @@ export async function handleDeleteAttachment(
   // Delete attachment metadata
   await storage.deleteAttachment(attachmentId);
 
-  // Remove attachment from cipher
-  await storage.removeAttachmentFromCipher(cipherId, attachmentId);
-
   // Update cipher revision date
   const revisionInfo = await storage.updateCipherRevisionDate(cipherId);
   if (revisionInfo) {

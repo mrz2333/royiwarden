@@ -119,11 +119,6 @@ export async function addAttachmentToCipher(db: D1Database, cipherId: string, at
   await db.prepare('UPDATE attachments SET cipher_id = ? WHERE id = ?').bind(cipherId, attachmentId).run();
 }
 
-export async function removeAttachmentFromCipher(cipherId: string, attachmentId: string): Promise<void> {
-  void cipherId;
-  void attachmentId;
-}
-
 export async function deleteAllAttachmentsByCipher(db: D1Database, cipherId: string): Promise<void> {
   await db.prepare('DELETE FROM attachments WHERE cipher_id = ?').bind(cipherId).run();
 }

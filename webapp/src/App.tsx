@@ -23,13 +23,8 @@ import {
 import { listAdminInvites, listAdminUsers } from '@/lib/api/admin';
 import { getSends } from '@/lib/api/send';
 import { getCachedVaultCoreSnapshot, loadVaultCoreSyncSnapshot } from '@/lib/api/vault-sync';
-import {
-  repairCipherAttachmentMetadata,
-  updateFolder,
-} from '@/lib/api/vault';
 import { silentlyRepairBackupSettingsIfNeeded } from '@/lib/backup-settings-repair';
 import {
-  looksLikeCipherString,
   parseSignalRTextFrames,
   readInviteCodeFromUrl,
 } from '@/lib/app-support';
@@ -170,7 +165,6 @@ export default function App() {
   const [cachedVaultCore, setCachedVaultCore] = useState<VaultCoreSnapshot | null>(null);
   const [vaultInitialDecryptDone, setVaultInitialDecryptDone] = useState(false);
   const sessionRef = useRef<SessionState | null>(initialBootstrap.session);
-  const migratedPlainFolderIdsRef = useRef<Set<string>>(new Set());
   const silentRefreshVaultRef = useRef<() => Promise<void>>(async () => {});
   const refreshAuthorizedDevicesRef = useRef<() => Promise<void>>(async () => {});
   const repairAttemptRef = useRef<string>('');
@@ -850,9 +844,6 @@ export default function App() {
         setDecryptedFolders(result.folders);
         setDecryptedCiphers(result.ciphers);
         setVaultInitialDecryptDone(true);
-        for (const repair of result.attachmentRepairs) {
-          void repairCipherAttachmentMetadata(authedFetch, repair.cipherId, repair.attachmentId, repair.metadata);
-        }
       } catch (error) {
         if (!active) return;
         pushToast('error', error instanceof Error ? error.message : t('txt_decrypt_failed_2'));
@@ -862,7 +853,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [session?.symEncKey, session?.symMacKey, encryptedFolders, encryptedCiphers, authedFetch]);
+  }, [session?.symEncKey, session?.symMacKey, encryptedFolders, encryptedCiphers]);
 
   useEffect(() => {
     if (!session?.symEncKey || !session?.symMacKey) {
@@ -903,31 +894,6 @@ export default function App() {
       active = false;
     };
   }, [session?.symEncKey, session?.symMacKey, sendsQuery.data]);
-
-  useEffect(() => {
-    if (!session?.symEncKey || !session?.symMacKey || !encryptedFolders?.length) return;
-    let cancelled = false;
-    (async () => {
-      const pending = encryptedFolders.filter((folder) => {
-        if (!folder?.id || !folder?.name) return false;
-        if (migratedPlainFolderIdsRef.current.has(folder.id)) return false;
-        return !looksLikeCipherString(String(folder.name));
-      });
-      if (!pending.length) return;
-      for (const folder of pending) {
-        try {
-          await updateFolder(authedFetch, session, folder.id, String(folder.name));
-          migratedPlainFolderIdsRef.current.add(folder.id);
-        } catch {
-          // keep silent; web still supports plaintext fallback display
-        }
-      }
-      if (!cancelled) await refetchVaultCoreData();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [session?.symEncKey, session?.symMacKey, encryptedFolders, authedFetch]);
 
   async function refreshVaultSilently() {
     if (pendingVaultCoreRefreshRef.current) {
@@ -1107,6 +1073,7 @@ export default function App() {
     refetchSends: sendsQuery.refetch,
     onNotify: pushToast,
     patchDecryptedCiphers: setDecryptedCiphers,
+    patchDecryptedFolders: setDecryptedFolders,
   });
   const accountSecurityActions = useAccountSecurityActions({
     authedFetch,
@@ -1203,9 +1170,9 @@ export default function App() {
     decryptedCiphers,
     decryptedFolders,
     decryptedSends,
-    ciphersLoading: vaultCoreQuery.isFetching,
-    foldersLoading: vaultCoreQuery.isFetching,
-    sendsLoading: sendsQuery.isFetching,
+    ciphersLoading: vaultCoreQuery.isFetching && !encryptedVaultCore,
+    foldersLoading: vaultCoreQuery.isFetching && !encryptedVaultCore,
+    sendsLoading: sendsQuery.isFetching && !sendsQuery.data,
     users: usersQuery.data || [],
     invites: invitesQuery.data || [],
     totpEnabled: !!totpStatusQuery.data?.enabled,

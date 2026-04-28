@@ -94,11 +94,6 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)',
   'CREATE INDEX IF NOT EXISTS idx_trusted_two_factor_device_tokens_user_device ON trusted_two_factor_device_tokens(user_id, device_identifier)',
 
-  'CREATE TABLE IF NOT EXISTS api_rate_limits (' +
-  'identifier TEXT NOT NULL, window_start INTEGER NOT NULL, count INTEGER NOT NULL, ' +
-  'PRIMARY KEY (identifier, window_start))',
-  'CREATE INDEX IF NOT EXISTS idx_api_rate_window ON api_rate_limits(window_start)',
-
   'CREATE TABLE IF NOT EXISTS login_attempts_ip (' +
   'ip TEXT PRIMARY KEY, attempts INTEGER NOT NULL, locked_until INTEGER, updated_at INTEGER NOT NULL)',
 

@@ -182,14 +182,6 @@ CREATE TABLE IF NOT EXISTS login_attempts_ip (
   updated_at INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS api_rate_limits (
-  identifier TEXT NOT NULL,
-  window_start INTEGER NOT NULL,
-  count INTEGER NOT NULL,
-  PRIMARY KEY (identifier, window_start)
-);
-CREATE INDEX IF NOT EXISTS idx_api_rate_window ON api_rate_limits(window_start);
-
 CREATE TABLE IF NOT EXISTS used_attachment_download_tokens (
   jti TEXT PRIMARY KEY,
   expires_at INTEGER NOT NULL

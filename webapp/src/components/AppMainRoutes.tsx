@@ -3,13 +3,13 @@ import { useEffect } from 'preact/hooks';
 import { Link, Route, Switch } from 'wouter';
 import { ArrowUpDown, Cloud, LogOut, Settings as SettingsIcon, Shield, ShieldUser } from 'lucide-preact';
 import type { ImportAttachmentFile, ImportResultSummary } from '@/components/ImportPage';
-import VaultPage from '@/components/VaultPage';
 import type { AdminBackupImportResponse, AdminBackupRunResponse, AdminBackupSettings, RemoteBackupBrowserResponse } from '@/lib/api/backup';
 import type { CiphersImportPayload } from '@/lib/api/vault';
 import { t } from '@/lib/i18n';
 import type { AdminInvite, AdminUser, AuthorizedDevice, Cipher, Folder as VaultFolder, Profile, Send, SendDraft, SessionState, VaultDraft } from '@/lib/types';
 import type { ExportRequest } from '@/lib/export-formats';
 
+const VaultPage = lazy(() => import('@/components/VaultPage'));
 const SendsPage = lazy(() => import('@/components/SendsPage'));
 const TotpCodesPage = lazy(() => import('@/components/TotpCodesPage'));
 const SettingsPage = lazy(() => import('@/components/SettingsPage'));
@@ -181,36 +181,38 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
         </Suspense>
       </Route>
       <Route path="/vault">
-        <VaultPage
-          ciphers={props.decryptedCiphers}
-          folders={props.decryptedFolders}
-          loading={props.ciphersLoading || props.foldersLoading}
-          emailForReprompt={props.profile?.email || props.session?.email || ''}
-          onRefresh={props.onRefreshVault}
-          onCreate={props.onCreateVaultItem}
-          onUpdate={props.onUpdateVaultItem}
-          onDelete={props.onDeleteVaultItem}
-          onArchive={props.onArchiveVaultItem}
-          onUnarchive={props.onUnarchiveVaultItem}
-          onBulkDelete={props.onBulkDeleteVaultItems}
-          onBulkPermanentDelete={props.onBulkPermanentDeleteVaultItems}
-          onBulkRestore={props.onBulkRestoreVaultItems}
-          onBulkArchive={props.onBulkArchiveVaultItems}
-          onBulkUnarchive={props.onBulkUnarchiveVaultItems}
-          onBulkMove={props.onBulkMoveVaultItems}
-          onVerifyMasterPassword={props.onVerifyMasterPassword}
-          onNotify={props.onNotify}
-          onCreateFolder={props.onCreateFolder}
-          onRenameFolder={props.onRenameFolder}
-          onDeleteFolder={props.onDeleteFolder}
-          onBulkDeleteFolders={props.onBulkDeleteFolders}
-          onDownloadAttachment={props.onDownloadVaultAttachment}
-          downloadingAttachmentKey={props.downloadingAttachmentKey}
-          attachmentDownloadPercent={props.attachmentDownloadPercent}
-          uploadingAttachmentName={props.uploadingAttachmentName}
-          attachmentUploadPercent={props.attachmentUploadPercent}
-          mobileSidebarToggleKey={props.mobileSidebarToggleKey}
-        />
+        <Suspense fallback={<RouteContentFallback />}>
+          <VaultPage
+            ciphers={props.decryptedCiphers}
+            folders={props.decryptedFolders}
+            loading={props.ciphersLoading || props.foldersLoading}
+            emailForReprompt={props.profile?.email || props.session?.email || ''}
+            onRefresh={props.onRefreshVault}
+            onCreate={props.onCreateVaultItem}
+            onUpdate={props.onUpdateVaultItem}
+            onDelete={props.onDeleteVaultItem}
+            onArchive={props.onArchiveVaultItem}
+            onUnarchive={props.onUnarchiveVaultItem}
+            onBulkDelete={props.onBulkDeleteVaultItems}
+            onBulkPermanentDelete={props.onBulkPermanentDeleteVaultItems}
+            onBulkRestore={props.onBulkRestoreVaultItems}
+            onBulkArchive={props.onBulkArchiveVaultItems}
+            onBulkUnarchive={props.onBulkUnarchiveVaultItems}
+            onBulkMove={props.onBulkMoveVaultItems}
+            onVerifyMasterPassword={props.onVerifyMasterPassword}
+            onNotify={props.onNotify}
+            onCreateFolder={props.onCreateFolder}
+            onRenameFolder={props.onRenameFolder}
+            onDeleteFolder={props.onDeleteFolder}
+            onBulkDeleteFolders={props.onBulkDeleteFolders}
+            onDownloadAttachment={props.onDownloadVaultAttachment}
+            downloadingAttachmentKey={props.downloadingAttachmentKey}
+            attachmentDownloadPercent={props.attachmentDownloadPercent}
+            uploadingAttachmentName={props.uploadingAttachmentName}
+            attachmentUploadPercent={props.attachmentUploadPercent}
+            mobileSidebarToggleKey={props.mobileSidebarToggleKey}
+          />
+        </Suspense>
       </Route>
       <Route path={props.settingsAccountRoute}>
         {props.profile && (

@@ -1,12 +1,6 @@
-import { base64ToBytes, decryptBw, decryptStr, encryptBw } from './crypto';
+import { base64ToBytes, decryptBw, decryptStr } from './crypto';
 import { deriveSendKeyParts } from './app-support';
 import type { Cipher, Folder, Send } from './types';
-
-export interface AttachmentRepairTask {
-  cipherId: string;
-  attachmentId: string;
-  metadata: { fileName?: string; key?: string | null };
-}
 
 export interface DecryptVaultCoreArgs {
   folders: Folder[];
@@ -18,7 +12,6 @@ export interface DecryptVaultCoreArgs {
 export interface DecryptVaultCoreResult {
   folders: Folder[];
   ciphers: Cipher[];
-  attachmentRepairs: AttachmentRepairTask[];
 }
 
 export interface DecryptSendsArgs {
@@ -26,10 +19,6 @@ export interface DecryptSendsArgs {
   symEncKeyB64: string;
   symMacKeyB64: string;
   origin: string;
-}
-
-function looksLikeCipherString(value: string): boolean {
-  return /^\d+\.[A-Za-z0-9+/=]+\|[A-Za-z0-9+/=]+(?:\|[A-Za-z0-9+/=]+)?$/.test(String(value || '').trim());
 }
 
 function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
@@ -81,7 +70,6 @@ async function decryptFieldWithSource(
 export async function decryptVaultCore(args: DecryptVaultCoreArgs): Promise<DecryptVaultCoreResult> {
   const userEnc = base64ToBytes(args.symEncKeyB64);
   const userMac = base64ToBytes(args.symMacKeyB64);
-  const attachmentRepairs: AttachmentRepairTask[] = [];
 
   const folders = await Promise.all(
     args.folders.map(async (folder) => ({
@@ -195,7 +183,6 @@ export async function decryptVaultCore(args: DecryptVaultCoreArgs): Promise<Decr
       if (Array.isArray(cipher.attachments)) {
         nextCipher.attachments = await Promise.all(
           cipher.attachments.map(async (attachment) => {
-            const attachmentId = String(attachment?.id || '').trim();
             const fileNameResult = await decryptFieldWithSource(
               attachment.fileName || '',
               itemEnc,
@@ -204,36 +191,6 @@ export async function decryptVaultCore(args: DecryptVaultCoreArgs): Promise<Decr
               userMac,
               !itemUsesUserKey
             );
-            const metadata: { fileName?: string; key?: string | null } = {};
-
-            if (attachmentId && fileNameResult.source === 'user') {
-              metadata.fileName = await encryptBw(new TextEncoder().encode(fileNameResult.text), itemEnc, itemMac);
-            }
-
-            const attachmentKey = String(attachment?.key || '').trim();
-            if (attachmentId && attachmentKey && looksLikeCipherString(attachmentKey) && !itemUsesUserKey) {
-              try {
-                await decryptBw(attachmentKey, itemEnc, itemMac);
-              } catch {
-                try {
-                  const rawAttachmentKey = await decryptBw(attachmentKey, userEnc, userMac);
-                  if (rawAttachmentKey.length >= 64) {
-                    metadata.key = await encryptBw(rawAttachmentKey, itemEnc, itemMac);
-                  }
-                } catch {
-                  // Download path still supports legacy format.
-                }
-              }
-            }
-
-            if (attachmentId && Object.keys(metadata).length > 0) {
-              attachmentRepairs.push({
-                cipherId: cipher.id,
-                attachmentId,
-                metadata,
-              });
-            }
-
             return {
               ...attachment,
               decFileName: fileNameResult.text,
@@ -246,7 +203,7 @@ export async function decryptVaultCore(args: DecryptVaultCoreArgs): Promise<Decr
     })
   );
 
-  return { folders, ciphers, attachmentRepairs };
+  return { folders, ciphers };
 }
 
 export async function decryptSends(args: DecryptSendsArgs): Promise<Send[]> {

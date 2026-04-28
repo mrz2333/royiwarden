@@ -57,7 +57,6 @@ import {
   getAttachmentsByCipher as listStoredAttachmentsByCipher,
   getAttachmentsByCipherIds as listStoredAttachmentsByCipherIds,
   getAttachmentsByUserId as listStoredAttachmentsByUserId,
-  removeAttachmentFromCipher as detachStoredAttachmentFromCipher,
   saveAttachment as saveStoredAttachment,
   updateCipherRevisionDate as updateStoredCipherRevisionDate,
 } from './storage-attachment-repo';
@@ -387,10 +386,6 @@ export class StorageService {
 
   async addAttachmentToCipher(cipherId: string, attachmentId: string): Promise<void> {
     await attachStoredAttachmentToCipher(this.db, cipherId, attachmentId);
-  }
-
-  async removeAttachmentFromCipher(cipherId: string, attachmentId: string): Promise<void> {
-    await detachStoredAttachmentFromCipher(cipherId, attachmentId);
   }
 
   async deleteAllAttachmentsByCipher(cipherId: string): Promise<void> {
