@@ -13,6 +13,7 @@ import {
   clearProfileSnapshot,
   getCurrentDeviceIdentifier,
   getPasswordHint,
+  getProfile,
   loadProfileSnapshot,
   saveProfileSnapshot,
   revokeCurrentSession,
@@ -70,6 +71,10 @@ const IMPORT_ROUTE_PATHS = [IMPORT_ROUTE, '/tools/import', '/tools/import-export
 const IMPORT_ROUTE_ALIASES: ReadonlySet<string> = new Set(IMPORT_ROUTE_PATHS.filter((path) => path !== IMPORT_ROUTE));
 const SETTINGS_HOME_ROUTE = '/settings';
 const SETTINGS_ACCOUNT_ROUTE = '/settings/account';
+
+function isAdminProfile(profile: Profile | null): profile is Profile {
+  return String(profile?.role || '').toLowerCase() === 'admin';
+}
 const THEME_STORAGE_KEY = 'nodewarden.theme.preference.v1';
 const SIGNALR_RECORD_SEPARATOR = String.fromCharCode(0x1e);
 const SIGNALR_UPDATE_TYPE_SYNC_VAULT = 5;
@@ -770,16 +775,28 @@ export default function App() {
     enabled: phase === 'app' && !!session?.symEncKey && !!session?.symMacKey && (vaultInitialDecryptDone || location === '/sends'),
     staleTime: 30_000,
   });
+  const profileQuery = useQuery({
+    queryKey: ['profile', vaultCacheKey || session?.email],
+    queryFn: () => getProfile(authedFetch),
+    enabled: phase === 'app' && !!session?.accessToken,
+    staleTime: 30_000,
+  });
+  useEffect(() => {
+    if (!profileQuery.data) return;
+    setProfile(profileQuery.data);
+  }, [profileQuery.data]);
+
+  const isAdmin = isAdminProfile(profile);
   const usersQuery = useQuery({
     queryKey: ['admin-users', vaultCacheKey],
     queryFn: () => listAdminUsers(authedFetch),
-    enabled: phase === 'app' && profile?.role === 'admin' && vaultInitialDecryptDone,
+    enabled: phase === 'app' && isAdmin && vaultInitialDecryptDone,
     staleTime: 30_000,
   });
   const invitesQuery = useQuery({
     queryKey: ['admin-invites', vaultCacheKey],
     queryFn: () => listAdminInvites(authedFetch),
-    enabled: phase === 'app' && profile?.role === 'admin' && vaultInitialDecryptDone,
+    enabled: phase === 'app' && isAdmin && vaultInitialDecryptDone,
     staleTime: 30_000,
   });
   const totpStatusQuery = useQuery({
@@ -798,7 +815,7 @@ export default function App() {
   useEffect(() => {
     if (phase !== 'app' || !session?.accessToken || !session?.symEncKey || !session?.symMacKey) return;
     if (!vaultInitialDecryptDone) return;
-    if (!profile?.role || profile.role !== 'admin') return;
+    if (!isAdminProfile(profile)) return;
     if (repairAttemptRef.current === session.accessToken) return;
 
     repairAttemptRef.current = session.accessToken;
@@ -1148,10 +1165,10 @@ export default function App() {
   }, [phase, isImportHashRoute, location, navigate]);
 
   useEffect(() => {
-    if (phase === 'app' && profile?.role !== 'admin' && location === '/backup') {
+    if (phase === 'app' && !isAdminProfile(profile) && location === '/backup' && !profileQuery.isFetching) {
       navigate('/vault');
     }
-  }, [phase, profile?.role, location, navigate]);
+  }, [phase, profile?.role, profileQuery.isFetching, location, navigate]);
 
   useEffect(() => {
     if (phase === 'app' && !mobileLayout && location === SETTINGS_HOME_ROUTE) {

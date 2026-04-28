@@ -129,6 +129,7 @@ export interface AppMainRoutesProps {
 
 export default function AppMainRoutes(props: AppMainRoutesProps) {
   const importRoutePaths = [props.importRoute, '/tools/import', '/tools/import-export', '/tools/import-data', '/import', '/import-export'] as const;
+  const isAdmin = String(props.profile?.role || '').toLowerCase() === 'admin';
   const importPageContent = (
     <Suspense fallback={<RouteContentFallback />}>
       <ImportPage
@@ -262,13 +263,13 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
                 <ArrowUpDown size={18} />
                 <span>{t('nav_import_export')}</span>
               </Link>
-              {props.profile.role === 'admin' && (
+              {isAdmin && (
                 <Link href="/admin" className="mobile-settings-link">
                   <ShieldUser size={18} />
                   <span>{t('nav_admin_panel')}</span>
                 </Link>
               )}
-              {props.profile.role === 'admin' && (
+              {isAdmin && (
                 <Link href="/backup" className="mobile-settings-link">
                   <Cloud size={18} />
                   <span>{t('nav_backup_strategy')}</span>
@@ -340,7 +341,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
         <LegacyBackupRedirect onNavigate={props.onNavigate} />
       </Route>
       <Route path="/backup">
-        {props.profile?.role === 'admin' ? (
+        {isAdmin ? (
           <div className="stack">
             {props.mobileLayout && (
               <div className="mobile-settings-subhead">

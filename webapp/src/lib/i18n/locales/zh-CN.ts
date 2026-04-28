@@ -1,4 +1,4 @@
-// Generated from English defaults plus Chinese translations so zh-CN can load without the English chunk.
+// Complete Simplified Chinese locale. Keep keys and placeholders unchanged.
 const zhCN: Record<string, string> = {
   "nav_account_settings": "账户设置",
   "nav_admin_panel": "用户管理",
@@ -839,7 +839,10 @@ const zhCN: Record<string, string> = {
   "txt_role_user": "用户",
   "txt_status_active": "正常",
   "txt_status_banned": "已封禁",
-  "txt_status_inactive": "未激活"
+  "txt_status_inactive": "未激活",
+  "txt_language": "语言",
+  "txt_display_language": "显示语言",
+  "txt_language_saved_locally": "此偏好会保存在当前浏览器中，下次打开应用前就会生效。"
 };
 
 export default zhCN;

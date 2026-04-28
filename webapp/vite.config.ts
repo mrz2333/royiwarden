@@ -36,6 +36,14 @@ export default defineConfig({
             return 'i18n-zh-CN';
           }
 
+          if (normalized.includes('/src/lib/i18n/locales/zh-TW.ts')) {
+            return 'i18n-zh-TW';
+          }
+
+          if (normalized.includes('/src/lib/i18n/locales/ru.ts')) {
+            return 'i18n-ru';
+          }
+
           if (normalized.includes('/src/lib/i18n.ts')) {
             return 'i18n-core';
           }

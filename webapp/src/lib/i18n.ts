@@ -1,63 +1,80 @@
-export type Locale = 'en' | 'zh-CN';
+export type Locale = 'en' | 'zh-CN' | 'zh-TW' | 'ru';
 
 const LOCALE_STORAGE_KEY = 'nodewarden.locale';
 
 type MessageTable = Record<string, string>;
 
+export const AVAILABLE_LOCALES: readonly { value: Locale; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'zh-TW', label: '繁體中文' },
+  { value: 'ru', label: 'Русский' },
+];
+
 let locale: Locale = resolveInitialLocale();
 let activeMessages: MessageTable = {};
-let englishMessages: MessageTable | null = null;
 const loadedMessages = new Map<Locale, MessageTable>();
+
+function isLocale(value: unknown): value is Locale {
+  return AVAILABLE_LOCALES.some((item) => item.value === value);
+}
 
 function resolveInitialLocale(): Locale {
   try {
     const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
-    if (saved === 'en' || saved === 'zh-CN') return saved;
+    if (isLocale(saved)) return saved;
   } catch {
     // ignore storage errors
   }
   if (typeof navigator !== 'undefined') {
     const langs = Array.isArray(navigator.languages) ? navigator.languages : [navigator.language];
     for (const lang of langs) {
-      if (String(lang || '').toLowerCase().startsWith('zh')) return 'zh-CN';
+      const normalized = String(lang || '').toLowerCase();
+      if (normalized === 'zh-tw' || normalized === 'zh-hk' || normalized === 'zh-mo' || normalized.includes('hant')) return 'zh-TW';
+      if (normalized.startsWith('zh')) return 'zh-CN';
+      if (normalized.startsWith('ru')) return 'ru';
     }
   }
   return 'en';
-}
-
-async function loadEnglishMessages(): Promise<MessageTable> {
-  if (englishMessages) return englishMessages;
-  const mod = await import('./i18n/locales/en');
-  englishMessages = mod.default;
-  loadedMessages.set('en', englishMessages);
-  return englishMessages;
 }
 
 async function loadLocaleMessages(next: Locale): Promise<MessageTable> {
   const cached = loadedMessages.get(next);
   if (cached) return cached;
 
-  if (next === 'en') {
-    return loadEnglishMessages();
-  }
+  const mod = next === 'zh-CN'
+    ? await import('./i18n/locales/zh-CN')
+    : next === 'zh-TW'
+      ? await import('./i18n/locales/zh-TW')
+      : next === 'ru'
+        ? await import('./i18n/locales/ru')
+        : await import('./i18n/locales/en');
+  loadedMessages.set(next, mod.default);
+  return mod.default;
+}
 
-  const [base, overridesMod] = await Promise.all([
-    loadEnglishMessages(),
-    import('./i18n/locales/zh-CN'),
-  ]);
-  const merged = { ...base, ...overridesMod.default };
-  loadedMessages.set(next, merged);
-  return merged;
+async function loadFallbackMessages(): Promise<MessageTable> {
+  const cached = loadedMessages.get('en');
+  if (cached) return cached;
+  const mod = await import('./i18n/locales/en');
+  loadedMessages.set('en', mod.default);
+  return mod.default;
 }
 
 export type I18nParams = Record<string, string | number | null | undefined>;
 
 export async function initI18n(): Promise<void> {
-  activeMessages = await loadLocaleMessages(locale);
+  try {
+    activeMessages = await loadLocaleMessages(locale);
+  } catch (error) {
+    console.error('Failed to load locale, falling back to English:', error);
+    locale = 'en';
+    activeMessages = await loadFallbackMessages();
+  }
 }
 
 export function t(key: string, params?: I18nParams): string {
-  const template = activeMessages[key] ?? englishMessages?.[key] ?? key;
+  const template = activeMessages[key] ?? key;
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (_, name: string) => String(params[name] ?? ''));
 }
@@ -67,8 +84,16 @@ export function getLocale(): Locale {
 }
 
 export async function setLocale(next: Locale): Promise<void> {
+  let nextMessages: MessageTable;
+  try {
+    nextMessages = await loadLocaleMessages(next);
+  } catch (error) {
+    console.error('Failed to load selected locale, falling back to English:', error);
+    next = 'en';
+    nextMessages = await loadFallbackMessages();
+  }
   locale = next;
-  activeMessages = await loadLocaleMessages(next);
+  activeMessages = nextMessages;
   try {
     localStorage.setItem(LOCALE_STORAGE_KEY, next);
   } catch {
