@@ -111,6 +111,14 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
       await Promise.all([refetchCiphers(), refetchFolders(), refetchSends()]);
     };
 
+    const syncVaultCoreInBackground = (options?: { includeFolders?: boolean }) => {
+      const tasks: Promise<unknown>[] = [Promise.resolve(refetchCiphers())];
+      if (options?.includeFolders) {
+        tasks.push(Promise.resolve(refetchFolders()));
+      }
+      void Promise.all(tasks).catch(() => undefined);
+    };
+
     async function decryptAndPatch(encrypted: Cipher) {
       if (!session?.symEncKey || !session?.symMacKey) {
         await refetchCiphers();
@@ -202,7 +210,7 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
             await uploadCipherAttachment(authedFetch, session, created.id, file, undefined, setAttachmentUploadPercent);
           }
           await decryptAndPatch(created);
-          if (draft.folderId) await refetchFolders();
+          syncVaultCoreInBackground({ includeFolders: !!draft.folderId || attachments.length > 0 });
           onNotify('success', t('txt_item_created'));
         } catch (error) {
           onNotify('error', error instanceof Error ? error.message : t('txt_create_item_failed'));
@@ -230,7 +238,12 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
             await uploadCipherAttachment(authedFetch, session, cipher.id, file, cipher, setAttachmentUploadPercent);
           }
           await decryptAndPatch(updated);
-          if (draft.folderId !== (cipher.folderId || '')) await refetchFolders();
+          syncVaultCoreInBackground({
+            includeFolders:
+              draft.folderId !== (cipher.folderId || '')
+              || addFiles.length > 0
+              || removeAttachmentIds.length > 0,
+          });
           onNotify('success', t('txt_item_updated'));
         } catch (error) {
           onNotify('error', error instanceof Error ? error.message : t('txt_update_item_failed'));
@@ -263,7 +276,7 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
         try {
           const deleted = await deleteCipher(authedFetch, cipher.id);
           await decryptAndPatch(deleted);
-          await refetchFolders();
+          syncVaultCoreInBackground({ includeFolders: true });
           onNotify('success', t('txt_item_deleted'));
         } catch (error) {
           onNotify('error', error instanceof Error ? error.message : t('txt_delete_item_failed'));
@@ -275,7 +288,7 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
         try {
           const archived = await archiveCipher(authedFetch, cipher.id);
           await decryptAndPatch(archived);
-          await refetchFolders();
+          syncVaultCoreInBackground({ includeFolders: true });
           onNotify('success', t('txt_item_archived'));
         } catch (error) {
           onNotify('error', error instanceof Error ? error.message : t('txt_archive_item_failed'));
@@ -287,7 +300,7 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
         try {
           const unarchived = await unarchiveCipher(authedFetch, cipher.id);
           await decryptAndPatch(unarchived);
-          await refetchFolders();
+          syncVaultCoreInBackground({ includeFolders: true });
           onNotify('success', t('txt_item_unarchived'));
         } catch (error) {
           onNotify('error', error instanceof Error ? error.message : t('txt_unarchive_item_failed'));

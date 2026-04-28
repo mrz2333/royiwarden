@@ -518,6 +518,19 @@ export async function verifyMasterPassword(
   }
 }
 
+export async function getVaultRevisionDate(authedFetch: AuthedFetch): Promise<number> {
+  const resp = await authedFetch('/api/accounts/revision-date');
+  if (!resp.ok) {
+    throw new Error('Failed to load revision date');
+  }
+  const body = await parseJson<number>(resp);
+  const stamp = Number(body);
+  if (!Number.isFinite(stamp) || stamp <= 0) {
+    throw new Error('Invalid revision date');
+  }
+  return stamp;
+}
+
 export async function getTotpStatus(authedFetch: AuthedFetch): Promise<{ enabled: boolean }> {
   const resp = await authedFetch('/api/accounts/totp');
   if (!resp.ok) throw new Error('Failed to load TOTP status');
