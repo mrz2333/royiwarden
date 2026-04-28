@@ -34,6 +34,22 @@ export async function deleteAttachment(db: D1Database, id: string): Promise<void
   await db.prepare('DELETE FROM attachments WHERE id = ?').bind(id).run();
 }
 
+export async function bulkDeleteAttachmentsByIds(
+  db: D1Database,
+  sqlChunkSize: SqlChunkSize,
+  attachmentIds: string[]
+): Promise<void> {
+  const uniqueIds = [...new Set(attachmentIds.map((id) => String(id || '').trim()).filter(Boolean))];
+  if (!uniqueIds.length) return;
+  const chunkSize = sqlChunkSize(0);
+
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    const chunk = uniqueIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => '?').join(',');
+    await db.prepare(`DELETE FROM attachments WHERE id IN (${placeholders})`).bind(...chunk).run();
+  }
+}
+
 export async function getAttachmentsByCipher(db: D1Database, cipherId: string): Promise<Attachment[]> {
   const res = await db
     .prepare('SELECT id, cipher_id, file_name, size, size_name, key FROM attachments WHERE cipher_id = ?')
