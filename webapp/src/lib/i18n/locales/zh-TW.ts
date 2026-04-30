@@ -461,7 +461,7 @@ const zhTW: Record<string, string> = {
   "txt_item_deleted": "項目已刪除",
   "txt_item_history": "項目歷史",
   "txt_password_history": "密碼歷史記錄",
-  "txt_password_updated_value": "密碼新於: {value}",
+  "txt_password_updated_value": "密碼更新新於: {value}",
   "txt_item_name_is_required": "項目名稱不能為空",
   "txt_item_updated": "項目已更新",
   "txt_last_edited_value": "最後編輯：{value}",
