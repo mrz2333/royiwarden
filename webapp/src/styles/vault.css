@@ -663,6 +663,77 @@
   color: #0f172a;
 }
 
+.dialog-mask.totp-scan-mask {
+  @apply block p-0;
+  background: #0f172a;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.dialog-card.totp-scan-dialog {
+  @apply flex h-dvh w-screen max-w-none flex-col overflow-hidden rounded-none border-0 p-0 text-left;
+  max-height: 100dvh;
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: none;
+}
+
+.totp-scan-head {
+  @apply flex shrink-0 items-center justify-between gap-3 px-4 py-3;
+  padding-top: calc(12px + env(safe-area-inset-top));
+}
+
+.totp-scan-head .dialog-title {
+  @apply m-0 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xl;
+  color: #f8fafc;
+}
+
+.totp-scan-close {
+  @apply grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-white/10 text-white transition;
+}
+
+.totp-scan-close:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(1.04);
+}
+
+.totp-scan-frame {
+  @apply relative min-h-0 flex-1 overflow-hidden rounded-none;
+  aspect-ratio: auto;
+  background: #0f172a;
+}
+
+.totp-scan-video {
+  @apply h-full w-full object-cover;
+}
+
+.totp-scan-corners {
+  @apply pointer-events-none absolute rounded-[18px];
+  inset: max(34px, 10vmin);
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  box-shadow: 0 0 0 999px rgba(15, 23, 42, 0.28);
+}
+
+.totp-scan-footer {
+  @apply shrink-0 px-4 py-3;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.74), #0f172a);
+}
+
+.totp-scan-status {
+  @apply mb-3 min-h-6 text-center text-sm;
+  color: rgba(248, 250, 252, 0.86);
+}
+
+.totp-scan-actions {
+  @apply grid gap-2;
+  grid-template-columns: 1fr 1fr;
+}
+
+.totp-scan-actions .dialog-btn {
+  @apply mt-0 text-base;
+}
+
 .totp-codes-page {
   @apply flex min-h-full flex-col;
 }

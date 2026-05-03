@@ -501,6 +501,10 @@
     height: 160px;
   }
 
+  .totp-scan-actions {
+    grid-template-columns: 1fr;
+  }
+
   .invite-toolbar {
     align-items: stretch;
   }
