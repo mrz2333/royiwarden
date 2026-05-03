@@ -198,7 +198,7 @@ input[type='file'].input::file-selector-button:hover {
 }
 
 .or {
-  @apply my-2.5 text-center text-slate-700;
+  @apply text-center text-slate-700;
 }
 
 .field-help {

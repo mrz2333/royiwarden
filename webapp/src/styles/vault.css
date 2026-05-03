@@ -664,18 +664,17 @@
 }
 
 .dialog-mask.totp-scan-mask {
-  @apply block p-0;
-  background: #0f172a;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  @apply grid place-items-center p-5;
+  background: rgba(15, 23, 42, 0.78);
 }
 
 .dialog-card.totp-scan-dialog {
-  @apply flex h-dvh w-screen max-w-none flex-col overflow-hidden rounded-none border-0 p-0 text-left;
-  max-height: 100dvh;
+  @apply flex w-full max-w-[560px] flex-col overflow-hidden rounded-3xl border-0 p-0 text-left;
+  height: min(720px, calc(100dvh - 48px));
+  max-height: calc(100dvh - 48px);
   background: #0f172a;
   color: #f8fafc;
-  box-shadow: none;
+  box-shadow: 0 28px 80px rgba(2, 6, 23, 0.45);
 }
 
 .totp-scan-head {
@@ -698,8 +697,7 @@
 }
 
 .totp-scan-frame {
-  @apply relative min-h-0 flex-1 overflow-hidden rounded-none;
-  aspect-ratio: auto;
+  @apply relative min-h-0 flex-1 overflow-hidden;
   background: #0f172a;
 }
 
@@ -736,6 +734,39 @@
 
 .totp-codes-page {
   @apply flex min-h-full flex-col;
+}
+
+.detail-title-row {
+  @apply flex min-w-0 items-center gap-3;
+}
+
+.detail-title-icon {
+  @apply flex h-11 w-11 shrink-0 items-center justify-center;
+}
+
+.detail-title-icon .list-icon-wrap,
+.detail-title-icon .list-icon-stack,
+.detail-title-icon .list-icon,
+.detail-title-icon .list-icon-fallback {
+  width: 40px;
+  height: 40px;
+}
+
+.detail-title-main {
+  @apply min-w-0;
+}
+
+.detail-folder-line {
+  @apply mt-1 flex min-w-0 items-center gap-1.5 text-xs font-semibold;
+  color: #667085;
+}
+
+.detail-folder-line span {
+  @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
+}
+
+.detail-folder-line svg {
+  @apply shrink-0;
 }
 
 .totp-codes-list {
@@ -952,4 +983,13 @@
 .empty {
   @apply grid min-h-[120px] place-items-center;
   color: #667085;
+}
+
+.vault-error-state {
+  @apply gap-3 text-center;
+}
+
+.vault-error-state strong {
+  @apply text-sm;
+  color: var(--danger);
 }
