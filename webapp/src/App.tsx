@@ -30,7 +30,7 @@ import {
   parseSignalRTextFrames,
   readInviteCodeFromUrl,
 } from '@/lib/app-support';
-import { preloadAuthenticatedWorkspace } from '@/lib/app-preload';
+import { preloadAuthenticatedWorkspace, preloadDemoExperience } from '@/lib/app-preload';
 import {
   bootstrapAppSession,
   type CompletedLogin,
@@ -959,6 +959,11 @@ export default function App() {
     enabled: !IS_DEMO_MODE && phase === 'app' && isAdmin && vaultInitialDecryptDone,
     staleTime: 30_000,
   });
+
+  useEffect(() => {
+    if (!IS_DEMO_MODE) return;
+    return preloadDemoExperience();
+  }, []);
 
   useEffect(() => {
     if (IS_DEMO_MODE) return;
