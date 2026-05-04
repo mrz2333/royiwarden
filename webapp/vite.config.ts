@@ -60,16 +60,19 @@ export default defineConfig(({ mode }) => {
             }
 
             if (
-              normalized.includes('/src/components/ImportPage.tsx') ||
-              normalized.includes('/src/lib/import-') ||
-              normalized.includes('/src/lib/export-formats.ts') ||
-              normalized.includes('/src/components/SendsPage.tsx') ||
-              normalized.includes('/src/components/TotpCodesPage.tsx') ||
-              normalized.includes('/src/components/BackupCenterPage.tsx') ||
-              normalized.includes('/src/components/backup-center/') ||
-              normalized.includes('/src/components/SettingsPage.tsx') ||
-              normalized.includes('/src/components/SecurityDevicesPage.tsx') ||
-              normalized.includes('/src/components/AdminPage.tsx')
+              !isDemo &&
+              (
+                normalized.includes('/src/components/ImportPage.tsx') ||
+                normalized.includes('/src/lib/import-') ||
+                normalized.includes('/src/lib/export-formats.ts') ||
+                normalized.includes('/src/components/SendsPage.tsx') ||
+                normalized.includes('/src/components/TotpCodesPage.tsx') ||
+                normalized.includes('/src/components/BackupCenterPage.tsx') ||
+                normalized.includes('/src/components/backup-center/') ||
+                normalized.includes('/src/components/SettingsPage.tsx') ||
+                normalized.includes('/src/components/SecurityDevicesPage.tsx') ||
+                normalized.includes('/src/components/AdminPage.tsx')
+              )
             ) {
               return 'workspace-suite';
             }

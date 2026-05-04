@@ -8,6 +8,7 @@ import {
   preloadWebsiteIcon,
   subscribeWebsiteIconStatus,
 } from '@/lib/website-icon-cache';
+import { demoBrandIconUrl } from '@/lib/demo-brand-icons';
 import { firstCipherUri, hostFromUri, websiteIconUrl } from '@/lib/website-utils';
 
 const ICON_LOAD_ROOT_MARGIN = '180px 0px';
@@ -25,21 +26,7 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
   const [shouldLoad, setShouldLoad] = useState(() => (host ? getWebsiteIconStatus(host) === 'loaded' : true));
   const [status, setStatus] = useState(() => (host ? getWebsiteIconStatus(host) : 'idle'));
   const [imageUrl, setImageUrl] = useState(() => (host ? getWebsiteIconImageUrl(host) : ''));
-  const [demoIconUrl, setDemoIconUrl] = useState('');
-
-  useEffect(() => {
-    if (!SHOULD_LOAD_DEMO_BRAND_ICONS || !host) {
-      setDemoIconUrl('');
-      return;
-    }
-    let disposed = false;
-    void import('@/lib/demo-brand-icons').then(({ demoBrandIconUrl }) => {
-      if (!disposed) setDemoIconUrl(demoBrandIconUrl(host));
-    });
-    return () => {
-      disposed = true;
-    };
-  }, [host]);
+  const demoIconUrl = SHOULD_LOAD_DEMO_BRAND_ICONS && host ? demoBrandIconUrl(host) : '';
 
   useEffect(() => {
     if (!host) {
@@ -88,6 +75,7 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
   }, [host, shouldLoad, status]);
 
   useEffect(() => {
+    if (SHOULD_LOAD_DEMO_BRAND_ICONS) return;
     if (demoIconUrl) return;
     if (!host || !src || !shouldLoad || status === 'loaded' || status === 'error') return;
     let disposed = false;

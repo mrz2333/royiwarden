@@ -400,13 +400,18 @@ export default function App() {
 
   useEffect(() => {
     if (IS_DEMO_MODE) {
+      const currentHashPath = typeof window !== 'undefined'
+        ? (window.location.hash || '').replace(/^#/, '').split('?')[0].split('#')[0]
+        : '';
+      const normalizedCurrentHashPath = currentHashPath.replace(/^\/+/, '').replace(/\/+$/, '');
+      const isDemoPublicSendRoute = /^send\/[^/]+(?:\/[^/]+)?$/i.test(normalizedCurrentHashPath);
       setDefaultKdfIterations(initialBootstrap.defaultKdfIterations);
       setJwtWarning(null);
       setSession(null);
       setProfile(null);
       setPhase('login');
       setUnlockPreparing(false);
-      if (location !== '/login') navigate('/login');
+      if (!isDemoPublicSendRoute && location !== '/login') navigate('/login');
       return;
     }
 
@@ -956,6 +961,7 @@ export default function App() {
   });
 
   useEffect(() => {
+    if (IS_DEMO_MODE) return;
     if (phase !== 'app' || !vaultInitialDecryptDone) return;
     void preloadAuthenticatedWorkspace(isAdmin);
   }, [phase, vaultInitialDecryptDone, isAdmin]);

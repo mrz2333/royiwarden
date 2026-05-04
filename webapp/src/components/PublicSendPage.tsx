@@ -87,12 +87,13 @@ function parsePublicSendData(value: unknown): PublicSendData | null {
 }
 
 export default function PublicSendPage(props: PublicSendPageProps) {
-  const [loading, setLoading] = useState(true);
+  const initialDemoSend = IS_DEMO_MODE ? getDemoPublicSend(props.accessId) : null;
+  const [loading, setLoading] = useState(!IS_DEMO_MODE);
   const [password, setPassword] = useState('');
   const [needPassword, setNeedPassword] = useState(false);
   const [error, setError] = useState('');
-  const [notFound, setNotFound] = useState(false);
-  const [sendData, setSendData] = useState<PublicSendData | null>(null);
+  const [notFound, setNotFound] = useState(IS_DEMO_MODE && !initialDemoSend);
+  const [sendData, setSendData] = useState<PublicSendData | null>(initialDemoSend);
   const [busy, setBusy] = useState(false);
   const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
   const loadRequestRef = useRef(0);
@@ -201,6 +202,15 @@ export default function PublicSendPage(props: PublicSendPageProps) {
   }
 
   useEffect(() => {
+    if (IS_DEMO_MODE) {
+      const demoSend = getDemoPublicSend(props.accessId);
+      setSendData(demoSend);
+      setNotFound(!demoSend);
+      setNeedPassword(false);
+      setError('');
+      setLoading(false);
+      return;
+    }
     void loadSend();
     return () => {
       loadAbortRef.current?.abort();
