@@ -6,6 +6,7 @@ import { toBufferSource } from '@/lib/crypto';
 import { downloadBytesAsFile, readResponseBytesWithProgress } from '@/lib/download';
 import NotFoundPage from '@/components/NotFoundPage';
 import StandalonePageFrame from '@/components/StandalonePageFrame';
+import { getDemoPublicSend, IS_DEMO_MODE } from '@/lib/demo';
 import { t } from '@/lib/i18n';
 
 interface PublicSendPageProps {
@@ -108,6 +109,17 @@ export default function PublicSendPage(props: PublicSendPageProps) {
     setNotFound(false);
     setLoading(true);
     try {
+      if (IS_DEMO_MODE) {
+        const demoSend = getDemoPublicSend(props.accessId);
+        if (!demoSend) {
+          setNotFound(true);
+          setSendData(null);
+          return;
+        }
+        setSendData(demoSend);
+        setNeedPassword(false);
+        return;
+      }
       if (!hasUsableSendKey(props.keyPart)) {
         setNotFound(true);
         setSendData(null);
@@ -153,6 +165,11 @@ export default function PublicSendPage(props: PublicSendPageProps) {
     setDownloadPercent(null);
     setError('');
     try {
+      if (IS_DEMO_MODE) {
+        const bytes = new TextEncoder().encode('NodeWarden demo file Send.\nThis download is generated locally in demo mode.\n');
+        downloadBytesAsFile(bytes, sendData.decFileName || sendData.file?.fileName || 'nodewarden-demo-send.txt', 'application/octet-stream');
+        return;
+      }
       const url = await accessPublicSendFile(sendData.id, sendData.file.id, props.keyPart, password || undefined);
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(t('txt_download_failed'));
