@@ -100,6 +100,14 @@ function parseGlobalDomains(source, enumTypes) {
   return out;
 }
 
+function formatRulesJson(rules) {
+  return `[\n${rules.map((rule) => `  ${JSON.stringify(rule)}`).join(',\n')}\n]`;
+}
+
+function formatMetaJson(meta) {
+  return JSON.stringify(meta, null, 2);
+}
+
 const { ref } = parseArgs(process.argv.slice(2));
 const enumUrl = rawUrl(ref, ENUM_PATH);
 const staticStoreUrl = rawUrl(ref, STATIC_STORE_PATH);
@@ -112,7 +120,7 @@ const [enumSource, staticStoreSource] = await Promise.all([
 const enumTypes = parseEnumTypes(enumSource);
 const rules = parseGlobalDomains(staticStoreSource, enumTypes);
 const domainsCount = rules.reduce((sum, rule) => sum + rule.domains.length, 0);
-const rulesJson = `[\n${rules.map((rule) => `  ${JSON.stringify(rule)}`).join(',\n')}\n]`;
+const rulesJson = formatRulesJson(rules);
 
 async function readJsonFile(filePath) {
   try {
@@ -147,6 +155,6 @@ const meta = {
 
 await mkdir(OUTPUT_DIR, { recursive: true });
 await writeFile(OUT_FILE, `${rulesJson}\n`, 'utf8');
-await writeFile(META_FILE, `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+await writeFile(META_FILE, `${formatMetaJson(meta)}\n`, 'utf8');
 
 console.log(`Wrote ${rules.length} global domain rules (${domainsCount} domains) from bitwarden/server@${ref}.`);
