@@ -112,7 +112,7 @@ const [enumSource, staticStoreSource] = await Promise.all([
 const enumTypes = parseEnumTypes(enumSource);
 const rules = parseGlobalDomains(staticStoreSource, enumTypes);
 const domainsCount = rules.reduce((sum, rule) => sum + rule.domains.length, 0);
-const rulesJson = JSON.stringify(rules, null, 2);
+const rulesJson = `[\n${rules.map((rule) => `  ${JSON.stringify(rule)}`).join(',\n')}\n]`;
 
 async function readJsonFile(filePath) {
   try {
