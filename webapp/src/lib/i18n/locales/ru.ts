@@ -874,7 +874,28 @@ const ru: Record<string, string> = {
   "txt_status_inactive": "Неактивный",
   "txt_language": "Язык",
   "txt_display_language": "Язык дисплея",
-  "txt_language_saved_locally": "Этот выбор сохраняется в текущем браузере и применяется при следующей загрузке приложения."
+  "txt_language_saved_locally": "Этот выбор сохраняется в текущем браузере и применяется при следующей загрузке приложения.",
+  "nav_domain_rules": "Правила доменов",
+  "txt_domain_rules_description": "Отмечайте сайты с одним логином как эквивалентные домены. Глобальные правила берутся из готового списка, а пользовательские влияют только на ваши совпадения.",
+  "txt_submit_pr": "Отправить PR",
+  "txt_custom_equivalent_domains": "Пользовательские эквивалентные домены",
+  "txt_global_equivalent_domains": "Глобальные эквивалентные домены",
+  "txt_domain_group": "Группа доменов",
+  "txt_no_custom_domain_rules": "Нет пользовательских правил доменов",
+  "txt_no_domain_rules_found": "Правила доменов не найдены",
+  "txt_search_domains": "Поиск доменов",
+  "txt_domain_rules_saved": "Правила доменов сохранены",
+  "txt_domain_rules_save_failed": "Не удалось сохранить правила доменов",
+  "txt_domain_rules_load_failed": "Не удалось загрузить правила доменов",
+  "txt_domain_rules_invalid_response": "Недопустимый ответ правил доменов",
+  "txt_domain_rules_refreshed": "Правила доменов обновлены",
+  "txt_saving": "Сохранение...",
+  "txt_domain_rule_needs_two_domains": "В каждом правиле доменов должно быть не менее двух доменов.",
+  "txt_domain_rule_invalid_domains": "Введите корректные домены, например example.com.",
+  "txt_add_domain": "Добавить домен",
+  "txt_expand": "Развернуть",
+  "txt_collapse": "Свернуть",
+  "txt_remove_domain": "Удалить домен"
 };
 
 export default ru;

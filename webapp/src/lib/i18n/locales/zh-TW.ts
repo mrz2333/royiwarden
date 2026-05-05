@@ -874,7 +874,28 @@ const zhTW: Record<string, string> = {
   "txt_status_inactive": "未激活",
   "txt_language": "語言",
   "txt_display_language": "顯示語言",
-  "txt_language_saved_locally": "此偏好會保存在當前瀏覽器中，下次打開應用前就會生效。"
+  "txt_language_saved_locally": "此偏好會保存在當前瀏覽器中，下次打開應用前就會生效。",
+  "nav_domain_rules": "域名規則",
+  "txt_domain_rules_description": "多個網站共用同一登入資訊時，可將它們設為等效域名；全局規則來自預置列表，自定義規則只影響你自己的匹配。",
+  "txt_submit_pr": "提交 PR",
+  "txt_custom_equivalent_domains": "自定義等效域名",
+  "txt_global_equivalent_domains": "全局等效域名",
+  "txt_domain_group": "域名組",
+  "txt_no_custom_domain_rules": "暫無自定義域名規則",
+  "txt_no_domain_rules_found": "未找到域名規則",
+  "txt_search_domains": "搜索域名",
+  "txt_domain_rules_saved": "域名規則已保存",
+  "txt_domain_rules_save_failed": "保存域名規則失敗",
+  "txt_domain_rules_load_failed": "加載域名規則失敗",
+  "txt_domain_rules_invalid_response": "域名規則響應無效",
+  "txt_domain_rules_refreshed": "域名規則已刷新",
+  "txt_saving": "保存中...",
+  "txt_domain_rule_needs_two_domains": "每條域名規則至少需要兩個域名。",
+  "txt_domain_rule_invalid_domains": "請輸入有效域名，例如 example.com。",
+  "txt_add_domain": "新增域名",
+  "txt_expand": "展開",
+  "txt_collapse": "收起",
+  "txt_remove_domain": "移除域名"
 };
 
 export default zhTW;

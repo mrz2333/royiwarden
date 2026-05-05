@@ -1,4 +1,4 @@
-import { ArrowUpDown, Cloud, Clock3, Folder as FolderIcon, KeyRound, Lock, LogOut, Send as SendIcon, Settings as SettingsIcon, Shield, ShieldUser } from 'lucide-preact';
+import { ArrowUpDown, Cloud, Clock3, Folder as FolderIcon, Globe2, KeyRound, Lock, LogOut, Send as SendIcon, Settings as SettingsIcon, Shield, ShieldUser } from 'lucide-preact';
 import { Link } from 'wouter';
 import AppMainRoutes from '@/components/AppMainRoutes';
 import ThemeSwitch from '@/components/ThemeSwitch';
@@ -102,6 +102,10 @@ export default function AppAuthenticatedShell(props: AppAuthenticatedShellProps)
               <Shield size={16} />
               <span>{t('nav_device_management')}</span>
             </Link>
+            <Link href="/settings/domain-rules" className={`side-link ${props.location === '/settings/domain-rules' ? 'active' : ''}`}>
+              <Globe2 size={16} />
+              <span>{t('nav_domain_rules')}</span>
+            </Link>
             {isAdmin && (
               <Link href="/backup" className={`side-link ${props.location === '/backup' ? 'active' : ''}`}>
                 <Cloud size={16} />
@@ -114,7 +118,7 @@ export default function AppAuthenticatedShell(props: AppAuthenticatedShellProps)
             </Link>
           </aside>
           <main className="content">
-            <div key={routeAnimationKey} className="route-stage">
+            <div key={routeAnimationKey} className={`route-stage ${props.location === '/settings/domain-rules' ? 'route-stage-fixed' : ''}`}>
               <AppMainRoutes {...props.mainRoutesProps} />
             </div>
           </main>
