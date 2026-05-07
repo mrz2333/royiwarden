@@ -685,6 +685,7 @@ export async function importBackupArchiveBytes(
     await validateShadowTableCounts(env.DB, {
       config: (db.config || []).length,
       users: (db.users || []).length,
+      domain_settings: (db.domain_settings || []).length,
       user_revisions: (db.user_revisions || []).length,
       folders: (db.folders || []).length,
       ciphers: (db.ciphers || []).length,
@@ -706,6 +707,7 @@ export async function importBackupArchiveBytes(
     await validateShadowTableCounts(env.DB, {
       config: (db.config || []).length,
       users: (db.users || []).length,
+      domain_settings: (db.domain_settings || []).length,
       user_revisions: (db.user_revisions || []).length,
       folders: (db.folders || []).length,
       ciphers: (db.ciphers || []).length,
@@ -821,6 +823,7 @@ export async function importRemoteBackupArchiveBytes(
     await validateShadowTableCounts(env.DB, {
       config: (db.config || []).length,
       users: (db.users || []).length,
+      domain_settings: (db.domain_settings || []).length,
       user_revisions: (db.user_revisions || []).length,
       folders: (db.folders || []).length,
       ciphers: (db.ciphers || []).length,
@@ -842,6 +845,7 @@ export async function importRemoteBackupArchiveBytes(
     await validateShadowTableCounts(env.DB, {
       config: (db.config || []).length,
       users: (db.users || []).length,
+      domain_settings: (db.domain_settings || []).length,
       user_revisions: (db.user_revisions || []).length,
       folders: (db.folders || []).length,
       ciphers: (db.ciphers || []).length,
