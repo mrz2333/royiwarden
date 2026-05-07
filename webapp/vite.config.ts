@@ -5,12 +5,34 @@ import { defineConfig } from 'vite';
 
 const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
+function searchIndexPolicyPlugin(isDemo: boolean) {
+  return {
+    name: 'nodewarden-search-index-policy',
+    transformIndexHtml(html: string) {
+      if (isDemo) return html;
+      return html.replace(
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />'
+      );
+    },
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'robots.txt',
+        source: isDemo
+          ? 'User-agent: *\nAllow: /\n'
+          : 'User-agent: *\nDisallow: /\n',
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const isDemo = mode === 'demo';
 
   return {
     root: rootDir,
-    plugins: [preact()],
+    plugins: [preact(), searchIndexPolicyPlugin(isDemo)],
     define: {
       __NODEWARDEN_DEMO__: JSON.stringify(isDemo),
     },
