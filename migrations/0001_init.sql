@@ -1,8 +1,14 @@
 PRAGMA foreign_keys = ON;
 
 -- IMPORTANT:
--- Keep this file in sync with src/services/storage-schema.ts (SCHEMA_STATEMENTS).
+-- This is the initial D1 schema. Keep it in sync with
+-- src/services/storage-schema.ts (SCHEMA_STATEMENTS).
 -- Any new table/column/index must be added to both places together.
+--
+-- WHEN CHANGING THIS:
+-- - Also bump STORAGE_SCHEMA_VERSION in src/services/storage.ts.
+-- - If the new table stores persistent data, update backup export/import.
+-- - Keep src/services/storage-schema.ts idempotent for existing installs.
 
 CREATE TABLE IF NOT EXISTS config (
   key TEXT PRIMARY KEY,

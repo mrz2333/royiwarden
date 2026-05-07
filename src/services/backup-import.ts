@@ -8,6 +8,16 @@ import {
   validateBackupPayloadContents,
 } from './backup-archive';
 
+// CONTRACT:
+// Restore is intentionally whitelist-based. Old backups may contain retired
+// fields, but only the columns listed here are imported. Keep this file in sync
+// with src/services/backup-archive.ts whenever backup contents change.
+//
+// WHEN CHANGING THIS:
+// - Update BackupTableName, BACKUP_TABLES, reset statements, prepared payloads,
+//   shadow-table count validation, insert column lists, and frontend import
+//   count types together.
+// - Do not import users.api_key, even if an older backup contains it.
 type SqlRow = Record<string, string | number | null>;
 type BackupTableName =
   | 'config'

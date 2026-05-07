@@ -8,6 +8,17 @@ import {
   getBlobStorageKind,
 } from './blob-store';
 
+// CONTRACT:
+// This file defines the exported instance-backup archive shape. Keep it in lock
+// step with src/services/backup-import.ts and webapp/src/lib/api/backup.ts.
+//
+// WHEN CHANGING THIS:
+// - Add persistent tables to BackupPayload, export SQL, manifest tableCounts,
+//   and validateBackupPayloadContents().
+// - Keep secrets and transient runtime rows sanitized before writing db.json.
+// - users.api_key is intentionally not exported.
+// - backup.settings.v1 is exported as portable-only; the current server runtime
+//   envelope must not leave the instance.
 type SqlRow = Record<string, string | number | null>;
 
 const BACKUP_FORMAT_VERSION = 1;

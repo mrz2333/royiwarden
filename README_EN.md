@@ -25,6 +25,9 @@
 
 中文说明：<a href="./README.md"><code>README.md</code></a>
 
+Contributing guide: <a href="./CONTRIBUTING.md"><code>CONTRIBUTING.md</code></a> |
+Contributing and development notes: <a href="./CONTRIBUTING.md"><code>CONTRIBUTING.md</code></a>
+
 > **Disclaimer**
 >
 > This project is for learning and discussion purposes only. Please back up your vault regularly.

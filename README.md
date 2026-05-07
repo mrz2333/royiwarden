@@ -25,6 +25,9 @@
 
 English: <a href="./README_EN.md"><code>README_EN.md</code></a>
 
+贡献指南：<a href="./CONTRIBUTING.md"><code>CONTRIBUTING.md</code></a> |
+贡献与开发说明：<a href="./CONTRIBUTING.md"><code>CONTRIBUTING.md</code></a>
+
 > **免责声明**  
 > 本项目仅供学习与交流使用，请定期备份你的密码库。  
 > 本项目与 Bitwarden 官方无关，请不要向 Bitwarden 官方反馈 NodeWarden 的问题。
