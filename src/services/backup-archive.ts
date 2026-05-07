@@ -1,6 +1,8 @@
 import { zipSync, unzipSync } from 'fflate';
 import type { Env } from '../types';
 import { APP_VERSION } from '../../shared/app-version';
+import { BACKUP_SETTINGS_CONFIG_KEY } from './backup-config';
+import { exportPortableBackupSettingsEnvelope } from './backup-settings-crypto';
 import {
   getAttachmentObjectKey,
   getBlobStorageKind,
@@ -9,6 +11,7 @@ import {
 type SqlRow = Record<string, string | number | null>;
 
 const BACKUP_FORMAT_VERSION = 1;
+const BACKUP_RUNNER_LOCK_CONFIG_KEY = 'backup.runner.lock.v1';
 const BACKUP_FILE_HASH_PREFIX_LENGTH = 5;
 // Worker-side backup export must stay well below Cloudflare CPU limits.
 // Prefer store-only ZIP entries over heavier compression to keep exports reliable.
@@ -87,6 +90,23 @@ export type BackupArchiveBuildProgressReporter = (event: BackupArchiveBuildProgr
 async function queryRows(db: D1Database, sql: string, ...values: unknown[]): Promise<SqlRow[]> {
   const result = await db.prepare(sql).bind(...values).all<SqlRow>();
   return (result.results || []).map((row) => ({ ...row }));
+}
+
+function sanitizeConfigRowsForExport(rows: SqlRow[]): SqlRow[] {
+  const sanitized: SqlRow[] = [];
+  for (const row of rows) {
+    const key = String(row.key || '').trim();
+    if (!key || key === BACKUP_RUNNER_LOCK_CONFIG_KEY) continue;
+
+    if (key === BACKUP_SETTINGS_CONFIG_KEY) {
+      const portableOnly = exportPortableBackupSettingsEnvelope(typeof row.value === 'string' ? row.value : null);
+      if (portableOnly) sanitized.push({ ...row, value: portableOnly });
+      continue;
+    }
+
+    sanitized.push({ ...row });
+  }
+  return sanitized;
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
@@ -353,6 +373,7 @@ export async function buildBackupArchive(
     queryRows(env.DB, 'SELECT id, user_id, type, folder_id, name, notes, favorite, data, reprompt, key, created_at, updated_at, archived_at, deleted_at FROM ciphers ORDER BY created_at ASC'),
     queryRows(env.DB, 'SELECT id, cipher_id, file_name, size, size_name, key FROM attachments ORDER BY cipher_id ASC, id ASC'),
   ]);
+  const exportedConfigRows = sanitizeConfigRowsForExport(configRows);
   const exportedAttachmentRows = includeAttachments ? attachmentRows : [];
   const attachmentBlobs: BackupManifestAttachmentBlob[] = exportedAttachmentRows.map((row) => {
     const cipherId = String(row.cipher_id || '').trim();
@@ -371,7 +392,7 @@ export async function buildBackupArchive(
     appVersion: APP_VERSION,
     storageKind: getBlobStorageKind(env),
     tableCounts: {
-      config: configRows.length,
+      config: exportedConfigRows.length,
       users: userRows.length,
       user_revisions: revisionRows.length,
       folders: folderRows.length,
@@ -392,7 +413,7 @@ export async function buildBackupArchive(
   const files: Record<string, Uint8Array> = {
     'manifest.json': encoder.encode(JSON.stringify(manifestBase, null, BACKUP_JSON_INDENT)),
     'db.json': encoder.encode(JSON.stringify({
-      config: configRows,
+      config: exportedConfigRows,
       users: userRows,
       user_revisions: revisionRows,
       folders: folderRows,

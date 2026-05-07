@@ -155,6 +155,20 @@ export function parseBackupSettingsEnvelope(raw: string | null): BackupSettingsE
   }
 }
 
+export function exportPortableBackupSettingsEnvelope(raw: string | null): string | null {
+  const envelope = parseBackupSettingsEnvelope(raw);
+  if (!envelope) return null;
+  return JSON.stringify({
+    version: 2,
+    portableOnly: true,
+    runtime: {
+      iv: '',
+      ciphertext: '',
+    },
+    portable: envelope.portable,
+  });
+}
+
 export async function encryptBackupSettingsEnvelope(
   plaintext: string,
   env: Env,
