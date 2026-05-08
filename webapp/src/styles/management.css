@@ -587,46 +587,21 @@
     opacity var(--dur-fast) var(--ease-smooth);
 }
 
-.website-row.is-dragging {
-  @apply opacity-50;
-  border-color: rgba(37, 99, 235, 0.24);
-  background: color-mix(in srgb, var(--panel-soft) 92%, white 8%);
-  box-shadow: var(--shadow-sm);
+.website-order-actions {
+  @apply grid gap-1;
 }
 
-.website-drag-btn {
-  @apply relative h-12 w-7 min-w-7 cursor-grab gap-0 overflow-visible rounded-[10px] p-0 opacity-[0.82];
+.website-order-btn {
+  @apply h-[22px] w-7 min-w-7 gap-0 rounded-[8px] p-0;
   color: var(--muted);
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-  touch-action: none;
-  -webkit-user-select: none;
-  user-select: none;
 }
 
-.website-drag-btn:hover {
+.website-order-btn:hover:not(:disabled) {
   color: var(--primary-strong);
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-  opacity: 1;
 }
 
-.website-drag-btn:active {
-  cursor: grabbing;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-}
-
-.website-drag-btn::before {
-  content: '';
-  @apply absolute -inset-2 rounded-xl;
-}
-
-.website-drag-btn .btn-icon {
-  @apply opacity-90;
+.website-order-btn:disabled {
+  @apply opacity-35;
 }
 
 .website-match-select {
