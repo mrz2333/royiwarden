@@ -6,8 +6,6 @@ import {
   beginWebsiteIconLoad,
   getWebsiteIconImageUrl,
   getWebsiteIconStatus,
-  markWebsiteIconErrored,
-  markWebsiteIconLoaded,
   subscribeWebsiteIconStatus,
 } from '@/lib/website-icon-cache';
 import { demoBrandIconUrl } from '@/lib/demo-brand-icons';
@@ -28,7 +26,6 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
   const [shouldLoad, setShouldLoad] = useState(() => (host ? getWebsiteIconStatus(host) === 'loaded' : true));
   const [status, setStatus] = useState(() => (host ? getWebsiteIconStatus(host) : 'idle'));
   const [imageUrl, setImageUrl] = useState(() => (host ? getWebsiteIconImageUrl(host) : ''));
-  const [isLoadOwner, setIsLoadOwner] = useState(false);
   const demoIconUrl = SHOULD_LOAD_DEMO_BRAND_ICONS && host ? demoBrandIconUrl(host) : '';
 
   useEffect(() => {
@@ -36,14 +33,12 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
       setShouldLoad(true);
       setStatus('idle');
       setImageUrl('');
-      setIsLoadOwner(false);
       return;
     }
     const nextStatus = getWebsiteIconStatus(host);
     setShouldLoad(nextStatus === 'loaded');
     setStatus(nextStatus);
     setImageUrl(getWebsiteIconImageUrl(host));
-    setIsLoadOwner(false);
     return subscribeWebsiteIconStatus(host, (next) => {
       setStatus(next);
       setImageUrl(getWebsiteIconImageUrl(host));
@@ -83,7 +78,7 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
     if (SHOULD_LOAD_DEMO_BRAND_ICONS) return;
     if (demoIconUrl) return;
     if (!host || !src || !shouldLoad || status !== 'idle') return;
-    setIsLoadOwner(beginWebsiteIconLoad(host, src));
+    beginWebsiteIconLoad(host, src);
   }, [demoIconUrl, host, src, shouldLoad, status]);
 
   if (demoIconUrl) {
@@ -104,7 +99,7 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
     return <span className="list-icon-fallback">{props.fallback ?? <Globe size={18} />}</span>;
   }
 
-  const shouldRenderIconImage = !!imageUrl && (status === 'loaded' || (status === 'loading' && isLoadOwner));
+  const shouldRenderIconImage = !!imageUrl && status === 'loaded';
 
   return (
     <span className="list-icon-stack" ref={nodeRef}>
@@ -116,8 +111,6 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
           alt=""
           loading="lazy"
           decoding="async"
-          onLoad={() => markWebsiteIconLoaded(host, imageUrl)}
-          onError={() => markWebsiteIconErrored(host)}
         />
       )}
     </span>
