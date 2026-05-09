@@ -3,9 +3,11 @@ import type { ComponentChildren } from 'preact';
 import { Globe } from 'lucide-preact';
 import type { Cipher } from '@/lib/types';
 import {
+  beginWebsiteIconLoad,
   getWebsiteIconImageUrl,
   getWebsiteIconStatus,
-  preloadWebsiteIcon,
+  markWebsiteIconErrored,
+  markWebsiteIconLoaded,
   subscribeWebsiteIconStatus,
 } from '@/lib/website-icon-cache';
 import { demoBrandIconUrl } from '@/lib/demo-brand-icons';
@@ -26,6 +28,7 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
   const [shouldLoad, setShouldLoad] = useState(() => (host ? getWebsiteIconStatus(host) === 'loaded' : true));
   const [status, setStatus] = useState(() => (host ? getWebsiteIconStatus(host) : 'idle'));
   const [imageUrl, setImageUrl] = useState(() => (host ? getWebsiteIconImageUrl(host) : ''));
+  const [isLoadOwner, setIsLoadOwner] = useState(false);
   const demoIconUrl = SHOULD_LOAD_DEMO_BRAND_ICONS && host ? demoBrandIconUrl(host) : '';
 
   useEffect(() => {
@@ -33,12 +36,14 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
       setShouldLoad(true);
       setStatus('idle');
       setImageUrl('');
+      setIsLoadOwner(false);
       return;
     }
     const nextStatus = getWebsiteIconStatus(host);
     setShouldLoad(nextStatus === 'loaded');
     setStatus(nextStatus);
     setImageUrl(getWebsiteIconImageUrl(host));
+    setIsLoadOwner(false);
     return subscribeWebsiteIconStatus(host, (next) => {
       setStatus(next);
       setImageUrl(getWebsiteIconImageUrl(host));
@@ -77,16 +82,8 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
   useEffect(() => {
     if (SHOULD_LOAD_DEMO_BRAND_ICONS) return;
     if (demoIconUrl) return;
-    if (!host || !src || !shouldLoad || status === 'loaded' || status === 'error') return;
-    let disposed = false;
-    void preloadWebsiteIcon(host, src).then((nextStatus) => {
-      if (disposed) return;
-      setStatus(nextStatus);
-      setImageUrl(getWebsiteIconImageUrl(host));
-    });
-    return () => {
-      disposed = true;
-    };
+    if (!host || !src || !shouldLoad || status !== 'idle') return;
+    setIsLoadOwner(beginWebsiteIconLoad(host, src));
   }, [demoIconUrl, host, src, shouldLoad, status]);
 
   if (demoIconUrl) {
@@ -107,16 +104,20 @@ export default function WebsiteIcon(props: WebsiteIconProps) {
     return <span className="list-icon-fallback">{props.fallback ?? <Globe size={18} />}</span>;
   }
 
+  const shouldRenderIconImage = !!imageUrl && (status === 'loaded' || (status === 'loading' && isLoadOwner));
+
   return (
     <span className="list-icon-stack" ref={nodeRef}>
       {status !== 'loaded' && <span className="list-icon-fallback">{props.fallback ?? <Globe size={18} />}</span>}
-      {status === 'loaded' && imageUrl && (
+      {shouldRenderIconImage && (
         <img
-          className="list-icon loaded"
+          className={`list-icon${status === 'loaded' ? ' loaded' : ''}`}
           src={imageUrl}
           alt=""
           loading="lazy"
           decoding="async"
+          onLoad={() => markWebsiteIconLoaded(host, imageUrl)}
+          onError={() => markWebsiteIconErrored(host)}
         />
       )}
     </span>
