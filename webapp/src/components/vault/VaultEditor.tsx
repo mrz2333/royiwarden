@@ -109,7 +109,13 @@ function WebsiteRow(props: WebsiteRowProps) {
         ))}
       </select>
       {props.canRemove && (
-        <button type="button" className="btn btn-secondary small" onClick={() => props.onRemove(props.index)}>
+        <button
+          type="button"
+          className="btn btn-secondary small website-remove-btn"
+          title={t('txt_remove')}
+          aria-label={t('txt_remove')}
+          onClick={() => props.onRemove(props.index)}
+        >
           <X size={14} className="btn-icon" />
           {t('txt_remove')}
         </button>
