@@ -632,7 +632,11 @@ export default function VaultEditor(props: VaultEditorProps) {
                       <span>{toBooleanFieldValue(field.value) ? t('txt_checked') : t('txt_unchecked')}</span>
                     </label>
                   ) : (
-                    <input className="input" value={field.value} onInput={(e) => props.onPatchDraftCustomField(originalIndex, { value: (e.currentTarget as HTMLInputElement).value })} />
+                    <textarea
+                      className="input textarea custom-field-textarea"
+                      value={field.value}
+                      onInput={(e) => props.onPatchDraftCustomField(originalIndex, { value: (e.currentTarget as HTMLTextAreaElement).value })}
+                    />
                   )}
                 </div>
                 <button type="button" className="btn btn-secondary small custom-field-remove" onClick={() => props.onUpdateDraftCustomFields(props.draft.customFields.filter((_, i) => i !== originalIndex))}>

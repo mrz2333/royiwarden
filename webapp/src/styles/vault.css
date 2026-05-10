@@ -921,6 +921,15 @@
   @apply w-full;
 }
 
+.custom-field-textarea {
+  @apply min-h-20;
+}
+
+.custom-field-display {
+  @apply block max-w-full whitespace-pre-wrap break-words text-sm font-semibold;
+  overflow-wrap: anywhere;
+}
+
 .custom-field-check {
   @apply mb-0 inline-flex items-center gap-2;
 }

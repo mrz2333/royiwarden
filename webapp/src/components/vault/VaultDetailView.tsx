@@ -357,7 +357,10 @@ export default function VaultDetailView(props: VaultDetailViewProps) {
                       <div className="custom-field-label" title={fieldName}>{fieldName}</div>
                       <div className="custom-field-body">
                         <div className="custom-field-value">
-                          <strong className="value-ellipsis" title={fieldType === 1 && !isHiddenVisible ? '' : rawValue}>
+                          <strong
+                            className={fieldType === 1 && !isHiddenVisible ? 'value-ellipsis' : 'custom-field-display'}
+                            title={fieldType === 1 && !isHiddenVisible ? '' : rawValue}
+                          >
                             {fieldType === 1 && !isHiddenVisible ? maskSecret(rawValue) : rawValue}
                           </strong>
                         </div>
