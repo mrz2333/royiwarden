@@ -710,6 +710,7 @@ const ru: Record<string, string> = {
   "txt_security_code": "Код безопасности",
   "txt_security_code_cvv": "Код безопасности (CVV)",
   "txt_select_all": "Выбрать все",
+  "txt_select": "Выбрать",
   "txt_select_duplicate_items": "Выберите дубликаты",
   "txt_select_an_item": "Выберите элемент",
   "txt_send_created": "Отправить создано",

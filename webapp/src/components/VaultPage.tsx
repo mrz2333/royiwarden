@@ -9,6 +9,7 @@ import {
   MOBILE_LAYOUT_QUERY,
   VAULT_LIST_OVERSCAN,
   VAULT_LIST_ROW_HEIGHT,
+  cardListSubtitle,
   FOLDER_SORT_STORAGE_KEY,
   VAULT_SORT_STORAGE_KEY,
   cipherTypeKey,
@@ -500,6 +501,9 @@ const folderName = useCallback((id: string | null | undefined): string => {
   const listSubtitle = useCallback((cipher: Cipher): string => {
     if (Number(cipher.type || 1) === 1) {
       return cipher.login?.decUsername || cipherMetaById.get(cipher.id)?.firstUri || '';
+    }
+    if (Number(cipher.type || 1) === 3) {
+      return cardListSubtitle(cipher);
     }
     return cipherTypeLabel(Number(cipher.type || 1));
   }, [cipherMetaById]);

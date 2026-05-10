@@ -710,6 +710,7 @@ const es: Record<string, string> = {
   "txt_security_code": "Código de seguridad",
   "txt_security_code_cvv": "Código de seguridad (CVV)",
   "txt_select_all": "Seleccionar todo",
+  "txt_select": "Seleccionar",
   "txt_select_duplicate_items": "Seleccionar duplicados",
   "txt_select_an_item": "Seleccione un elemento",
   "txt_send_created": "Envío creado",

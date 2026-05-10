@@ -5,10 +5,12 @@ import { useDialogLifecycle } from '@/components/ConfirmDialog';
 import type { Cipher } from '@/lib/types';
 import { t } from '@/lib/i18n';
 import {
+  CardBrandIcon,
   TOTP_PERIOD_SECONDS,
   TOTP_RING_CIRCUMFERENCE,
   VaultListIcon,
   copyToClipboard,
+  displayCardBrand,
   formatAttachmentSize,
   formatHistoryTime,
   formatTotp,
@@ -246,7 +248,13 @@ export default function VaultDetailView(props: VaultDetailViewProps) {
               <h4>{t('txt_card_details')}</h4>
               <div className="kv-line"><span>{t('txt_cardholder_name')}</span><strong>{props.selectedCipher.card.decCardholderName || ''}</strong></div>
               <div className="kv-line"><span>{t('txt_number')}</span><strong>{props.selectedCipher.card.decNumber || ''}</strong></div>
-              <div className="kv-line"><span>{t('txt_brand')}</span><strong>{props.selectedCipher.card.decBrand || ''}</strong></div>
+              <div className="kv-line">
+                <span>{t('txt_brand')}</span>
+                <strong className="card-brand-detail">
+                  <CardBrandIcon brand={props.selectedCipher.card.decBrand} />
+                  {displayCardBrand(props.selectedCipher.card.decBrand)}
+                </strong>
+              </div>
               <div className="kv-line"><span>{t('txt_expiry')}</span><strong>{`${props.selectedCipher.card.decExpMonth || ''}/${props.selectedCipher.card.decExpYear || ''}`}</strong></div>
               <div className="kv-line"><span>{t('txt_security_code')}</span><strong>{props.selectedCipher.card.decCode || ''}</strong></div>
             </div>
