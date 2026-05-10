@@ -1,5 +1,5 @@
 import { createPortal } from 'preact/compat';
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Archive, Clipboard, Download, Eye, EyeOff, ExternalLink, Folder, Paperclip, Pencil, RotateCcw, Trash2, X } from 'lucide-preact';
 import { useDialogLifecycle } from '@/components/ConfirmDialog';
 import type { Cipher } from '@/lib/types';
@@ -92,6 +92,10 @@ export default function VaultDetailView(props: VaultDetailViewProps) {
         .filter((entry) => entry.password.trim()),
     [props.selectedCipher.passwordHistory]
   );
+  useEffect(() => {
+    setShowSshPrivateKey(false);
+    setPasswordHistoryOpen(false);
+  }, [props.selectedCipher.id]);
   const formatDownloadLabel = (attachmentId: string) => {
     const downloadKey = `${props.selectedCipher.id}:${attachmentId}`;
     if (props.downloadingAttachmentKey !== downloadKey) return t('txt_download');

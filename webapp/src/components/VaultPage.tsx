@@ -263,6 +263,8 @@ export default function VaultPage(props: VaultPageProps) {
     setRepromptApprovedCipherId(null);
     setRepromptPassword('');
     setRepromptOpen(false);
+    setShowPassword(false);
+    setHiddenFieldVisibleMap({});
   }, [selectedCipherId]);
 
   useEffect(() => {
@@ -516,6 +518,7 @@ const folderName = useCallback((id: string | null | undefined): string => {
     setCreateMenuOpen(false);
     setSelectedCipherId('');
     setShowPassword(false);
+    setHiddenFieldVisibleMap({});
     setLocalError('');
     setAttachmentQueue([]);
     setRemovedAttachmentIds({});
@@ -530,6 +533,7 @@ const folderName = useCallback((id: string | null | undefined): string => {
     setIsCreating(false);
     setIsEditing(true);
     setShowPassword(false);
+    setHiddenFieldVisibleMap({});
     setLocalError('');
     setAttachmentQueue([]);
     setRemovedAttachmentIds({});
@@ -542,6 +546,8 @@ const folderName = useCallback((id: string | null | undefined): string => {
     setDraft(null);
     setIsEditing(false);
     setIsCreating(false);
+    setShowPassword(false);
+    setHiddenFieldVisibleMap({});
     setLocalError('');
     setAttachmentQueue([]);
     setRemovedAttachmentIds({});
@@ -971,6 +977,8 @@ const folderName = useCallback((id: string | null | undefined): string => {
     }
     setSelectedCipherId(cipherId);
     setRepromptApprovedCipherId(null);
+    setShowPassword(false);
+    setHiddenFieldVisibleMap({});
     if (isMobileLayout) setMobilePanel('detail');
     setMobileSidebarOpen(false);
   }, [isEditing, isCreating, cancelEdit, isMobileLayout]);
