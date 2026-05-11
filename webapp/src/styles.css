@@ -698,6 +698,13 @@ h4 {
   margin-bottom: 12px;
 }
 
+.sensitive-actions-module {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
 .sensitive-action,
 .recovery-code-card,
 .api-key-warning-panel,
@@ -705,9 +712,10 @@ h4 {
 .backup-recommendation-dav-item,
 .restore-progress-current,
 .restore-progress-elapsed {
-  border-radius: var(--radius-md);
-  border-color: var(--line-soft);
-  background: var(--panel-soft);
+  border-radius: .5rem;
+  border-width: 1px;
+  border-color: var(--line);
+  background: var(--panel);
 }
 
 .status-ok,
@@ -812,13 +820,10 @@ h4 {
 :root[data-theme='dark'] .app-main,
 :root[data-theme='dark'] .app-side,
 :root[data-theme='dark'] .mobile-tabbar,
-:root[data-theme='dark'] .sensitive-action,
 :root[data-theme='dark'] .backup-recommendations-summary,
 :root[data-theme='dark'] .backup-browser-path,
 :root[data-theme='dark'] .backup-browser-empty,
-:root[data-theme='dark'] .backup-recommendation-dav-item,
-:root[data-theme='dark'] .restore-progress-current,
-:root[data-theme='dark'] .restore-progress-elapsed {
+:root[data-theme='dark'] .backup-recommendation-dav-item {
   background: var(--panel-soft);
 }
 
@@ -987,6 +992,10 @@ h4 {
   .backup-destination-sidebar,
   .backup-detail-panel {
     padding: 12px;
+  }
+
+  .sensitive-actions-module {
+    padding: 0;
   }
 
   .card {
