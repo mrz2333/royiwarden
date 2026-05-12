@@ -1,6 +1,7 @@
 import type { Device, DevicePendingAuthRequest, DeviceResponse, ProtectedDeviceResponse as ProtectedDeviceWireResponse } from '../types';
 import { Env } from '../types';
 import { getOnlineUserDevices, notifyUserLogout } from '../durable/notifications-hub';
+import { AuthService } from '../services/auth';
 import { StorageService } from '../services/storage';
 import { errorResponse, jsonResponse } from '../utils/response';
 import { readKnownDeviceProbe } from '../utils/device';
@@ -309,6 +310,7 @@ export async function handleDeleteDevice(
   await storage.deleteRefreshTokensByDevice(userId, normalized);
   const deleted = await storage.deleteDevice(userId, normalized);
   if (deleted) {
+    AuthService.invalidateDeviceCache(userId, normalized);
     notifyUserLogout(env, userId, normalized);
   }
   return jsonResponse({ success: deleted });
@@ -352,6 +354,7 @@ export async function handleDeleteAllDevices(request: Request, env: Env, userId:
   user.securityStamp = generateUUID();
   user.updatedAt = new Date().toISOString();
   await storage.saveUser(user);
+  AuthService.invalidateUserCache(userId);
   notifyUserLogout(env, userId, null);
   return jsonResponse({ success: true, removedTrusted, removedSessions: removedSessions ?? 0, removedDevices });
 }
@@ -483,6 +486,7 @@ export async function handleDeactivateDevice(
   await storage.deleteRefreshTokensByDevice(userId, normalized);
   const deleted = await storage.deleteDevice(userId, normalized);
   if (deleted) {
+    AuthService.invalidateDeviceCache(userId, normalized);
     notifyUserLogout(env, userId, normalized);
   }
   return jsonResponse({ success: deleted });
