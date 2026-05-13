@@ -1137,6 +1137,15 @@ export function createDemoMainRoutesProps(base: AppMainRoutesProps, notify: Noti
       )));
       notify('success', t('txt_invite_revoked'));
     },
+    onLoadAuditLogSettings: async () => ({ retentionDays: 90, maxEntries: null }),
+    onSaveAuditLogSettings: async (settings) => {
+      notify('success', t('txt_log_settings_saved'));
+      return settings;
+    },
+    onClearAuditLogs: async () => {
+      notify('success', t('txt_logs_cleared'));
+      return 0;
+    },
     onExportBackup: async () => {
       notify('success', t('txt_backup_export_success'));
     },
