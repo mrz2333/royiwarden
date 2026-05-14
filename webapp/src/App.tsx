@@ -69,7 +69,7 @@ import {
   createDemoMainRoutesProps,
 } from '@/lib/demo';
 import type { AdminBackupSettings } from '@/lib/api/backup';
-import type { AdminInvite, AdminUser, AppPhase, AuthorizedDevice, Cipher, CustomEquivalentDomain, DomainRules, Folder as VaultFolder, Profile, Send, SessionState } from '@/lib/types';
+import type { AdminInvite, AdminUser, AppPhase, AuditLogSettings, AuthorizedDevice, Cipher, CustomEquivalentDomain, DomainRules, Folder as VaultFolder, Profile, Send, SessionState } from '@/lib/types';
 import type { VaultCoreSnapshot } from '@/lib/vault-cache';
 
 function isBackupProgressDetail(value: unknown): value is BackupProgressDetail {
@@ -1477,6 +1477,7 @@ export default function App() {
     onDeleteVaultItem: vaultSendActions.deleteVaultItem,
     onArchiveVaultItem: vaultSendActions.archiveVaultItem,
     onUnarchiveVaultItem: vaultSendActions.unarchiveVaultItem,
+    onRestoreVaultItems: vaultSendActions.bulkRestoreVaultItems,
     onBulkDeleteVaultItems: vaultSendActions.bulkDeleteVaultItems,
     onBulkPermanentDeleteVaultItems: vaultSendActions.bulkPermanentDeleteVaultItems,
     onBulkRestoreVaultItems: vaultSendActions.bulkRestoreVaultItems,
@@ -1531,7 +1532,7 @@ export default function App() {
     onRevokeInvite: adminActions.revokeInvite,
     onLoadAuditLogs: (filters: AuditLogFilters) => listAuditLogs(authedFetch, filters),
     onLoadAuditLogSettings: () => getAuditLogSettings(authedFetch),
-    onSaveAuditLogSettings: (settings) => saveAuditLogSettings(authedFetch, settings),
+    onSaveAuditLogSettings: (settings: AuditLogSettings) => saveAuditLogSettings(authedFetch, settings),
     onClearAuditLogs: () => clearAuditLogs(authedFetch),
     onExportBackup: backupActions.exportBackup,
     onImportBackup: backupActions.importBackup,

@@ -81,6 +81,7 @@ export interface AppMainRoutesProps {
   onDeleteVaultItem: (cipher: Cipher) => Promise<void>;
   onArchiveVaultItem: (cipher: Cipher) => Promise<void>;
   onUnarchiveVaultItem: (cipher: Cipher) => Promise<void>;
+  onRestoreVaultItems: (ids: string[]) => Promise<void>;
   onBulkDeleteVaultItems: (ids: string[]) => Promise<void>;
   onBulkPermanentDeleteVaultItems: (ids: string[]) => Promise<void>;
   onBulkRestoreVaultItems: (ids: string[]) => Promise<void>;
@@ -214,6 +215,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
             onDelete={props.onDeleteVaultItem}
             onArchive={props.onArchiveVaultItem}
             onUnarchive={props.onUnarchiveVaultItem}
+            onRestore={props.onRestoreVaultItems}
             onBulkDelete={props.onBulkDeleteVaultItems}
             onBulkPermanentDelete={props.onBulkPermanentDeleteVaultItems}
             onBulkRestore={props.onBulkRestoreVaultItems}

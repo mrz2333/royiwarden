@@ -45,6 +45,7 @@ interface VaultPageProps {
   onDelete: (cipher: Cipher) => Promise<void>;
   onArchive: (cipher: Cipher) => Promise<void>;
   onUnarchive: (cipher: Cipher) => Promise<void>;
+  onRestore: (ids: string[]) => Promise<void>;
   onBulkDelete: (ids: string[]) => Promise<void>;
   onBulkPermanentDelete: (ids: string[]) => Promise<void>;
   onBulkRestore: (ids: string[]) => Promise<void>;
@@ -732,6 +733,18 @@ const folderName = useCallback((id: string | null | undefined): string => {
     }
   }
 
+  async function handleRestoreSelected(cipher: Cipher): Promise<void> {
+    setBusy(true);
+    try {
+      await props.onRestore([cipher.id]);
+      if (isMobileLayout && selectedCipherId === cipher.id) {
+        setMobilePanel('list');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function confirmBulkDelete(): Promise<void> {
     const ids = Object.entries(selectedMap)
       .filter(([, selected]) => selected)
@@ -1148,6 +1161,7 @@ const folderName = useCallback((id: string | null | undefined): string => {
                 attachmentDownloadPercent={props.attachmentDownloadPercent}
                 onStartEdit={startEdit}
                 onDelete={setPendingDelete}
+                onRestore={(cipher) => void handleRestoreSelected(cipher)}
                 onArchive={(cipher) => setPendingArchive(cipher)}
                 onUnarchive={(cipher) => void handleUnarchiveSelected(cipher)}
               />
