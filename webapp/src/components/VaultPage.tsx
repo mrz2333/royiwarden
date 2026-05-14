@@ -306,9 +306,10 @@ export default function VaultPage(props: VaultPageProps) {
       const name = String(cipher.decName || cipher.name || '');
       const username = String(cipher.login?.decUsername || '');
       const uri = firstCipherUri(cipher);
+      const cipherId = String(cipher.id || '').trim();
       meta.set(cipher.id, {
         name,
-        searchText: `${name}\n${username}\n${uri}`.toLowerCase(),
+        searchText: `${cipherId}\n${cipherId.replace(/-/g, '')}\n${name}\n${username}\n${uri}`.toLowerCase(),
         firstUri: uri,
         typeKey: cipherTypeKey(Number(cipher.type || 1)),
         sortTime: sortTimeValue(cipher),
