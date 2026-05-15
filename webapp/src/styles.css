@@ -1098,7 +1098,6 @@ input[type='file'].input::file-selector-button {
   padding: 12px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
-  background: var(--panel-soft);
 }
 
 .invite-create-group {
@@ -1131,7 +1130,6 @@ input[type='file'].input::file-selector-button {
 .invite-table th {
   height: 42px;
   padding: 9px 10px;
-  background: var(--panel-soft);
   font-size: 13px;
   font-weight: 800;
 }
