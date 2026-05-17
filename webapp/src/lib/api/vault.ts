@@ -19,6 +19,8 @@ import {
 import { readResponseBytesWithProgress } from '../download';
 import { loadVaultCoreSyncSnapshot } from './vault-sync';
 
+type CipherLoginData = NonNullable<Cipher['login']>;
+
 export async function getFolders(authedFetch: AuthedFetch, cacheKey: string): Promise<Folder[]> {
   const body = await loadVaultCoreSyncSnapshot(authedFetch, cacheKey);
   return body.folders || [];
@@ -737,8 +739,8 @@ async function repairCipherLoginUris(
   return {
     login: {
       ...encryptedLogin,
-      uris: uris as Cipher['login']['uris'],
-    } as Cipher['login'],
+      uris: uris as CipherLoginData['uris'],
+    } as CipherLoginData,
     changed,
   };
 }
