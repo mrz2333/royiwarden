@@ -146,7 +146,9 @@ function resolveSystemTheme(): 'light' | 'dark' {
 
 function readLockTimeoutMinutes(): LockTimeoutMinutes {
   if (typeof window === 'undefined') return 15;
-  const value = Number(window.localStorage.getItem(LOCK_TIMEOUT_STORAGE_KEY));
+  const stored = window.localStorage.getItem(LOCK_TIMEOUT_STORAGE_KEY);
+  if (stored === null || stored.trim() === '') return 15;
+  const value = Number(stored);
   return LOCK_TIMEOUT_VALUES.has(value as LockTimeoutMinutes) ? (value as LockTimeoutMinutes) : 15;
 }
 
