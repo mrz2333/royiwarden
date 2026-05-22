@@ -841,6 +841,9 @@ async function buildCipherPayload(
       cipher?.login && typeof cipher.login === 'object'
         ? { ...(cipher.login as Record<string, unknown>) }
         : {};
+    delete existingLogin.decUsername;
+    delete existingLogin.decPassword;
+    delete existingLogin.decTotp;
     payload.login = {
       ...existingLogin,
       username: await encryptTextValue(draft.loginUsername, keys.enc, keys.mac),
