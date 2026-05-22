@@ -430,7 +430,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
     const scope = body.scope;
     const deviceInfo = readAuthRequestDeviceInfo(body, request);
 
-    const loginIdentifier = `${clientIdentifier}:${clientId}`;
+    const loginIdentifier = clientIdentifier;
     const parmValid = checkClientCredentialsParam(clientId, clientSecret, scope);
     if (!parmValid) {
       return identityErrorResponse('Parameter error', 'invalid_request', 400);
