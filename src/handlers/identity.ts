@@ -227,7 +227,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
     const twoFactorToken = body.twoFactorToken;
     const twoFactorProvider = body.twoFactorProvider;
     const twoFactorRemember = body.twoFactorRemember;
-    const loginIdentifier = `${clientIdentifier}:${email}`;
+    const loginIdentifier = clientIdentifier;
     const deviceInfo = readAuthRequestDeviceInfo(body, request);
 
     if (!email || !passwordHash) {
