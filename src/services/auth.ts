@@ -254,18 +254,21 @@ export class AuthService {
     }
 
     let device: { identifier: string; sessionStamp: string } | null = null;
-    if (record.deviceIdentifier) {
-      const boundDevice = await this.storage.getDevice(user.id, record.deviceIdentifier);
-      if (!boundDevice) {
-        await this.storage.deleteRefreshToken(refreshToken);
-        return { ok: false, reason: 'device_missing', userId: user.id, deviceIdentifier: record.deviceIdentifier };
-      }
-      if (!record.deviceSessionStamp || boundDevice.sessionStamp !== record.deviceSessionStamp) {
-        await this.storage.deleteRefreshToken(refreshToken);
-        return { ok: false, reason: 'device_session_mismatch', userId: user.id, deviceIdentifier: record.deviceIdentifier };
-      }
-      device = { identifier: boundDevice.deviceIdentifier, sessionStamp: boundDevice.sessionStamp };
+    if (!record.deviceIdentifier || !record.deviceSessionStamp) {
+      await this.storage.deleteRefreshToken(refreshToken);
+      return { ok: false, reason: 'device_missing', userId: user.id, deviceIdentifier: record.deviceIdentifier };
     }
+
+    const boundDevice = await this.storage.getDevice(user.id, record.deviceIdentifier);
+    if (!boundDevice) {
+      await this.storage.deleteRefreshToken(refreshToken);
+      return { ok: false, reason: 'device_missing', userId: user.id, deviceIdentifier: record.deviceIdentifier };
+    }
+    if (boundDevice.sessionStamp !== record.deviceSessionStamp) {
+      await this.storage.deleteRefreshToken(refreshToken);
+      return { ok: false, reason: 'device_session_mismatch', userId: user.id, deviceIdentifier: record.deviceIdentifier };
+    }
+    device = { identifier: boundDevice.deviceIdentifier, sessionStamp: boundDevice.sessionStamp };
 
     const accessToken = await this.generateAccessToken(user, device);
     return { ok: true, accessToken, user, device };
