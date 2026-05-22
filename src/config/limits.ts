@@ -44,6 +44,9 @@
     // Public read-only request budget per IP per minute.
     // 公开只读接口每 IP 每分钟请求配额。
     publicReadRequestsPerMinute: 120,
+    // Public website icon proxy budget per IP per minute.
+    // 公开网站图标代理每 IP 每分钟请求配额。
+    publicIconRequestsPerMinute: 500,
     // Sensitive public/auth request budget per IP per minute.
     // 敏感公开/认证接口每 IP 每分钟请求配额。
     sensitivePublicRequestsPerMinute: 30,
