@@ -148,6 +148,10 @@
   compatibility: {
     // Single source of truth for /config.version and /api/version.
     // /config.version 与 /api/version 的统一版本号来源。
-    bitwardenServerVersion: '2026.1.0',
+    bitwardenServerVersion: '2026.4.1',
+    // Advertise official per-cipher item-key encryption support only after
+    // NodeWarden can guarantee key/field consistency across all write paths.
+    // 在所有写入路径都能保证 cipher.key 与字段密文一致之前，不向官方客户端声明支持逐项密钥加密。
+    cipherKeyEncryptionFeatureEnabled: false,
   },
 } as const;
