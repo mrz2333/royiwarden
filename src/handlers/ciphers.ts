@@ -10,6 +10,7 @@ import {
   Attachment,
   PasswordHistory,
 } from '../types';
+import { LIMITS } from '../config/limits';
 import { StorageService } from '../services/storage';
 import { notifyUserVaultSync } from '../durable/notifications-hub';
 import { jsonResponse, errorResponse } from '../utils/response';
@@ -161,18 +162,55 @@ export function normalizeCipherLoginForStorage(login: any): any {
   };
 }
 
-export function normalizeCipherLoginForCompatibility(login: any): any {
+export function normalizeCipherLoginForCompatibility(login: any, requiresUriChecksum: boolean = false): any {
   const normalized = normalizeCipherLoginForStorage(login);
   if (!normalized || typeof normalized !== 'object') return normalized ?? null;
   const next = sanitizeEncryptedObject(normalized, ['username', 'password', 'totp', 'uri']);
   if (!next) return null;
-  next.uris = Array.isArray(next.uris)
-    ? next.uris
-        .map((uri: any) => sanitizeEncryptedObject(uri, ['uri', 'uriChecksum']))
-        .filter((uri: any) => !!uri && (uri.uri || uri.uriChecksum || uri.match != null))
-    : null;
+  next.uris = normalizeCipherLoginUrisForCompatibility(next.uris, {
+    hasLegacyLoginUri: isValidEncString(next.uri),
+    requiresUriChecksum,
+  });
   next.fido2Credentials = normalizeFido2CredentialsForCompatibility(next.fido2Credentials);
   return next;
+}
+
+function normalizeCipherLoginUrisForCompatibility(
+  uris: any,
+  options: { hasLegacyLoginUri?: boolean; requiresUriChecksum?: boolean } = {}
+): any[] | null {
+  if (!Array.isArray(uris) || uris.length === 0) return null;
+  const out: any[] = [];
+
+  for (const uri of uris) {
+    if (!uri || typeof uri !== 'object') continue;
+    const next = sanitizeEncryptedObject(uri, ['uri', 'uriChecksum']);
+    if (!next) continue;
+
+    const hasUri = isValidEncString(next.uri);
+    const hasChecksum = isValidEncString(next.uriChecksum);
+    const hasMatch = next.match != null;
+
+    if (hasUri && hasChecksum) {
+      out.push(next);
+      continue;
+    }
+
+    if (hasUri && !hasChecksum) {
+      // Bitwarden browser clients using the SDK can fail the whole vault load
+      // when an item-key encrypted URI has no encrypted checksum. The server
+      // cannot derive the checksum, so expose the item without the bad URI.
+      if (options.requiresUriChecksum || options.hasLegacyLoginUri) continue;
+      out.push({ ...next, uri: null, uriChecksum: null });
+      continue;
+    }
+
+    if (hasChecksum || hasMatch) {
+      out.push(next);
+    }
+  }
+
+  return out.length ? out : null;
 }
 
 function hasMissingLoginUriChecksum(cipher: Cipher): boolean {
@@ -506,7 +544,10 @@ export function cipherToResponse(
 ): CipherResponse {
   // Strip internal-only fields that must not appear in the API response
   const { userId, createdAt, updatedAt, archivedAt, deletedAt, ...passthrough } = cipher;
-  const normalizedLogin = normalizeCipherLoginForCompatibility((passthrough as any).login ?? null);
+  const responseCipherKey = LIMITS.compatibility.cipherKeyEncryptionFeatureEnabled
+    ? optionalEncString(cipher.key)
+    : null;
+  const normalizedLogin = normalizeCipherLoginForCompatibility((passthrough as any).login ?? null, !!responseCipherKey);
   const normalizedCard = sanitizeEncryptedObject((passthrough as any).card ?? null, ['cardholderName', 'brand', 'number', 'expMonth', 'expYear', 'code']);
   const normalizedIdentity = sanitizeEncryptedObject((passthrough as any).identity ?? null, [
     'title',
@@ -560,7 +601,7 @@ export function cipherToResponse(
     fields: normalizeCipherFieldsForCompatibility((passthrough as any).fields),
     passwordHistory: normalizePasswordHistoryForCompatibility((passthrough as any).passwordHistory),
     sshKey: normalizedSshKey,
-    key: optionalEncString(cipher.key),
+    key: responseCipherKey,
     encryptedFor: (passthrough as any).encryptedFor ?? null,
   };
 }
