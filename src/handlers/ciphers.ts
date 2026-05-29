@@ -130,6 +130,16 @@ function optionalEncString(value: unknown): string | null {
   return isValidEncString(value) ? value.trim() : null;
 }
 
+function shouldAcceptCipherKey(value: unknown): boolean {
+  if (LIMITS.compatibility.cipherKeyEncryptionFeatureEnabled) return true;
+  return optionalEncString(value) === null;
+}
+
+function normalizeCipherKeyForStorage(value: unknown): string | null {
+  if (!LIMITS.compatibility.cipherKeyEncryptionFeatureEnabled) return null;
+  return optionalEncString(value);
+}
+
 function sanitizeEncryptedObject<T extends Record<string, any>>(
   source: T | null | undefined,
   encryptedKeys: readonly string[]
@@ -290,6 +300,14 @@ export function normalizeCipherSshKeyForCompatibility(sshKey: any): any {
     publicKey: String(sshKey.publicKey).trim(),
     keyFingerprint: normalizedFingerprint,
     fingerprint: normalizedFingerprint,
+  };
+}
+
+function normalizeCipherSecureNoteForCompatibility(secureNote: any): CipherSecureNote | null {
+  if (!secureNote || typeof secureNote !== 'object') return null;
+  const type = Number(secureNote?.type ?? secureNote?.Type ?? 0);
+  return {
+    type: Number.isFinite(type) ? type : 0,
   };
 }
 
@@ -570,6 +588,9 @@ export function cipherToResponse(
     'licenseNumber',
   ]);
   const normalizedSshKey = normalizeCipherSshKeyForCompatibility((passthrough as any).sshKey ?? null);
+  const normalizedSecureNote = Number(cipher.type) === 2
+    ? normalizeCipherSecureNoteForCompatibility((passthrough as any).secureNote ?? null) ?? { type: 0 }
+    : null;
   const responseAttachments = applyCipherEmbeddedAttachmentMetadata(cipher, attachments);
 
   return {
@@ -598,6 +619,7 @@ export function cipherToResponse(
     login: normalizedLogin,
     card: normalizedCard,
     identity: normalizedIdentity,
+    secureNote: normalizedSecureNote,
     fields: normalizeCipherFieldsForCompatibility((passthrough as any).fields),
     passwordHistory: normalizePasswordHistoryForCompatibility((passthrough as any).passwordHistory),
     sshKey: normalizedSshKey,
@@ -694,6 +716,10 @@ export async function handleCreateCipher(request: Request, env: Env, userId: str
   const createSshKey = readCipherProp<CipherSshKey | null>(cipherData, ['sshKey', 'SshKey']);
   const createPasswordHistory = readCipherProp<PasswordHistory[] | null>(cipherData, ['passwordHistory', 'PasswordHistory']);
 
+  if (createKey.present && !shouldAcceptCipherKey(createKey.value)) {
+    return errorResponse('Cipher key encryption is not supported by this server. Resync the client and try again.', 400);
+  }
+
   const now = new Date().toISOString();
   // Opaque passthrough: spread ALL client fields to preserve unknown/future ones,
   // then override only server-controlled fields.
@@ -711,7 +737,7 @@ export async function handleCreateCipher(request: Request, env: Env, userId: str
     deletedAt: null,
   };
   cipher.folderId = createFolderId.present ? normalizeOptionalId(createFolderId.value) : normalizeOptionalId(cipher.folderId);
-  cipher.key = createKey.present ? (createKey.value ?? null) : (cipher.key ?? null);
+  cipher.key = normalizeCipherKeyForStorage(createKey.present ? createKey.value : cipher.key);
   cipher.login = createLogin.present ? (createLogin.value ?? null) : (cipher.login ?? null);
   cipher.card = createCard.present ? (createCard.value ?? null) : (cipher.card ?? null);
   cipher.identity = createIdentity.present ? (createIdentity.value ?? null) : (cipher.identity ?? null);
@@ -772,6 +798,10 @@ export async function handleUpdateCipher(request: Request, env: Env, userId: str
   const incomingRevisionDate = readCipherRevisionDate(cipherData);
   const hasAttachmentMigrationMetadata = hasIncomingAttachmentMetadata(cipherData);
 
+  if (incomingKey.present && !shouldAcceptCipherKey(incomingKey.value)) {
+    return errorResponse('Cipher key encryption is not supported by this server. Resync the client and try again.', 400);
+  }
+
   if (!hasAttachmentMigrationMetadata && isStaleCipherUpdate(existingCipher.updatedAt, incomingRevisionDate)) {
     return errorResponse('The client copy of this cipher is out of date. Resync the client and try again.', 400);
   }
@@ -797,9 +827,7 @@ export async function handleUpdateCipher(request: Request, env: Env, userId: str
   if (incomingFolderId.present) {
     cipher.folderId = normalizeOptionalId(incomingFolderId.value);
   }
-  if (incomingKey.present) {
-    cipher.key = incomingKey.value ?? null;
-  }
+  cipher.key = normalizeCipherKeyForStorage(incomingKey.present ? incomingKey.value : existingCipher.key);
   cipher.login = nextType === 1 ? (incomingLogin.present ? (incomingLogin.value ?? null) : (existingCipher.login ?? null)) : null;
   cipher.secureNote = nextType === 2 ? (incomingSecureNote.present ? (incomingSecureNote.value ?? null) : (existingCipher.secureNote ?? null)) : null;
   cipher.card = nextType === 3 ? (incomingCard.present ? (incomingCard.value ?? null) : (existingCipher.card ?? null)) : null;
