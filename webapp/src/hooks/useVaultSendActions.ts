@@ -41,6 +41,7 @@ import {
   encryptFolderImportName,
   getAttachmentDownloadInfo,
   importCiphers,
+  permanentDeleteCipher,
   type CiphersImportPayload,
   type ImportedCipherMapEntry,
   updateCipher,
@@ -221,6 +222,56 @@ function optimisticCipherFromDraft(draft: VaultDraft, current?: Cipher | null): 
   }));
 
   return next;
+}
+
+function isEncryptedFieldUnresolved(raw: unknown, decrypted: unknown): boolean {
+  const encrypted = String(raw || '').trim();
+  if (!looksLikeCipherString(encrypted)) return false;
+  const plain = String(decrypted || '').trim();
+  return !plain || looksLikeCipherString(plain);
+}
+
+function hasUnresolvedCipherData(cipher: Cipher): boolean {
+  const checks: Array<[unknown, unknown]> = [
+    [cipher.name, cipher.decName],
+    [cipher.notes, cipher.decNotes],
+    [cipher.login?.username, cipher.login?.decUsername],
+    [cipher.login?.password, cipher.login?.decPassword],
+    [cipher.login?.totp, cipher.login?.decTotp],
+    ...(cipher.login?.uris || []).map((uri) => [uri.uri, uri.decUri] as [unknown, unknown]),
+    [cipher.card?.cardholderName, cipher.card?.decCardholderName],
+    [cipher.card?.number, cipher.card?.decNumber],
+    [cipher.card?.brand, cipher.card?.decBrand],
+    [cipher.card?.expMonth, cipher.card?.decExpMonth],
+    [cipher.card?.expYear, cipher.card?.decExpYear],
+    [cipher.card?.code, cipher.card?.decCode],
+    [cipher.identity?.title, cipher.identity?.decTitle],
+    [cipher.identity?.firstName, cipher.identity?.decFirstName],
+    [cipher.identity?.middleName, cipher.identity?.decMiddleName],
+    [cipher.identity?.lastName, cipher.identity?.decLastName],
+    [cipher.identity?.username, cipher.identity?.decUsername],
+    [cipher.identity?.company, cipher.identity?.decCompany],
+    [cipher.identity?.ssn, cipher.identity?.decSsn],
+    [cipher.identity?.passportNumber, cipher.identity?.decPassportNumber],
+    [cipher.identity?.licenseNumber, cipher.identity?.decLicenseNumber],
+    [cipher.identity?.email, cipher.identity?.decEmail],
+    [cipher.identity?.phone, cipher.identity?.decPhone],
+    [cipher.identity?.address1, cipher.identity?.decAddress1],
+    [cipher.identity?.address2, cipher.identity?.decAddress2],
+    [cipher.identity?.address3, cipher.identity?.decAddress3],
+    [cipher.identity?.city, cipher.identity?.decCity],
+    [cipher.identity?.state, cipher.identity?.decState],
+    [cipher.identity?.postalCode, cipher.identity?.decPostalCode],
+    [cipher.identity?.country, cipher.identity?.decCountry],
+    [cipher.sshKey?.privateKey, cipher.sshKey?.decPrivateKey],
+    [cipher.sshKey?.publicKey, cipher.sshKey?.decPublicKey],
+    [cipher.sshKey?.keyFingerprint || cipher.sshKey?.fingerprint, cipher.sshKey?.decFingerprint],
+    ...(cipher.fields || []).flatMap((field) => [
+      [field.name, field.decName] as [unknown, unknown],
+      [field.value, field.decValue] as [unknown, unknown],
+    ]),
+  ];
+  return checks.some(([raw, decrypted]) => isEncryptedFieldUnresolved(raw, decrypted));
 }
 
 export default function useVaultSendActions(options: UseVaultSendActionsOptions) {
@@ -420,6 +471,9 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
 
       async updateVaultItem(cipher: Cipher, draft: VaultDraft, options?: { addFiles?: File[]; removeAttachmentIds?: string[] }) {
         if (!session) return;
+        if (hasUnresolvedCipherData(cipher)) {
+          throw new Error(t('txt_decrypt_failed_2'));
+        }
         const addFiles = Array.isArray(options?.addFiles) ? options.addFiles : [];
         const removeAttachmentIds = Array.isArray(options?.removeAttachmentIds) ? options.removeAttachmentIds : [];
         const previousCipher: Cipher = {
@@ -490,6 +544,18 @@ export default function useVaultSendActions(options: UseVaultSendActionsOptions)
 
       async deleteVaultItem(cipher: Cipher) {
         const previousCipher = { ...cipher };
+        if (cipher.deletedDate || (cipher as { deletedAt?: string | null }).deletedAt) {
+          try {
+            await permanentDeleteCipher(authedFetch, cipher.id);
+            patchCipherBatch([cipher.id], () => null);
+            syncVaultCoreInBackground({ includeFolders: true });
+            onNotify('success', t('txt_item_deleted_permanently'));
+          } catch (error) {
+            onNotify('error', error instanceof Error ? error.message : t('txt_permanent_delete_item_failed'));
+            throw error;
+          }
+          return;
+        }
         const deletedDate = new Date().toISOString();
         patchCipherBatch([cipher.id], (current) => ({ ...current, deletedDate, archivedDate: null, revisionDate: deletedDate }));
         try {

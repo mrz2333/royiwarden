@@ -6,6 +6,7 @@ import { StorageService } from './storage';
 // The client already does heavy PBKDF2 (600k iterations).
 // This second layer only needs to be non-trivial, not expensive.
 const SERVER_HASH_ITERATIONS = 100_000;
+const SERVER_HASH_PREFIX = '$s$';
 const AUTH_CONTEXT_CACHE_TTL_MS = 15 * 1000;
 
 interface CachedUserEntry {
@@ -22,6 +23,22 @@ export interface VerifiedAccessContext {
   payload: JWTPayload;
   user: User;
 }
+
+export type RefreshAccessTokenFailureReason =
+  | 'token_not_found_or_expired'
+  | 'user_missing'
+  | 'user_inactive'
+  | 'device_missing'
+  | 'device_session_mismatch';
+
+export type RefreshAccessTokenResult =
+  | { ok: true; accessToken: string; user: User; device: { identifier: string; sessionStamp: string } | null }
+  | {
+      ok: false;
+      reason: RefreshAccessTokenFailureReason;
+      userId?: string | null;
+      deviceIdentifier?: string | null;
+    };
 
 export class AuthService {
   private storage: StorageService;
@@ -117,7 +134,7 @@ export class AuthService {
 
   // Second-layer hash: PBKDF2-SHA256(clientHash, email-salt, iterations).
   // Ensures database contents alone cannot be used to authenticate (pass-the-hash defense).
-  // Result is prefixed with "$s$" to distinguish from legacy raw client hashes.
+  // Result is prefixed to distinguish server-hashed credentials from invalid legacy rows.
   async hashPasswordServer(clientHash: string, email: string): Promise<string> {
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
@@ -135,19 +152,16 @@ export class AuthService {
     const bytes = new Uint8Array(bits);
     let binary = '';
     for (const b of bytes) binary += String.fromCharCode(b);
-    return '$s$' + btoa(binary);
+    return SERVER_HASH_PREFIX + btoa(binary);
   }
 
-  // Verify password: hash the input the same way, then constant-time compare.
-  async verifyPassword(inputHash: string, storedHash: string, email?: string): Promise<boolean> {
-    // New server-hashed passwords are prefixed with "$s$".
-    // Legacy accounts (created before the upgrade) store raw client hashes without prefix.
-    if (email && storedHash.startsWith('$s$')) {
-      const serverHash = await this.hashPasswordServer(inputHash, email);
-      return this.constantTimeEquals(serverHash, storedHash);
+  // Verify password: new rows use server-side hashing; legacy rows store the raw client hash.
+  async verifyPassword(inputHash: string, storedHash: string, email: string): Promise<boolean> {
+    if (!storedHash.startsWith(SERVER_HASH_PREFIX)) {
+      return this.constantTimeEquals(inputHash, storedHash);
     }
-    // Legacy path: direct constant-time comparison of raw client hashes.
-    return this.constantTimeEquals(inputHash, storedHash);
+    const serverHash = await this.hashPasswordServer(inputHash, email);
+    return this.constantTimeEquals(serverHash, storedHash);
   }
 
   private constantTimeEquals(a: string, b: string): boolean {
@@ -223,34 +237,45 @@ export class AuthService {
   }
 
   // Refresh access token
-  async refreshAccessToken(
-    refreshToken: string
-  ): Promise<{ accessToken: string; user: User; device: { identifier: string; sessionStamp: string } | null } | null> {
+  async refreshAccessTokenDetailed(refreshToken: string): Promise<RefreshAccessTokenResult> {
     const record = await this.storage.getRefreshTokenRecord(refreshToken);
-    if (!record?.userId) return null;
+    if (!record?.userId) return { ok: false, reason: 'token_not_found_or_expired' };
 
     const user = await this.storage.getUserById(record.userId);
-    if (!user) return null;
+    if (!user) {
+      await this.storage.deleteRefreshToken(refreshToken);
+      return { ok: false, reason: 'user_missing', userId: record.userId, deviceIdentifier: record.deviceIdentifier };
+    }
     if (user.status !== 'active') {
       await this.storage.deleteRefreshToken(refreshToken);
-      return null;
+      return { ok: false, reason: 'user_inactive', userId: user.id, deviceIdentifier: record.deviceIdentifier };
     }
 
     let device: { identifier: string; sessionStamp: string } | null = null;
-    if (record.deviceIdentifier) {
-      const boundDevice = await this.storage.getDevice(user.id, record.deviceIdentifier);
-      if (!boundDevice) {
-        await this.storage.deleteRefreshToken(refreshToken);
-        return null;
-      }
-      if (!record.deviceSessionStamp || boundDevice.sessionStamp !== record.deviceSessionStamp) {
-        await this.storage.deleteRefreshToken(refreshToken);
-        return null;
-      }
-      device = { identifier: boundDevice.deviceIdentifier, sessionStamp: boundDevice.sessionStamp };
+    if (!record.deviceIdentifier || !record.deviceSessionStamp) {
+      await this.storage.deleteRefreshToken(refreshToken);
+      return { ok: false, reason: 'device_missing', userId: user.id, deviceIdentifier: record.deviceIdentifier };
     }
 
+    const boundDevice = await this.storage.getDevice(user.id, record.deviceIdentifier);
+    if (!boundDevice) {
+      await this.storage.deleteRefreshToken(refreshToken);
+      return { ok: false, reason: 'device_missing', userId: user.id, deviceIdentifier: record.deviceIdentifier };
+    }
+    if (boundDevice.sessionStamp !== record.deviceSessionStamp) {
+      await this.storage.deleteRefreshToken(refreshToken);
+      return { ok: false, reason: 'device_session_mismatch', userId: user.id, deviceIdentifier: record.deviceIdentifier };
+    }
+    device = { identifier: boundDevice.deviceIdentifier, sessionStamp: boundDevice.sessionStamp };
+
     const accessToken = await this.generateAccessToken(user, device);
-    return { accessToken, user, device };
+    return { ok: true, accessToken, user, device };
+  }
+
+  async refreshAccessToken(
+    refreshToken: string
+  ): Promise<{ accessToken: string; user: User; device: { identifier: string; sessionStamp: string } | null } | null> {
+    const result = await this.refreshAccessTokenDetailed(refreshToken);
+    return result.ok ? result : null;
   }
 }
