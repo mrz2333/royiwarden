@@ -10,7 +10,6 @@ import {
   Attachment,
   PasswordHistory,
 } from '../types';
-import { LIMITS } from '../config/limits';
 import { StorageService } from '../services/storage';
 import { notifyUserVaultSync } from '../durable/notifications-hub';
 import { jsonResponse, errorResponse } from '../utils/response';
@@ -131,12 +130,10 @@ function optionalEncString(value: unknown): string | null {
 }
 
 function shouldAcceptCipherKey(value: unknown): boolean {
-  if (LIMITS.compatibility.cipherKeyEncryptionFeatureEnabled) return true;
-  return optionalEncString(value) === null;
+  return value == null || value === '' || isValidEncString(value);
 }
 
 function normalizeCipherKeyForStorage(value: unknown): string | null {
-  if (!LIMITS.compatibility.cipherKeyEncryptionFeatureEnabled) return null;
   return optionalEncString(value);
 }
 
@@ -562,9 +559,7 @@ export function cipherToResponse(
 ): CipherResponse {
   // Strip internal-only fields that must not appear in the API response
   const { userId, createdAt, updatedAt, archivedAt, deletedAt, ...passthrough } = cipher;
-  const responseCipherKey = LIMITS.compatibility.cipherKeyEncryptionFeatureEnabled
-    ? optionalEncString(cipher.key)
-    : null;
+  const responseCipherKey = optionalEncString(cipher.key);
   const normalizedLogin = normalizeCipherLoginForCompatibility((passthrough as any).login ?? null, !!responseCipherKey);
   const normalizedCard = sanitizeEncryptedObject((passthrough as any).card ?? null, ['cardholderName', 'brand', 'number', 'expMonth', 'expYear', 'code']);
   const normalizedIdentity = sanitizeEncryptedObject((passthrough as any).identity ?? null, [
@@ -827,7 +822,12 @@ export async function handleUpdateCipher(request: Request, env: Env, userId: str
   if (incomingFolderId.present) {
     cipher.folderId = normalizeOptionalId(incomingFolderId.value);
   }
-  cipher.key = normalizeCipherKeyForStorage(incomingKey.present ? incomingKey.value : existingCipher.key);
+  if (incomingKey.present) {
+    const normalizedIncomingKey = normalizeCipherKeyForStorage(incomingKey.value);
+    cipher.key = normalizedIncomingKey || normalizeCipherKeyForStorage(existingCipher.key);
+  } else {
+    cipher.key = normalizeCipherKeyForStorage(existingCipher.key);
+  }
   cipher.login = nextType === 1 ? (incomingLogin.present ? (incomingLogin.value ?? null) : (existingCipher.login ?? null)) : null;
   cipher.secureNote = nextType === 2 ? (incomingSecureNote.present ? (incomingSecureNote.value ?? null) : (existingCipher.secureNote ?? null)) : null;
   cipher.card = nextType === 3 ? (incomingCard.present ? (incomingCard.value ?? null) : (existingCipher.card ?? null)) : null;

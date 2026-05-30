@@ -25,7 +25,7 @@ import {
 import { clearAuditLogs, getAuditLogSettings, listAdminInvites, listAdminUsers, listAuditLogs, saveAuditLogSettings, type AuditLogFilters } from '@/lib/api/admin';
 import { getDomainRules, saveDomainRules } from '@/lib/api/domains';
 import { getSends } from '@/lib/api/send';
-import { repairCipherKeyMismatches, repairCipherUriChecksums } from '@/lib/api/vault';
+import { repairCipherUriChecksums } from '@/lib/api/vault';
 import { getCachedVaultCoreSnapshot, loadVaultCoreSyncSnapshot } from '@/lib/api/vault-sync';
 import { silentlyRepairBackupSettingsIfNeeded } from '@/lib/backup-settings-repair';
 import {
@@ -1086,12 +1086,9 @@ export default function App() {
         const repairKey = `${session.accessToken}:${encryptedCiphers.map((cipher) => `${cipher.id}:${cipher.revisionDate || ''}`).join(',')}`;
         if (uriChecksumRepairAttemptRef.current !== repairKey) {
           uriChecksumRepairAttemptRef.current = repairKey;
-          void Promise.all([
-            repairCipherKeyMismatches(authedFetch, session, result.ciphers),
-            repairCipherUriChecksums(authedFetch, session, result.ciphers),
-          ])
-            .then(([keyMismatchCount, uriChecksumCount]) => {
-              if (keyMismatchCount + uriChecksumCount > 0) void refetchVaultCoreData();
+          void repairCipherUriChecksums(authedFetch, session, result.ciphers)
+            .then((uriChecksumCount) => {
+              if (uriChecksumCount > 0) void refetchVaultCoreData();
             })
             .catch(() => {
               // Best-effort compatibility repair must not interrupt normal vault loading.
