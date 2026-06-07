@@ -2,15 +2,25 @@ import type { Env } from '../types';
 import type { BackupDestinationRecord } from '../services/backup-config';
 import {
   BACKUP_SCHEDULER_WINDOW_MINUTES,
+  requireBackupDestination,
   hasBackupSlotBetween,
   isBackupDueNow,
   loadBackupSettings,
 } from '../services/backup-config';
-import { createRemoteBackupTransferSession } from '../services/backup-uploader';
+import {
+  createRemoteBackupTransferSession,
+  downloadRemoteBackupFile,
+  ensureRemoteRestoreCandidate,
+} from '../services/backup-uploader';
 import { getBlobObject } from '../services/blob-store';
 import { StorageService } from '../services/storage';
-import { notifyUserBackupProgress } from './notifications-hub';
-import { executeConfiguredBackup } from '../handlers/backup';
+import { notifyUserBackupProgress, notifyUserBackupRestoreProgress } from './notifications-hub';
+import {
+  executeConfiguredBackup,
+  importAndAuditRemoteBackupFile,
+} from '../handlers/backup';
+import { verifyBackupArchiveFileNameChecksum } from '../services/backup-archive';
+import { zipSync } from 'fflate';
 
 const BACKUP_JOB_STATE_KEY = 'backup.job.state.v1';
 const BACKUP_JOB_LEASE_MS = 10 * 60 * 1000;
@@ -31,12 +41,32 @@ interface RemoteAttachmentChunkRequest {
   }>;
 }
 
+interface RemoteAttachmentDownloadRequest {
+  destination: BackupDestinationRecord;
+  blobName?: string | null;
+}
+
+interface RemoteAttachmentBatchDownloadRequest {
+  destination: BackupDestinationRecord;
+  blobNames?: string[] | null;
+}
+
 interface ConfiguredBackupRunRequest {
   actorUserId?: string | null;
   auditMetadata?: Record<string, unknown> | null;
   destinationId?: string | null;
   targetDeviceIdentifier?: string | null;
   trigger?: 'manual' | 'scheduled';
+}
+
+interface RemoteBackupRestoreRequest {
+  actorUserId?: string | null;
+  allowChecksumMismatch?: boolean;
+  auditMetadata?: Record<string, unknown> | null;
+  destinationId?: string | null;
+  path?: string | null;
+  replaceExisting?: boolean;
+  targetDeviceIdentifier?: string | null;
 }
 
 function badRequest(message: string, status: number = 400): Response {
@@ -229,6 +259,82 @@ export class BackupTransferRunner {
     }
   }
 
+  private async restoreRemoteBackup(request: Request): Promise<Response> {
+    let body: RemoteBackupRestoreRequest;
+    try {
+      body = await request.json<RemoteBackupRestoreRequest>();
+    } catch {
+      return badRequest('Remote restore payload is invalid');
+    }
+
+    const actorUserId = String(body.actorUserId || '').trim() || null;
+    if (!actorUserId) {
+      return badRequest('Remote restore requires an actor');
+    }
+
+    const token = await this.acquireJob(`restore:${actorUserId}`);
+    if (!token) {
+      return badRequest('Another backup or restore run is already in progress', 409);
+    }
+
+    try {
+      await this.touchJob(token);
+      const storage = new StorageService(this.env.DB);
+      const settings = await loadBackupSettings(storage, this.env, 'UTC');
+      const destination = requireBackupDestination(settings, body.destinationId || null);
+      const path = ensureRemoteRestoreCandidate(String(body.path || ''));
+      const restoreFileNameFromPath = path.split('/').pop() || path;
+      const targetDeviceIdentifier = String(body.targetDeviceIdentifier || '').trim() || null;
+      const replaceExisting = !!body.replaceExisting;
+
+      await notifyUserBackupRestoreProgress(
+        this.env,
+        actorUserId,
+        {
+          operation: 'backup-restore',
+          source: 'remote',
+          step: 'remote_fetch_archive',
+          fileName: restoreFileNameFromPath,
+          stageTitle: 'txt_backup_restore_progress_remote_fetch_title',
+          stageDetail: 'txt_backup_restore_progress_remote_fetch_detail',
+          replaceExisting,
+        },
+        targetDeviceIdentifier
+      );
+
+      const remoteFile = await downloadRemoteBackupFile(destination, path);
+      const checksumOk = await verifyBackupArchiveFileNameChecksum(remoteFile.bytes, remoteFile.fileName || path);
+      if (!checksumOk && !body.allowChecksumMismatch) {
+        return badRequest('Remote backup file checksum does not match its filename');
+      }
+
+      const result = await importAndAuditRemoteBackupFile(
+        this.env,
+        storage,
+        actorUserId,
+        remoteFile,
+        destination,
+        path,
+        replaceExisting,
+        !checksumOk,
+        body.auditMetadata || null,
+        targetDeviceIdentifier
+      );
+
+      return new Response(JSON.stringify(result.result), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store',
+        },
+      });
+    } catch (error) {
+      return badRequest(error instanceof Error ? error.message : 'Remote backup restore failed', 500);
+    } finally {
+      await this.releaseJob(token);
+    }
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (request.method !== 'POST') {
@@ -241,6 +347,72 @@ export class BackupTransferRunner {
 
     if (url.pathname === '/internal/run-scheduled-backups') {
       return this.runScheduledBackups();
+    }
+
+    if (url.pathname === '/internal/restore-remote-backup') {
+      return this.restoreRemoteBackup(request);
+    }
+
+    if (url.pathname === '/internal/download-remote-attachment') {
+      let body: RemoteAttachmentDownloadRequest;
+      try {
+        body = await request.json<RemoteAttachmentDownloadRequest>();
+      } catch {
+        return badRequest('Remote attachment download payload is invalid');
+      }
+      const blobName = String(body?.blobName || '').trim();
+      if (!body?.destination || !blobName) {
+        return badRequest('Remote attachment download payload is invalid');
+      }
+      const file = await downloadRemoteBackupFile(body.destination, `attachments/${blobName}`).catch(() => null);
+      if (!file) {
+        return badRequest('Remote attachment not found', 404);
+      }
+      return new Response(file.bytes, {
+        status: 200,
+        headers: {
+          'Content-Type': file.contentType || 'application/octet-stream',
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+
+    if (url.pathname === '/internal/download-remote-attachment-batch') {
+      let body: RemoteAttachmentBatchDownloadRequest;
+      try {
+        body = await request.json<RemoteAttachmentBatchDownloadRequest>();
+      } catch {
+        return badRequest('Remote attachment batch download payload is invalid');
+      }
+      const blobNames = Array.from(new Set(
+        (Array.isArray(body?.blobNames) ? body.blobNames : [])
+          .map((blobName) => String(blobName || '').trim())
+          .filter(Boolean)
+      ));
+      if (!body?.destination || !blobNames.length || blobNames.length > 40) {
+        return badRequest('Remote attachment batch download payload is invalid');
+      }
+
+      const encoder = new TextEncoder();
+      const entries: Array<{ blobName: string; path: string }> = [];
+      const files: Record<string, Uint8Array> = {};
+      for (let i = 0; i < blobNames.length; i += 1) {
+        const blobName = blobNames[i];
+        const file = await downloadRemoteBackupFile(body.destination, `attachments/${blobName}`).catch(() => null);
+        if (!file) continue;
+        const path = `files/${i}.bin`;
+        entries.push({ blobName, path });
+        files[path] = file.bytes;
+      }
+      files['manifest.json'] = encoder.encode(JSON.stringify({ version: 1, entries }));
+
+      return new Response(zipSync(files), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/zip',
+          'Cache-Control': 'no-store',
+        },
+      });
     }
 
     if (url.pathname !== '/internal/upload-attachment-chunk') {
