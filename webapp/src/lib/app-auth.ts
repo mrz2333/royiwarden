@@ -12,6 +12,14 @@ import {
 } from '@/lib/api/auth';
 import { readInviteCodeFromUrl } from '@/lib/app-support';
 import { t, translateServerError } from '@/lib/i18n';
+import {
+  getOfflineUnlockKdfIterations,
+  hasOfflineUnlockRecord,
+  kdfIterationsFromLogin,
+  loadOfflineProfileSnapshot,
+  saveOfflineUnlockRecord,
+  unlockOfflineVaultWithMasterKey,
+} from '@/lib/offline-auth';
 import type { AppPhase, Profile, SessionState, TokenSuccess, WebBootstrapResponse } from '@/lib/types';
 
 export interface PendingTotp {
@@ -90,6 +98,20 @@ async function maybeRefreshSession(session: SessionState): Promise<SessionState 
     accessToken: refreshed.token.access_token,
     refreshToken: refreshed.token.refresh_token || session.refreshToken,
     authMode: refreshed.token.web_session ? 'web-cookie' : (session.authMode || 'token'),
+  };
+}
+
+function browserReportsOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+function createTimeoutAbortController(timeoutMs: number): { controller: AbortController; cancel: () => void } | null {
+  if (typeof AbortController === 'undefined') return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    controller,
+    cancel: () => clearTimeout(timer),
   };
 }
 
@@ -248,6 +270,12 @@ export async function hydrateLockedSession(
 ): Promise<{ session: SessionState | null; profile: Profile | null }> {
   const refreshedSession = await maybeRefreshSession(session);
   if (!refreshedSession?.accessToken) {
+    if (hasOfflineUnlockRecord(session.email)) {
+      return {
+        session,
+        profile: fallbackProfile || loadOfflineProfileSnapshot(session.email),
+      };
+    }
     return { session: null, profile: null };
   }
   try {
@@ -272,7 +300,8 @@ export async function hydrateLockedSession(
 export async function completeLogin(
   token: TokenSuccess,
   email: string,
-  masterKey: Uint8Array
+  masterKey: Uint8Array,
+  fallbackKdfIterations: number
 ): Promise<CompletedLogin> {
   const normalizedEmail = email.trim().toLowerCase();
   const fallbackProfile = loadProfileSnapshot(normalizedEmail);
@@ -291,6 +320,12 @@ export async function completeLogin(
     throw new Error('Missing profile key');
   }
   const keys = await unlockVaultKey(profile.key, masterKey);
+  saveOfflineUnlockRecord({
+    email: normalizedEmail,
+    profile,
+    profileKey: profile.key,
+    kdfIterations: kdfIterationsFromLogin(token, fallbackKdfIterations),
+  });
   return {
     session: { ...baseSession, ...keys },
     profile,
@@ -310,7 +345,7 @@ export async function performPasswordLogin(
   if ('access_token' in token && token.access_token) {
     return {
       kind: 'success',
-      login: await completeLogin(token, normalizedEmail, derived.masterKey),
+      login: await completeLogin(token, normalizedEmail, derived.masterKey, derived.kdfIterations),
     };
   }
 
@@ -342,7 +377,7 @@ export async function performTotpLogin(
     rememberDevice,
   });
   if ('access_token' in token && token.access_token) {
-    return completeLogin(token, pendingTotp.email, pendingTotp.masterKey);
+    return completeLogin(token, pendingTotp.email, pendingTotp.masterKey, kdfIterationsFromLogin(token, 600000));
   }
   const tokenError = token as { error_description?: string; error?: string };
   throw new Error(translateServerError(tokenError.error_description || tokenError.error, t('txt_totp_verify_failed')));
@@ -361,7 +396,7 @@ export async function performRecoverTwoFactorLogin(
 
   if ('access_token' in token && token.access_token) {
     return {
-      login: await completeLogin(token, normalizedEmail, derived.masterKey),
+      login: await completeLogin(token, normalizedEmail, derived.masterKey, derived.kdfIterations),
       newRecoveryCode: recovered.newRecoveryCode || null,
     };
   }
@@ -397,13 +432,56 @@ export async function performUnlock(
   fallbackIterations: number
 ): Promise<PasswordLoginResult> {
   const normalizedEmail = (profile?.email || session.email).trim().toLowerCase();
-  const derived = await deriveLoginHashLocally(normalizedEmail, password, fallbackIterations);
-  const token = await loginWithPassword(normalizedEmail, derived.hash, { useRememberToken: true });
+  const offlineIterations = getOfflineUnlockKdfIterations(normalizedEmail);
+  const hasOfflineUnlock = !!offlineIterations;
+  const kdfIterations = offlineIterations || fallbackIterations;
+  const derived = await deriveLoginHashLocally(normalizedEmail, password, kdfIterations);
+  const unlockOffline = async (): Promise<PasswordLoginResult> => {
+    try {
+      const offline = await unlockOfflineVaultWithMasterKey(session, profile, derived.masterKey);
+      return {
+        kind: 'success',
+        login: {
+          session: offline.session,
+          profile: offline.profile,
+          profilePromise: Promise.resolve(offline.profile),
+        },
+      };
+    } catch {
+      return {
+        kind: 'error',
+        message: t('txt_unlock_failed_master_password_is_incorrect'),
+      };
+    }
+  };
+
+  if (hasOfflineUnlock && browserReportsOffline()) {
+    return unlockOffline();
+  }
+
+  let token: TokenSuccess | { TwoFactorProviders?: unknown; error_description?: string; error?: string };
+  const abortable = hasOfflineUnlock ? createTimeoutAbortController(2500) : null;
+  try {
+    token = await loginWithPassword(normalizedEmail, derived.hash, {
+      useRememberToken: true,
+      signal: abortable?.controller.signal,
+    });
+  } catch {
+    if (hasOfflineUnlock) {
+      return unlockOffline();
+    }
+    return {
+      kind: 'error',
+      message: t('txt_unlock_failed_master_password_is_incorrect'),
+    };
+  } finally {
+    abortable?.cancel();
+  }
 
   if ('access_token' in token && token.access_token) {
     return {
       kind: 'success',
-      login: await completeLogin(token, normalizedEmail, derived.masterKey),
+      login: await completeLogin(token, normalizedEmail, derived.masterKey, derived.kdfIterations),
     };
   }
 

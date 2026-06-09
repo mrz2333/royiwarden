@@ -95,6 +95,12 @@ export function loadSession(): SessionState | null {
         authMode: 'web-cookie',
       };
     }
+    if (parsed.authMode === 'token' && parsed.email && !parsed.accessToken && !parsed.refreshToken) {
+      return {
+        email: parsed.email,
+        authMode: 'token',
+      };
+    }
     if (!parsed.accessToken || !parsed.refreshToken || !parsed.email) return null;
     return {
       accessToken: parsed.accessToken,
@@ -233,6 +239,7 @@ export async function loginWithPassword(
     totpCode?: string;
     rememberDevice?: boolean;
     useRememberToken?: boolean;
+    signal?: AbortSignal;
   }
 ): Promise<TokenSuccess | TokenError> {
   const body = new URLSearchParams();
@@ -262,6 +269,7 @@ export async function loginWithPassword(
       [WEB_SESSION_HEADER]: '1',
     },
     body: body.toString(),
+    signal: options?.signal,
   });
   const json = (await parseJson<TokenSuccess & TokenError>(resp)) || {};
   if (resp.ok) {
