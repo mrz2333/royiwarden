@@ -141,9 +141,10 @@ export async function unlockOfflineVaultWithMasterKey(
     throw new Error('Offline unlock is not available on this device.');
   }
   const keys = await unlockVaultKey(record.profileKey, masterKey);
+  const { accessToken: _accessToken, refreshToken: _refreshToken, ...offlineSession } = session;
   return {
     session: {
-      ...session,
+      ...offlineSession,
       email: record.email,
       ...keys,
     },

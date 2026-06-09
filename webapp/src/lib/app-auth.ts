@@ -20,12 +20,14 @@ import {
   saveOfflineUnlockRecord,
   unlockOfflineVaultWithMasterKey,
 } from '@/lib/offline-auth';
+import { probeNodeWardenService } from '@/lib/network-status';
 import type { AppPhase, Profile, SessionState, TokenSuccess, WebBootstrapResponse } from '@/lib/types';
 
 export interface PendingTotp {
   email: string;
   passwordHash: string;
   masterKey: Uint8Array;
+  kdfIterations: number;
 }
 
 export type JwtUnsafeReason = 'missing' | 'default' | 'too_short';
@@ -268,6 +270,16 @@ export async function hydrateLockedSession(
   session: SessionState,
   fallbackProfile: Profile | null = null
 ): Promise<{ session: SessionState | null; profile: Profile | null }> {
+  if (hasOfflineUnlockRecord(session.email)) {
+    const serviceReachable = await probeNodeWardenService();
+    if (!serviceReachable) {
+      return {
+        session,
+        profile: fallbackProfile || loadOfflineProfileSnapshot(session.email),
+      };
+    }
+  }
+
   const refreshedSession = await maybeRefreshSession(session);
   if (!refreshedSession?.accessToken) {
     if (hasOfflineUnlockRecord(session.email)) {
@@ -357,6 +369,7 @@ export async function performPasswordLogin(
         email: normalizedEmail,
         passwordHash: derived.hash,
         masterKey: derived.masterKey,
+        kdfIterations: derived.kdfIterations,
       },
     };
   }
@@ -377,7 +390,7 @@ export async function performTotpLogin(
     rememberDevice,
   });
   if ('access_token' in token && token.access_token) {
-    return completeLogin(token, pendingTotp.email, pendingTotp.masterKey, kdfIterationsFromLogin(token, 600000));
+    return completeLogin(token, pendingTotp.email, pendingTotp.masterKey, pendingTotp.kdfIterations);
   }
   const tokenError = token as { error_description?: string; error?: string };
   throw new Error(translateServerError(tokenError.error_description || tokenError.error, t('txt_totp_verify_failed')));
@@ -455,8 +468,14 @@ export async function performUnlock(
     }
   };
 
-  if (hasOfflineUnlock && browserReportsOffline()) {
-    return unlockOffline();
+  if (hasOfflineUnlock) {
+    if (browserReportsOffline()) {
+      return unlockOffline();
+    }
+    const serviceReachable = await probeNodeWardenService();
+    if (!serviceReachable) {
+      return unlockOffline();
+    }
   }
 
   let token: TokenSuccess | { TwoFactorProviders?: unknown; error_description?: string; error?: string };
@@ -493,6 +512,7 @@ export async function performUnlock(
         email: normalizedEmail,
         passwordHash: derived.hash,
         masterKey: derived.masterKey,
+        kdfIterations: derived.kdfIterations,
       },
     };
   }

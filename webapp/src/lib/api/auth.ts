@@ -458,7 +458,7 @@ export function createAuthedFetch(getSession: () => SessionState | null, setSess
     };
 
     const session = getSession();
-    if (!session?.accessToken) throw new Error('Unauthorized');
+    if (!session?.accessToken) throw new Error(t('txt_offline_vault_readonly'));
     const headers = new Headers(init.headers || {});
     headers.set('Authorization', `Bearer ${session.accessToken}`);
     headers.set('X-NodeWarden-Web', '1');
