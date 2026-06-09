@@ -43,7 +43,7 @@ function parseRecord(raw: string | null): OfflineUnlockRecord | null {
           name: email,
           key: '',
           privateKey: null,
-          role: 'user',
+          role: 'user' as const,
         };
     return {
       version: 1,

@@ -933,6 +933,21 @@
     gap: 7px;
   }
 
+  .account-passkey-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .account-passkey-status {
+    justify-self: flex-start;
+  }
+
+  .account-passkey-actions,
+  .account-passkey-actions .btn {
+    width: 100%;
+  }
+
   .settings-module .totp-grid {
     gap: 8px;
     margin-bottom: 8px;

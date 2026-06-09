@@ -6,14 +6,14 @@ const listeners = new Set<(status: NetworkStatus) => void>();
 let currentStatus: NetworkStatus = getInitialNetworkStatus();
 let pendingProbe: Promise<boolean> | null = null;
 let lastProbeAt = 0;
-let lastProbeResult = false;
+let lastProbeResult = currentStatus === 'online';
 
 export function browserReportsOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
 
 export function getInitialNetworkStatus(): NetworkStatus {
-  return 'offline';
+  return browserReportsOffline() ? 'offline' : 'online';
 }
 
 export function getCurrentNetworkStatus(): NetworkStatus {
@@ -51,7 +51,7 @@ export async function probeNodeWardenService(): Promise<boolean> {
     : 0;
 
   pendingProbe = (async () => {
-    const response = await fetch(`/api/web-bootstrap?statusProbe=${Date.now()}`, {
+    await fetch(`/api/web-bootstrap?statusProbe=${Date.now()}`, {
       method: 'GET',
       cache: 'no-store',
       headers: {
@@ -61,7 +61,9 @@ export async function probeNodeWardenService(): Promise<boolean> {
       },
       signal: controller?.signal,
     });
-    return response.ok;
+    // Any same-origin HTTP response proves the server is reachable. A 4xx/5xx
+    // response may be an application problem, but it is not offline mode.
+    return true;
   })()
     .catch(() => false)
     .then((result) => {

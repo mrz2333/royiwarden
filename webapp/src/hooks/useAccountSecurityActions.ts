@@ -4,27 +4,40 @@ import {
   deleteAllAuthorizedDevices,
   deleteAuthorizedDevice,
   deriveLoginHash,
+  deleteAccountPasskey as deleteAccountPasskeyApi,
+  enableAccountPasskeyDirectUnlock as enableAccountPasskeyDirectUnlockApi,
   getCurrentDeviceIdentifier,
   getApiKey,
+  getAccountPasskeyAttestationOptions,
+  getAccountPasskeyUpdateAssertionOptions,
   getTotpRecoveryCode,
+  listAccountPasskeys,
   rotateApiKey,
   revokeAuthorizedDeviceTrust,
   revokeAllAuthorizedDeviceTrust,
+  saveAccountPasskey,
   setTotp,
   trustAuthorizedDevicePermanently,
   updateAuthorizedDeviceName,
   updateProfile,
 } from '@/lib/api/auth';
+import {
+  assertAccountPasskey,
+  buildAccountPasskeyPrfKeySet,
+  buildAccountPasskeyPrfKeySetFromPrfKey,
+  createAccountPasskeyCredential,
+} from '@/lib/account-passkeys';
 import { t } from '@/lib/i18n';
 import type { AppConfirmState } from '@/components/AppGlobalOverlays';
 import type { AuthedFetch } from '@/lib/api/shared';
-import type { AuthorizedDevice, Profile } from '@/lib/types';
+import type { AccountPasskeyCredential, AuthorizedDevice, Profile, SessionState } from '@/lib/types';
 
 type Notify = (type: 'success' | 'error' | 'warning', text: string) => void;
 
 interface UseAccountSecurityActionsOptions {
   authedFetch: AuthedFetch;
   profile: Profile | null;
+  session: SessionState | null;
   defaultKdfIterations: number;
   disableTotpPassword: string;
   clearDisableTotpDialog: () => void;
@@ -40,6 +53,7 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
   const {
     authedFetch,
     profile,
+    session,
     defaultKdfIterations,
     disableTotpPassword,
     clearDisableTotpDialog,
@@ -168,6 +182,68 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
         const key = await rotateApiKey(authedFetch, derived.hash);
         if (!key) throw new Error(t('txt_api_key_is_empty'));
         return key;
+      },
+
+      async listAccountPasskeys(): Promise<AccountPasskeyCredential[]> {
+        return listAccountPasskeys(authedFetch);
+      },
+
+      async createAccountPasskey(name: string, masterPassword: string, directUnlock: boolean): Promise<AccountPasskeyCredential> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalizedPassword = String(masterPassword || '');
+        if (!normalizedPassword) throw new Error(t('txt_master_password_is_required'));
+        const normalizedName = String(name || '').trim() || t('txt_account_passkey');
+        const derived = await deriveLoginHash(profile.email, normalizedPassword, defaultKdfIterations);
+        const options = await getAccountPasskeyAttestationOptions(authedFetch, derived.hash);
+        const pending = await createAccountPasskeyCredential(options);
+        let keySet = null;
+        if (directUnlock) {
+          if (!session?.symEncKey || !session?.symMacKey) throw new Error(t('txt_vault_key_unavailable'));
+          keySet = await buildAccountPasskeyPrfKeySet(pending, {
+            symEncKey: session.symEncKey,
+            symMacKey: session.symMacKey,
+          });
+        }
+        const credential = await saveAccountPasskey(authedFetch, {
+          name: normalizedName,
+          token: pending.token,
+          deviceResponse: pending.request,
+          supportsPrf: pending.supportsPrf,
+          keySet,
+        });
+        onNotify('success', t('txt_account_passkey_saved'));
+        return credential;
+      },
+
+      async enableAccountPasskeyDirectUnlock(id: string, masterPassword: string): Promise<void> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        if (!session?.symEncKey || !session?.symMacKey) throw new Error(t('txt_vault_key_unavailable'));
+        if (!String(id || '').trim()) throw new Error(t('txt_account_passkey_not_found'));
+        const normalizedPassword = String(masterPassword || '');
+        if (!normalizedPassword) throw new Error(t('txt_master_password_is_required'));
+        const derived = await deriveLoginHash(profile.email, normalizedPassword, defaultKdfIterations);
+        const options = await getAccountPasskeyUpdateAssertionOptions(authedFetch, derived.hash, id);
+        const assertion = await assertAccountPasskey(options);
+        if (!assertion.prfKey) throw new Error(t('txt_account_passkey_prf_not_available'));
+        const keySet = await buildAccountPasskeyPrfKeySetFromPrfKey(assertion.prfKey, {
+          symEncKey: session.symEncKey,
+          symMacKey: session.symMacKey,
+        });
+        await enableAccountPasskeyDirectUnlockApi(authedFetch, {
+          token: assertion.token,
+          deviceResponse: assertion.deviceResponse,
+          keySet,
+        });
+        onNotify('success', t('txt_account_passkey_direct_unlock_enabled'));
+      },
+
+      async deleteAccountPasskey(id: string, masterPassword: string): Promise<void> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalizedPassword = String(masterPassword || '');
+        if (!normalizedPassword) throw new Error(t('txt_master_password_is_required'));
+        const derived = await deriveLoginHash(profile.email, normalizedPassword, defaultKdfIterations);
+        await deleteAccountPasskeyApi(authedFetch, id, derived.hash);
+        onNotify('success', t('txt_account_passkey_deleted'));
       },
 
       async refreshAuthorizedDevices() {
@@ -304,6 +380,8 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
       onProfileUpdated,
       onSetConfirm,
       profile,
+      session?.symEncKey,
+      session?.symMacKey,
       refetchAuthorizedDevices,
       refetchTotpStatus,
     ]
