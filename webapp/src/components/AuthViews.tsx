@@ -40,6 +40,7 @@ interface AuthViewsProps {
   onChangeUnlock: (password: string) => void;
   onSubmitLogin: () => void;
   onSubmitPasskey: () => void;
+  onSubmitPasskeyUnlock: () => void;
   onSubmitPasskeyPassword: () => void;
   onSubmitRegister: () => void;
   onSubmitUnlock: () => void;
@@ -122,12 +123,21 @@ export default function AuthViews(props: AuthViewsProps) {
             {props.unlockPreparing ? (
               <p className="muted standalone-muted">{t('txt_loading')}</p>
             ) : null}
-            <button type="submit" className="btn btn-primary full" disabled={unlockBusy || props.unlockPreparing || !props.unlockReady}>
+            <button type="submit" className="btn btn-primary full" disabled={unlockBusy || passkeyBusy || props.unlockPreparing || !props.unlockReady}>
               <Unlock size={16} className="btn-icon" />
               {unlockBusy ? t('txt_unlocking') : props.unlockPreparing ? t('txt_loading') : t('txt_unlock')}
             </button>
+            <button
+              type="button"
+              className="btn btn-secondary full"
+              onClick={props.onSubmitPasskeyUnlock}
+              disabled={unlockBusy || passkeyBusy || props.unlockPreparing || !props.unlockReady}
+            >
+              <KeyRound size={16} className="btn-icon" />
+              {passkeyBusy ? t('txt_unlocking') : t('txt_unlock_with_passkey')}
+            </button>
             <div className="or">{t('txt_or')}</div>
-            <button type="button" className="btn btn-secondary full" onClick={props.onLogout} disabled={unlockBusy}>
+            <button type="button" className="btn btn-secondary full" onClick={props.onLogout} disabled={unlockBusy || passkeyBusy}>
               <LogOut size={16} className="btn-icon" />
               {t('txt_log_out')}
             </button>
@@ -291,17 +301,16 @@ export default function AuthViews(props: AuthViewsProps) {
                 : t('txt_show_password_hint')}
             </button>
           </div>
-          <button type="submit" className="btn btn-primary full" disabled={loginBusy}>
+          <button type="submit" className="btn btn-primary full" disabled={loginBusy || passkeyBusy}>
             <LogIn size={16} className="btn-icon" />
             {loginBusy ? t('txt_logging_in') : t('txt_log_in')}
           </button>
-          <div className="or">{t('txt_or')}</div>
           <button type="button" className="btn btn-secondary full" onClick={props.onSubmitPasskey} disabled={loginBusy || passkeyBusy}>
             <KeyRound size={16} className="btn-icon" />
             {passkeyBusy ? t('txt_logging_in') : t('txt_login_with_passkey')}
           </button>
           <div className="or">{t('txt_or')}</div>
-          <button type="button" className="btn btn-secondary full" onClick={props.onGotoRegister} disabled={loginBusy}>
+          <button type="button" className="btn btn-secondary full" onClick={props.onGotoRegister} disabled={loginBusy || passkeyBusy}>
             <UserPlus size={16} className="btn-icon" />
             {t('txt_create_account')}
           </button>

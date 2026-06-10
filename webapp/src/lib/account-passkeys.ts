@@ -93,23 +93,96 @@ function credentialIdToBase64Url(id: BufferSource): string | null {
   }
 }
 
-function buildPrfExtension(
+type PrfEvalInput = { first: Uint8Array };
+
+function buildLegacyPrfExtension(salt: Uint8Array): Record<string, unknown> {
+  const evalInput: PrfEvalInput = { first: salt };
+  return {
+    prf: {
+      eval: evalInput,
+    },
+  };
+}
+
+function buildCredentialPrfExtension(
   salt: Uint8Array,
-  credentialIds: Array<string | null | undefined> = []
+  credentialIds: Array<string | null | undefined>
 ): Record<string, unknown> {
   const evalInput = { first: salt };
   const evalByCredential = credentialIds
     .filter((id): id is string => !!id)
-    .reduce<Record<string, typeof evalInput>>((out, id) => {
+    .reduce<Record<string, PrfEvalInput>>((out, id) => {
       out[id] = evalInput;
       return out;
     }, {});
+  if (!Object.keys(evalByCredential).length) return buildLegacyPrfExtension(salt);
   return {
     prf: {
-      eval: evalInput,
-      ...(Object.keys(evalByCredential).length ? { evalByCredential } : {}),
+      evalByCredential,
     },
   };
+}
+
+function withPrfExtension(
+  options: PublicKeyCredentialRequestOptions,
+  extension: Record<string, unknown>
+): PublicKeyCredentialRequestOptions {
+  return {
+    ...options,
+    extensions: {
+      ...((options as any).extensions || {}),
+      ...extension,
+    } as any,
+  };
+}
+
+function readPrfFirstResult(credential: PublicKeyCredential): ArrayBuffer | undefined {
+  const result = (credential.getClientExtensionResults() as any).prf?.results?.first;
+  return result instanceof ArrayBuffer ? result : undefined;
+}
+
+function hasPrfExtensionResult(credential: PublicKeyCredential): boolean {
+  return Object.prototype.hasOwnProperty.call(credential.getClientExtensionResults() as any, 'prf');
+}
+
+function shouldRetryWithLegacyPrf(error: unknown): boolean {
+  const name = error instanceof DOMException || error instanceof Error ? error.name : '';
+  return name === 'NotSupportedError' || name === 'SyntaxError' || name === 'TypeError';
+}
+
+async function getPublicKeyCredentialWithPrf(
+  options: PublicKeyCredentialRequestOptions,
+  salt: Uint8Array,
+  credentialIds: string[] = []
+): Promise<PublicKeyCredential> {
+  const attempts = credentialIds.length
+    ? [
+        buildCredentialPrfExtension(salt, credentialIds),
+        buildLegacyPrfExtension(salt),
+      ]
+    : [buildLegacyPrfExtension(salt)];
+  let lastCredential: PublicKeyCredential | null = null;
+  for (let index = 0; index < attempts.length; index += 1) {
+    try {
+      const credential = await navigator.credentials.get({
+        publicKey: withPrfExtension(options, attempts[index]),
+      });
+      if (!(credential instanceof PublicKeyCredential)) {
+        throw new Error(t('txt_no_passkey_selected'));
+      }
+      lastCredential = credential;
+      if (readPrfFirstResult(credential) || hasPrfExtensionResult(credential) || index === attempts.length - 1) {
+        return credential;
+      }
+    } catch (error) {
+      if (index === attempts.length - 1 || !shouldRetryWithLegacyPrf(error)) {
+        if (lastCredential) return lastCredential;
+        throw error;
+      }
+    }
+  }
+  if (lastCredential) return lastCredential;
+  throw new Error(t('txt_no_passkey_selected'));
 }
 
 function prfCredentialIdsFromAllowCredentials(options: PublicKeyCredentialRequestOptions): string[] {
@@ -178,15 +251,12 @@ export async function assertAccountPasskey(
     throw new Error(t('txt_passkey_browser_not_supported'));
   }
   const nativeOptions = cloneRequestOptions(response.options);
-  (nativeOptions as any).extensions = {
-    ...((nativeOptions as any).extensions || {}),
-    ...buildPrfExtension(await getLoginWithPrfSalt(), prfCredentialIdsFromAllowCredentials(nativeOptions)),
-  };
-  const credential = await navigator.credentials.get({ publicKey: nativeOptions });
-  if (!(credential instanceof PublicKeyCredential)) {
-    throw new Error(t('txt_no_passkey_selected'));
-  }
-  const prfResult = (credential.getClientExtensionResults() as any).prf?.results?.first;
+  const credential = await getPublicKeyCredentialWithPrf(
+    nativeOptions,
+    await getLoginWithPrfSalt(),
+    prfCredentialIdsFromAllowCredentials(nativeOptions)
+  );
+  const prfResult = readPrfFirstResult(credential);
   return {
     token: response.token,
     deviceResponse: assertionRequest(credential),
@@ -239,14 +309,12 @@ export async function buildAccountPasskeyPrfKeySet(
     timeout: pending.createOptions?.timeout,
     userVerification: pending.createOptions?.authenticatorSelection?.userVerification,
   };
-  (assertionOptions as any).extensions = {
-    ...buildPrfExtension(await getLoginWithPrfSalt(), [credentialId]),
-  };
-  const assertion = await navigator.credentials.get({ publicKey: assertionOptions });
-  if (!(assertion instanceof PublicKeyCredential)) {
-    throw new Error(t('txt_passkey_verification_failed'));
-  }
-  const prfResult = (assertion.getClientExtensionResults() as any).prf?.results?.first;
+  const assertion = await getPublicKeyCredentialWithPrf(
+    assertionOptions,
+    await getLoginWithPrfSalt(),
+    [credentialId]
+  );
+  const prfResult = readPrfFirstResult(assertion);
   if (!prfResult) {
     throw new AccountPasskeyPrfUnavailableError();
   }

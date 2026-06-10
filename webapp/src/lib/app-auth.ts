@@ -420,7 +420,7 @@ export async function performPasswordLogin(
   };
 }
 
-export async function performPasskeyLogin(fallbackIterations: number): Promise<PasskeyLoginResult> {
+export async function performPasskeyLogin(fallbackIterations: number, expectedEmail?: string): Promise<PasskeyLoginResult> {
   try {
     const options = await getAccountPasskeyAssertionOptions();
     const assertion = await assertAccountPasskey(options);
@@ -437,6 +437,10 @@ export async function performPasskeyLogin(fallbackIterations: number): Promise<P
     const email = (decodeAccessTokenClaims(token.access_token).email || '').trim().toLowerCase();
     if (!email) {
       return { kind: 'error', message: t('txt_login_failed') };
+    }
+    const normalizedExpectedEmail = String(expectedEmail || '').trim().toLowerCase();
+    if (normalizedExpectedEmail && email !== normalizedExpectedEmail) {
+      return { kind: 'error', message: t('txt_passkey_not_for_locked_account') };
     }
 
     const prfOption = readPasskeyPrfOption(token);
