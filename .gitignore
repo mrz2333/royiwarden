@@ -53,3 +53,5 @@ NodeWarden-compat/
 .codex-upstream/bitwarden-clients/
 .codex-upstream/bitwarden-web/
 .codex-upstream/bitwarden-browser/
+
+.reasonix/

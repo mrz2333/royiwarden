@@ -363,7 +363,8 @@ function readPasskeyPrfOption(token: TokenSuccess): AccountPasskeyPrfOption | nu
 async function completeLoginWithVaultKeys(
   token: TokenSuccess,
   email: string,
-  keys: { symEncKey: string; symMacKey: string }
+  keys: { symEncKey: string; symMacKey: string },
+  fallbackKdfIterations: number
 ): Promise<CompletedLogin> {
   const normalizedEmail = email.trim().toLowerCase();
   const fallbackProfile = loadProfileSnapshot(normalizedEmail);
@@ -378,6 +379,12 @@ async function completeLoginWithVaultKeys(
     () => {}
   );
   const profile = buildTransientProfile(token, normalizedEmail, fallbackProfile);
+  saveOfflineUnlockRecord({
+    email: normalizedEmail,
+    profile,
+    profileKey: profile.key,
+    kdfIterations: kdfIterationsFromLogin(token, fallbackKdfIterations),
+  });
   return {
     session: { ...baseSession, ...keys },
     profile,
@@ -448,7 +455,7 @@ export async function performPasskeyLogin(fallbackIterations: number, expectedEm
       const keys = await unlockVaultKeyWithAccountPasskeyPrf(assertion.prfKey, prfOption);
       return {
         kind: 'success',
-        login: await completeLoginWithVaultKeys(token, email, keys),
+        login: await completeLoginWithVaultKeys(token, email, keys, fallbackIterations),
       };
     }
 
