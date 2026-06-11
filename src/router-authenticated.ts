@@ -11,6 +11,10 @@ import {
   handleGetTotpStatus,
   handleSetTotpStatus,
   handleGetTotpRecoveryCode,
+  handleGetTwoFactorProviders,
+  handleGetTwoFactorAuthenticator,
+  handlePutTwoFactorAuthenticator,
+  handleDisableTwoFactorProvider,
   handleGetApiKey,
   handleRotateApiKey,
 } from './handlers/accounts';
@@ -117,6 +121,25 @@ export async function handleAuthenticatedRoute(
 
   if ((path === '/api/accounts/totp/recovery-code' || path === '/api/two-factor/get-recover') && method === 'POST') {
     return handleGetTotpRecoveryCode(request, env, userId);
+  }
+
+  if (path === '/api/two-factor') {
+    if (method === 'GET') return handleGetTwoFactorProviders(request, env, userId);
+    return errorResponse('Method not allowed', 405);
+  }
+
+  if (path === '/api/two-factor/get-authenticator' && method === 'POST') {
+    return handleGetTwoFactorAuthenticator(request, env, userId);
+  }
+
+  if (path === '/api/two-factor/authenticator') {
+    if (method === 'PUT' || method === 'POST') return handlePutTwoFactorAuthenticator(request, env, userId);
+    if (method === 'DELETE') return handleDisableTwoFactorProvider(request, env, userId);
+    return errorResponse('Method not allowed', 405);
+  }
+
+  if (path === '/api/two-factor/disable' && (method === 'PUT' || method === 'POST')) {
+    return handleDisableTwoFactorProvider(request, env, userId);
   }
 
   if (path === '/api/accounts/revision-date' && method === 'GET') {
