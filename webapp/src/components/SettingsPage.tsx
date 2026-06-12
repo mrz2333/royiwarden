@@ -82,6 +82,13 @@ function clearLegacyTotpSetupSecrets(): void {
   }
 }
 
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return t('txt_dash');
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return t('txt_dash');
+  return date.toLocaleString();
+}
+
 export default function SettingsPage(props: SettingsPageProps) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
