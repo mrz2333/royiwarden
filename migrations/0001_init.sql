@@ -188,6 +188,33 @@ CREATE TABLE IF NOT EXISTS devices (
 CREATE INDEX IF NOT EXISTS idx_devices_user_updated ON devices(user_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_devices_user_last_seen ON devices(user_id, last_seen_at);
 
+CREATE TABLE IF NOT EXISTS auth_requests (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  organization_id TEXT,
+  type INTEGER NOT NULL,
+  request_device_identifier TEXT NOT NULL,
+  request_device_type INTEGER NOT NULL,
+  request_ip_address TEXT,
+  request_country_name TEXT,
+  response_device_identifier TEXT,
+  access_code TEXT NOT NULL,
+  public_key TEXT NOT NULL,
+  key TEXT,
+  master_password_hash TEXT,
+  approved INTEGER,
+  creation_date TEXT NOT NULL,
+  response_date TEXT,
+  authentication_date TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_auth_requests_user_created
+  ON auth_requests(user_id, creation_date);
+CREATE INDEX IF NOT EXISTS idx_auth_requests_user_pending
+  ON auth_requests(user_id, approved, response_date, authentication_date, creation_date);
+CREATE INDEX IF NOT EXISTS idx_auth_requests_device_pending
+  ON auth_requests(user_id, request_device_identifier, creation_date);
+
 CREATE TABLE IF NOT EXISTS trusted_two_factor_device_tokens (
   token TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -197,6 +224,44 @@ CREATE TABLE IF NOT EXISTS trusted_two_factor_device_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_trusted_two_factor_device_tokens_user_device
   ON trusted_two_factor_device_tokens(user_id, device_identifier);
+
+CREATE TABLE IF NOT EXISTS webauthn_credentials (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  public_key TEXT NOT NULL,
+  credential_id TEXT NOT NULL,
+  counter INTEGER NOT NULL DEFAULT 0,
+  type TEXT,
+  aa_guid TEXT,
+  transports TEXT,
+  encrypted_user_key TEXT,
+  encrypted_public_key TEXT,
+  encrypted_private_key TEXT,
+  supports_prf INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_webauthn_credentials_credential_id
+  ON webauthn_credentials(credential_id);
+CREATE INDEX IF NOT EXISTS idx_webauthn_credentials_user
+  ON webauthn_credentials(user_id);
+CREATE INDEX IF NOT EXISTS idx_webauthn_credentials_user_updated
+  ON webauthn_credentials(user_id, updated_at);
+
+CREATE TABLE IF NOT EXISTS webauthn_challenges (
+  challenge_hash TEXT PRIMARY KEY,
+  scope TEXT NOT NULL,
+  user_id TEXT,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_webauthn_challenges_expires
+  ON webauthn_challenges(expires_at);
+CREATE INDEX IF NOT EXISTS idx_webauthn_challenges_user_scope
+  ON webauthn_challenges(user_id, scope);
 
 -- Rate limiting
 CREATE TABLE IF NOT EXISTS login_attempts_ip (
