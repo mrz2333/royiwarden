@@ -140,12 +140,13 @@ function buildPreloginResponse(
   };
 }
 
-function twoFactorRequiredResponse(message: string = 'Two factor required.', includeRecoveryCode: boolean = false): Response {
-  const providers = includeRecoveryCode
-    ? [String(TWO_FACTOR_PROVIDER_AUTHENTICATOR), String(TWO_FACTOR_PROVIDER_RECOVERY_CODE)]
-    : [String(TWO_FACTOR_PROVIDER_AUTHENTICATOR)];
-  const providers2: Record<string, null> = {};
-  for (const provider of providers) providers2[provider] = null;
+function twoFactorRequiredResponse(message: string = 'Two factor required.'): Response {
+  // Match Bitwarden Identity: TwoFactorProviders2 lists enabled 2FA providers only.
+  // Clients expose recovery-code entry points themselves; Android 2026.4 fails to
+  // parse the challenge if an unknown recovery provider key such as "8" is included.
+  const providers = [String(TWO_FACTOR_PROVIDER_AUTHENTICATOR)];
+  const providers2: Record<string, { Email: null }> = {};
+  for (const provider of providers) providers2[provider] = { Email: null };
   const customResponse = {
     TwoFactorProviders: providers,
     TwoFactorProviders2: providers2,
@@ -329,7 +330,6 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
     let trustedTwoFactorTokenToReturn: string | undefined;
     const effectiveTotpSecret = resolveTotpSecret(user.totpSecret);
     if (effectiveTotpSecret) {
-      const canUseRecoveryCode = !!user.totpRecoveryCode;
       const normalizedTwoFactorProvider = String(twoFactorProvider ?? '').trim();
       const normalizedTwoFactorToken = String(twoFactorToken ?? '').trim();
       let rememberRequested = ['1', 'true', 'True', 'TRUE', 'on', 'yes', 'Yes', 'YES'].includes(String(twoFactorRemember || '').trim());
@@ -339,7 +339,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       // Upstream-compatible behavior: if 2FA is required and either provider or token is missing,
       // respond with a 2FA challenge payload.
       if (!hasProvider || !hasToken) {
-        return twoFactorRequiredResponse('Two factor required.', canUseRecoveryCode);
+        return twoFactorRequiredResponse('Two factor required.');
       }
 
       let passedByRememberToken = false;
@@ -354,7 +354,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
 
         // Remember token missing/invalid/expired should re-enter the 2FA challenge flow.
         if (!passedByRememberToken) {
-          return twoFactorRequiredResponse('Two factor required.', canUseRecoveryCode);
+          return twoFactorRequiredResponse('Two factor required.');
         }
       } else if (normalizedTwoFactorProvider === String(TWO_FACTOR_PROVIDER_AUTHENTICATOR)) {
         const totpOk = await verifyTotpToken(effectiveTotpSecret, normalizedTwoFactorToken);
