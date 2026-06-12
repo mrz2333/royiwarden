@@ -78,6 +78,12 @@ import {
   handleGetAccountPasskeyUpdateAssertionOptions,
   handleUpdateAccountPasskeyEncryption,
 } from './handlers/account-passkeys';
+import {
+  handleGetAuthRequest,
+  handleListAuthRequests,
+  handleListPendingAuthRequests,
+  handleUpdateAuthRequest,
+} from './handlers/auth-requests';
 
 export async function handleAuthenticatedRoute(
   request: Request,
@@ -285,8 +291,21 @@ export async function handleAuthenticatedRoute(
     if (method === 'DELETE') return handleDeleteFolder(request, env, userId, folderId);
   }
 
-  if (path.startsWith('/api/auth-requests')) {
-    return jsonResponse({ data: [], object: 'list', continuationToken: null });
+  if (path === '/api/auth-requests' || path === '/api/auth-requests/') {
+    if (method === 'GET') return handleListAuthRequests(request, env, userId);
+    return errorResponse('Method not allowed', 405);
+  }
+
+  if (path === '/api/auth-requests/pending') {
+    if (method === 'GET') return handleListPendingAuthRequests(request, env, userId);
+    return errorResponse('Method not allowed', 405);
+  }
+
+  const authRequestMatch = path.match(/^\/api\/auth-requests\/([a-f0-9-]+)$/i);
+  if (authRequestMatch) {
+    if (method === 'GET') return handleGetAuthRequest(request, env, userId, authRequestMatch[1]);
+    if (method === 'PUT') return handleUpdateAuthRequest(request, env, userId, authRequestMatch[1]);
+    return errorResponse('Method not allowed', 405);
   }
 
   if (path === '/api/collections' || path.startsWith('/api/collections/')) {

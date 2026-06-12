@@ -19,6 +19,7 @@ import {
   assertAccountPasskeyCredential,
   buildAccountPasskeyTokenUserDecryptionOption,
 } from './account-passkeys';
+import { isAuthRequestExpired } from '../services/storage-auth-request-repo';
 
 const TWO_FACTOR_REMEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const TWO_FACTOR_PROVIDER_AUTHENTICATOR = 0;
@@ -237,6 +238,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
     // Login with password
     const email = body.username?.toLowerCase();
     const passwordHash = body.password;
+    const authRequestId = readBodyValue(body, ['authRequest', 'AuthRequest']);
     const twoFactorToken = readBodyValue(body, ['twoFactorToken', 'TwoFactorToken']);
     const twoFactorProvider = readBodyValue(body, ['twoFactorProvider', 'TwoFactorProvider']);
     const twoFactorRemember = readBodyValue(body, ['twoFactorRemember', 'TwoFactorRemember']);
@@ -281,11 +283,31 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       return identityErrorResponse('Account is disabled', 'invalid_grant', 400);
     }
 
-    const valid = await auth.verifyPassword(passwordHash, user.masterPasswordHash, user.email);
+    let validatedAuthRequestId: string | null = null;
+    let valid = false;
+    const normalizedAuthRequestId = String(authRequestId || '').trim();
+    if (normalizedAuthRequestId) {
+      const authRequest = await storage.getAuthRequestById(normalizedAuthRequestId);
+      valid = !!(
+        authRequest &&
+        authRequest.userId === user.id &&
+        authRequest.type === 0 &&
+        authRequest.approved === true &&
+        authRequest.responseDate &&
+        !authRequest.authenticationDate &&
+        !isAuthRequestExpired(authRequest) &&
+        constantTimeEquals(authRequest.accessCode, passwordHash)
+      );
+      if (valid) {
+        validatedAuthRequestId = authRequest!.id;
+      }
+    } else {
+      valid = await auth.verifyPassword(passwordHash, user.masterPasswordHash, user.email);
+    }
     if (!valid) {
       await safeWriteAuditEvent(env, {
         actorUserId: user.id,
-        action: 'auth.login.failed.bad_password',
+        action: normalizedAuthRequestId ? 'auth.login.failed.bad_auth_request' : 'auth.login.failed.bad_password',
         category: 'auth',
         level: 'warn',
         targetType: 'user',
@@ -384,6 +406,9 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
 
     // Successful login - clear failed attempts
     await rateLimit.clearLoginAttempts(loginIdentifier);
+    if (validatedAuthRequestId) {
+      await storage.markAuthRequestAuthenticated(validatedAuthRequestId);
+    }
 
     const accessToken = await auth.generateAccessToken(user, deviceSession);
     const refreshToken = await auth.generateRefreshToken(user.id, deviceSession);
