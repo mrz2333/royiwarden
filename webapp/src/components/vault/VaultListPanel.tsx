@@ -8,8 +8,10 @@ import { t } from '@/lib/i18n';
 import {
   CreateTypeIcon,
   getCreateTypeOptions,
+  getDuplicateDetectionOptions,
   getVaultSortOptions,
   VaultListIcon,
+  type DuplicateDetectionMode,
   type SidebarFilter,
   type VaultSortMode,
 } from '@/components/vault/vault-page-helpers';
@@ -28,10 +30,12 @@ interface VaultListPanelProps {
   searchInput: string;
   sortMode: VaultSortMode;
   sortMenuOpen: boolean;
+  duplicateMode: DuplicateDetectionMode;
   selectedCount: number;
   totalCipherCount: number;
   filteredCiphers: Cipher[];
   visibleCiphers: Cipher[];
+  duplicateGroupIndexById: Map<string, number>;
   virtualRange: VirtualRange;
   selectedCipherId: string;
   selectedMap: Record<string, boolean>;
@@ -48,6 +52,7 @@ interface VaultListPanelProps {
   onSearchCompositionEnd: (value: string) => void;
   onToggleSortMenu: () => void;
   onSelectSortMode: (value: VaultSortMode) => void;
+  onDuplicateModeChange: (value: DuplicateDetectionMode) => void;
   onSyncVault: () => void;
   onOpenBulkDelete: () => void;
   onSelectDuplicates: () => void;
@@ -69,15 +74,18 @@ interface CipherListItemProps {
   cipher: Cipher;
   selected: boolean;
   checked: boolean;
+  duplicateGroupIndex: number | null;
   subtitle: string;
   onToggleSelected: (cipherId: string, checked: boolean) => void;
   onSelectCipher: (cipherId: string) => void;
 }
 
 const CipherListItem = memo(function CipherListItem(props: CipherListItemProps) {
+  const duplicateGroupHue = props.duplicateGroupIndex === null ? null : (props.duplicateGroupIndex * 137.508) % 360;
   return (
     <div
-      className={`list-item ${props.selected ? 'active' : ''}`}
+      className={`list-item ${props.selected ? 'active' : ''} ${duplicateGroupHue === null ? '' : 'duplicate-group-item'}`}
+      style={duplicateGroupHue === null ? undefined : { '--duplicate-group-hue': `${duplicateGroupHue}deg` }}
       onClick={(event) => {
         const target = event.target as HTMLElement;
         if (target.closest('.row-check')) return;
@@ -108,6 +116,7 @@ const CipherListItem = memo(function CipherListItem(props: CipherListItemProps) 
 
 export default function VaultListPanel(props: VaultListPanelProps) {
   const createTypeOptions = getCreateTypeOptions();
+  const duplicateDetectionOptions = getDuplicateDetectionOptions();
   const vaultSortOptions = getVaultSortOptions();
   const createMenu = (
     <div className="create-menu-wrap mobile-fab-wrap" ref={props.createMenuRef}>
@@ -137,29 +146,44 @@ export default function VaultListPanel(props: VaultListPanelProps) {
     <section className="list-col">
       <div className="list-head">
         <div className="search-input-wrap">
-          <input
-            className="search-input"
-            placeholder={t('txt_search_your_secure_vault')}
-            value={props.searchInput}
-            onInput={(e) => props.onSearchInput((e.currentTarget as HTMLInputElement).value)}
-            onCompositionStart={props.onSearchCompositionStart}
-            onCompositionEnd={(e) => props.onSearchCompositionEnd((e.currentTarget as HTMLInputElement).value)}
-            onKeyDown={(e) => {
-              if (e.key !== 'Escape' || !props.searchInput) return;
-              e.preventDefault();
-              props.onClearSearch();
-            }}
-          />
-          {!!props.searchInput && (
-            <button
-              type="button"
-              className="search-clear-btn"
-              aria-label={t('txt_clear_search')}
-              title={t('txt_clear_search_esc')}
-              onClick={props.onClearSearch}
+          {props.sidebarFilter.kind === 'duplicates' && props.isMobileLayout ? (
+            <select
+              className="input duplicate-mode-select duplicate-mode-head-select"
+              value={props.duplicateMode}
+              aria-label={t('txt_duplicate_detection_mode')}
+              onChange={(event) => props.onDuplicateModeChange((event.currentTarget as HTMLSelectElement).value as DuplicateDetectionMode)}
             >
-              <X size={14} />
-            </button>
+              {duplicateDetectionOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          ) : (
+            <>
+              <input
+                className="search-input"
+                placeholder={t('txt_search_your_secure_vault')}
+                value={props.searchInput}
+                onInput={(e) => props.onSearchInput((e.currentTarget as HTMLInputElement).value)}
+                onCompositionStart={props.onSearchCompositionStart}
+                onCompositionEnd={(e) => props.onSearchCompositionEnd((e.currentTarget as HTMLInputElement).value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Escape' || !props.searchInput) return;
+                  e.preventDefault();
+                  props.onClearSearch();
+                }}
+              />
+              {!!props.searchInput && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  aria-label={t('txt_clear_search')}
+                  title={t('txt_clear_search_esc')}
+                  onClick={props.onClearSearch}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </>
           )}
         </div>
         <div className="sort-menu-wrap" ref={props.sortMenuRef}>
@@ -195,8 +219,20 @@ export default function VaultListPanel(props: VaultListPanelProps) {
           <RefreshCw size={14} className="btn-icon" /> {t('txt_sync_vault')}
         </button>
       </div>
-      <div className="toolbar actions">
-        {props.sidebarFilter.kind === 'duplicates' && (
+      <div className={`toolbar actions ${props.sidebarFilter.kind === 'duplicates' ? 'duplicates-toolbar' : ''}`}>
+        {props.sidebarFilter.kind === 'duplicates' && !props.isMobileLayout && (
+          <select
+            className="input duplicate-mode-select duplicate-mode-toolbar-select"
+            value={props.duplicateMode}
+            aria-label={t('txt_duplicate_detection_mode')}
+            onChange={(event) => props.onDuplicateModeChange((event.currentTarget as HTMLSelectElement).value as DuplicateDetectionMode)}
+          >
+            {duplicateDetectionOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        )}
+        {props.sidebarFilter.kind === 'duplicates' && props.duplicateMode === 'exact' && (
           <button type="button" className="btn btn-secondary small" disabled={!props.filteredCiphers.length || props.busy} onClick={props.onSelectDuplicates}>
             <Check size={14} className="btn-icon" /> {t('txt_select_duplicate_items')}
           </button>
@@ -229,12 +265,16 @@ export default function VaultListPanel(props: VaultListPanelProps) {
         <button type="button" className="btn btn-danger small" disabled={!props.selectedCount || props.busy} onClick={props.onOpenBulkDelete}>
           <Trash2 size={14} className="btn-icon" /> {props.sidebarFilter.kind === 'trash' ? t('txt_delete_permanently') : t('txt_delete_selected')}
         </button>
-        <button type="button" className="btn btn-secondary small" disabled={!props.filteredCiphers.length} onClick={props.onSelectAll}>
-          <CheckCheck size={14} className="btn-icon" /> {t('txt_select_all')}
-        </button>
-        {props.isMobileLayout && typeof document !== 'undefined'
-          ? props.mobileFabVisible ? createPortal(createMenu, document.body) : null
-          : createMenu}
+        {props.sidebarFilter.kind !== 'duplicates' && (
+          <button type="button" className="btn btn-secondary small" disabled={!props.filteredCiphers.length} onClick={props.onSelectAll}>
+            <CheckCheck size={14} className="btn-icon" /> {t('txt_select_all')}
+          </button>
+        )}
+        {props.sidebarFilter.kind !== 'duplicates' && (
+          props.isMobileLayout && typeof document !== 'undefined'
+            ? props.mobileFabVisible ? createPortal(createMenu, document.body) : null
+            : createMenu
+        )}
       </div>
 
       <div className="list-panel" ref={props.listPanelRef} onScroll={(event) => props.onScroll((event.currentTarget as HTMLDivElement).scrollTop)}>
@@ -255,6 +295,7 @@ export default function VaultListPanel(props: VaultListPanelProps) {
                 cipher={cipher}
                 selected={props.selectedCipherId === cipher.id}
                 checked={!!props.selectedMap[cipher.id]}
+                duplicateGroupIndex={props.sidebarFilter.kind === 'duplicates' ? props.duplicateGroupIndexById.get(cipher.id) ?? null : null}
                 subtitle={props.listSubtitle(cipher)}
                 onToggleSelected={props.onToggleSelected}
                 onSelectCipher={props.onSelectCipher}

@@ -200,6 +200,21 @@
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(139, 184, 255, 0.12);
 }
 
+:root[data-theme='dark'] .list-item.duplicate-group-item {
+  background: hsl(var(--duplicate-group-hue) 34% 18%);
+  border-color: hsl(var(--duplicate-group-hue) 28% 30%);
+}
+
+:root[data-theme='dark'] .list-item.duplicate-group-item:hover {
+  background: hsl(var(--duplicate-group-hue) 36% 21%);
+  border-color: hsl(var(--duplicate-group-hue) 34% 38%);
+}
+
+:root[data-theme='dark'] .list-item.duplicate-group-item.active {
+  background: hsl(var(--duplicate-group-hue) 38% 24%);
+  border-color: hsl(var(--duplicate-group-hue) 42% 48%);
+}
+
 :root[data-theme='dark'] .card-brand-icon {
   color: #bfdbfe;
   background: linear-gradient(180deg, #1f2937 0%, #111827 100%);

@@ -319,6 +319,10 @@
     @apply h-[42px] w-full min-w-0 rounded-[14px];
   }
 
+  .list-head .duplicate-mode-head-select {
+    @apply h-[34px] min-w-0 w-auto max-w-full rounded-full;
+  }
+
   .list-icon-btn {
     @apply w-auto min-w-0 gap-1.5 whitespace-nowrap px-3 py-0 text-[13px];
   }
@@ -327,6 +331,11 @@
     @apply justify-end overflow-visible pb-0.5;
     flex-wrap: unset;
     gap: var(--actions-gap);
+  }
+
+  .toolbar.actions.duplicates-toolbar {
+    @apply justify-start;
+    flex-wrap: wrap;
   }
 
   .actions {
