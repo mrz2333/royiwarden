@@ -758,6 +758,7 @@ const zhTW: Record<string, string> = {
   "txt_search_sends": "搜索 Send...",
   "txt_session_refresh_failed": "會話刷新失敗，請重新登入",
   "txt_search_your_secure_vault": "搜索你的密碼庫...",
+  "txt_search_items_count": "在共 {count} 項中搜索...",
   "txt_clear_search": "清空搜索",
   "txt_clear_search_esc": "清空搜索（Esc）",
   "txt_sort": "排序",

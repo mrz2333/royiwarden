@@ -70,6 +70,7 @@
 :root[data-theme='dark'] .textarea,
 :root[data-theme='dark'] select.input,
 :root[data-theme='dark'] .search-input,
+:root[data-theme='dark'] .mobile-vault-filter-trigger,
 :root[data-theme='dark'] .dialog input,
 :root[data-theme='dark'] .dialog textarea,
 :root[data-theme='dark'] .dialog select {
@@ -77,6 +78,13 @@
   border-color: var(--line);
   color: var(--text);
   box-shadow: none;
+}
+
+:root[data-theme='dark'] .mobile-vault-filter-trigger:hover,
+:root[data-theme='dark'] .mobile-vault-filter-trigger.active {
+  background: var(--panel-muted);
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--line));
+  color: var(--text);
 }
 
 :root[data-theme='dark'] .input::placeholder,

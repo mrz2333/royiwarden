@@ -1115,6 +1115,7 @@ const folderName = useCallback((id: string | null | undefined): string => {
           busy={busy}
           loading={props.loading}
           error={props.error}
+          folders={props.folders}
           searchInput={searchInput}
           sortMode={sortMode}
           sortMenuOpen={sortMenuOpen}
@@ -1141,6 +1142,7 @@ const folderName = useCallback((id: string | null | undefined): string => {
           onToggleSortMenu={handleToggleSortMenu}
           onSelectSortMode={handleSelectSortMode}
           onDuplicateModeChange={setDuplicateMode}
+          onChangeFilter={setSidebarFilter}
           onSyncVault={handleSyncVault}
           onOpenBulkDelete={handleOpenBulkDelete}
           onSelectDuplicates={handleSelectDuplicates}

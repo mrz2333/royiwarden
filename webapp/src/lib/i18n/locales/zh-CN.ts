@@ -758,6 +758,7 @@ const zhCN: Record<string, string> = {
   "txt_search_sends": "搜索 Send...",
   "txt_session_refresh_failed": "会话刷新失败，请重新登录",
   "txt_search_your_secure_vault": "搜索你的密码库...",
+  "txt_search_items_count": "共 {count} 项中搜索...",
   "txt_clear_search": "清空搜索",
   "txt_clear_search_esc": "清空搜索（Esc）",
   "txt_sort": "排序",

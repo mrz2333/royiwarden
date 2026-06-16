@@ -758,6 +758,7 @@ const es: Record<string, string> = {
   "txt_search_sends": "Buscar envíos...",
   "txt_session_refresh_failed": "Error al actualizar la sesión. Inicia sesión de nuevo.",
   "txt_search_your_secure_vault": "Buscar en su bóveda segura...",
+  "txt_search_items_count": "Buscar entre {count} elementos...",
   "txt_clear_search": "Limpiar búsqueda",
   "txt_clear_search_esc": "Limpiar búsqueda (Esc)",
   "txt_sort": "Ordenar",

@@ -758,6 +758,7 @@ const ru: Record<string, string> = {
   "txt_search_sends": "Поиск отправляет...",
   "txt_session_refresh_failed": "Не удалось обновить сеанс. Войдите снова.",
   "txt_search_your_secure_vault": "Найдите свое безопасное хранилище...",
+  "txt_search_items_count": "Поиск по {count} элементам...",
   "txt_clear_search": "Очистить поиск",
   "txt_clear_search_esc": "Очистить поиск (Esc)",
   "txt_sort": "Сортировать",
