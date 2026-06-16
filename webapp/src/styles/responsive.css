@@ -681,20 +681,6 @@
     gap: 10px;
   }
 
-  .totp-codes-list {
-    grid-template-columns: 1fr;
-  }
-
-  .totp-code-row {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .totp-code-main {
-    justify-content: space-between;
-    width: 100%;
-  }
-
   .totp-qr {
     min-height: 180px;
   }
