@@ -952,7 +952,7 @@ select.input.duplicate-mode-toolbar-select {
 
 .totp-codes-list {
   @apply grid w-full items-start gap-2.5;
-  grid-template-columns: repeat(var(--totp-columns, 1), minmax(300px, 1fr));
+  grid-template-columns: repeat(var(--totp-columns, 1), minmax(0, 1fr));
 }
 
 .totp-code-row {
@@ -977,7 +977,7 @@ select.input.duplicate-mode-toolbar-select {
 }
 
 .totp-code-main strong {
-  @apply whitespace-nowrap text-[22px] leading-none;
+  @apply min-w-0 whitespace-nowrap text-[22px] leading-none;
   letter-spacing: 0.04em;
 }
 

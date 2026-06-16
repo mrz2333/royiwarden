@@ -681,6 +681,20 @@
     gap: 10px;
   }
 
+  .totp-codes-list {
+    grid-template-columns: 1fr;
+  }
+
+  .totp-code-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .totp-code-main {
+    justify-content: space-between;
+    width: 100%;
+  }
+
   .totp-qr {
     min-height: 180px;
   }
@@ -890,6 +904,10 @@
     min-height: 30px;
     padding: 0 10px;
     font-size: 13px;
+  }
+
+  .totp-code-main strong {
+    font-size: 20px;
   }
 
   .settings-module .field,

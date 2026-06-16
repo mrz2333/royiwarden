@@ -507,8 +507,9 @@ export function maskSecret(value: string): string {
 export function formatTotp(code: string): string {
   if (!code) return code;
   if (code.length === 5) return `${code.slice(0, 2)} ${code.slice(2)}`;
-  if (code.length < 6) return code;
-  return `${code.slice(0, 3)} ${code.slice(3, 6)}`;
+  if (code.length <= 4) return code;
+  if (code.length === 8) return `${code.slice(0, 4)} ${code.slice(4)}`;
+  return code.replace(/(.{3})(?=.)/g, '$1 ');
 }
 
 export function formatHistoryTime(value: string | null | undefined): string {
