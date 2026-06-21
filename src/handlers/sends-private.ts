@@ -16,6 +16,9 @@ import {
   formatSize,
   getAliasedProp,
   normalizeEmails,
+  notifySendCreateForRequest,
+  notifySendDeleteForRequest,
+  notifySendUpdateForRequest,
   notifyVaultSyncForRequest,
   parseDate,
   parseFileLength,
@@ -249,6 +252,7 @@ export async function handleCreateSend(request: Request, env: Env, userId: strin
   await storage.saveSend(send);
   const revisionDate = await storage.updateRevisionDate(userId);
   notifyVaultSyncForRequest(request, env, userId, revisionDate);
+  notifySendCreateForRequest(request, env, send.id, userId, revisionDate);
 
   return jsonResponse(sendToResponse(send));
 }
@@ -372,6 +376,7 @@ export async function handleCreateFileSendV2(request: Request, env: Env, userId:
   await storage.saveSend(send);
   const revisionDate = await storage.updateRevisionDate(userId);
   notifyVaultSyncForRequest(request, env, userId, revisionDate);
+  notifySendCreateForRequest(request, env, send.id, userId, revisionDate);
   const jwtSecret = getSafeJwtSecret(env);
   if (!jwtSecret) {
     return errorResponse('Server configuration error', 500);
@@ -619,6 +624,7 @@ export async function handleUpdateSend(request: Request, env: Env, userId: strin
   await storage.saveSend(send);
   const revisionDate = await storage.updateRevisionDate(userId);
   notifyVaultSyncForRequest(request, env, userId, revisionDate);
+  notifySendUpdateForRequest(request, env, send.id, userId, revisionDate);
 
   return jsonResponse(sendToResponse(send));
 }
@@ -641,6 +647,7 @@ export async function handleDeleteSend(request: Request, env: Env, userId: strin
   await storage.deleteSend(sendId, userId);
   const revisionDate = await storage.updateRevisionDate(userId);
   notifyVaultSyncForRequest(request, env, userId, revisionDate);
+  notifySendDeleteForRequest(request, env, sendId, userId, revisionDate);
   await writeSendAudit(storage, request, userId, 'send.delete', {
     id: sendId,
     type: send.type,
@@ -697,6 +704,7 @@ export async function handleRemoveSendPassword(request: Request, env: Env, userI
   await storage.saveSend(send);
   const revisionDate = await storage.updateRevisionDate(userId);
   notifyVaultSyncForRequest(request, env, userId, revisionDate);
+  notifySendUpdateForRequest(request, env, send.id, userId, revisionDate);
   await writeSendAudit(storage, request, userId, 'send.password.remove', {
     id: send.id,
     type: send.type,
@@ -718,6 +726,7 @@ export async function handleRemoveSendAuth(request: Request, env: Env, userId: s
   await storage.saveSend(send);
   const revisionDate = await storage.updateRevisionDate(userId);
   notifyVaultSyncForRequest(request, env, userId, revisionDate);
+  notifySendUpdateForRequest(request, env, send.id, userId, revisionDate);
   await writeSendAudit(storage, request, userId, 'send.auth.remove', {
     id: send.id,
     type: send.type,

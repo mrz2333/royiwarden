@@ -3,11 +3,21 @@ import type { Env } from '../types';
 
 const SIGNALR_RECORD_SEPARATOR = 0x1e;
 const SIGNALR_HANDSHAKE_ACK = new Uint8Array([0x7b, 0x7d, SIGNALR_RECORD_SEPARATOR]);
+const SIGNALR_UPDATE_TYPE_SYNC_CIPHER_UPDATE = 0;
+const SIGNALR_UPDATE_TYPE_SYNC_CIPHER_CREATE = 1;
+const SIGNALR_UPDATE_TYPE_SYNC_FOLDER_DELETE = 3;
+const SIGNALR_UPDATE_TYPE_SYNC_CIPHERS = 4;
 const SIGNALR_UPDATE_TYPE_SYNC_VAULT = 5;
+const SIGNALR_UPDATE_TYPE_SYNC_FOLDER_CREATE = 7;
+const SIGNALR_UPDATE_TYPE_SYNC_FOLDER_UPDATE = 8;
+const SIGNALR_UPDATE_TYPE_SYNC_CIPHER_DELETE = 9;
 const SIGNALR_UPDATE_TYPE_LOG_OUT = 11;
-const SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS = 13;
+const SIGNALR_UPDATE_TYPE_SYNC_SEND_CREATE = 12;
+const SIGNALR_UPDATE_TYPE_SYNC_SEND_UPDATE = 13;
+const SIGNALR_UPDATE_TYPE_SYNC_SEND_DELETE = 14;
 const SIGNALR_UPDATE_TYPE_AUTH_REQUEST = 15;
 const SIGNALR_UPDATE_TYPE_AUTH_REQUEST_RESPONSE = 16;
+const SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS = 102;
 
 type HubProtocol = 'json' | 'messagepack';
 type HubKind = 'user' | 'anonymous-auth-request';
@@ -420,6 +430,243 @@ export function notifyUserVaultSync(
   contextId?: string | null
 ): void {
   waitUntil(notifyUserUpdate(env, userId, SIGNALR_UPDATE_TYPE_SYNC_VAULT, revisionDate, contextId ?? null, null));
+}
+
+export function notifyUserCiphersSync(
+  env: Env,
+  userId: string,
+  revisionDate: string,
+  contextId?: string | null
+): void {
+  waitUntil(notifyUserUpdate(env, userId, SIGNALR_UPDATE_TYPE_SYNC_CIPHERS, revisionDate, contextId ?? null, null));
+}
+
+export function notifyUserCipherCreate(
+  env: Env,
+  payload: {
+    userId: string;
+    cipherId: string;
+    revisionDate: string;
+    organizationId?: string | null;
+    collectionIds?: string[] | null;
+    contextId?: string | null;
+  }
+): void {
+  waitUntil(notifyUserUpdate(
+    env,
+    payload.userId,
+    SIGNALR_UPDATE_TYPE_SYNC_CIPHER_CREATE,
+    payload.revisionDate,
+    payload.contextId ?? null,
+    null,
+    {
+      UserId: payload.userId,
+      Id: payload.cipherId,
+      OrganizationId: payload.organizationId ?? null,
+      CollectionIds: Array.isArray(payload.collectionIds) ? payload.collectionIds : null,
+      RevisionDate: payload.revisionDate,
+    }
+  ));
+}
+
+export function notifyUserCipherUpdate(
+  env: Env,
+  payload: {
+    userId: string;
+    cipherId: string;
+    revisionDate: string;
+    organizationId?: string | null;
+    collectionIds?: string[] | null;
+    contextId?: string | null;
+  }
+): void {
+  waitUntil(notifyUserUpdate(
+    env,
+    payload.userId,
+    SIGNALR_UPDATE_TYPE_SYNC_CIPHER_UPDATE,
+    payload.revisionDate,
+    payload.contextId ?? null,
+    null,
+    {
+      UserId: payload.userId,
+      Id: payload.cipherId,
+      OrganizationId: payload.organizationId ?? null,
+      CollectionIds: Array.isArray(payload.collectionIds) ? payload.collectionIds : null,
+      RevisionDate: payload.revisionDate,
+    }
+  ));
+}
+
+export function notifyUserCipherDelete(
+  env: Env,
+  payload: {
+    userId: string;
+    cipherId: string;
+    revisionDate: string;
+    organizationId?: string | null;
+    collectionIds?: string[] | null;
+    contextId?: string | null;
+  }
+): void {
+  waitUntil(notifyUserUpdate(
+    env,
+    payload.userId,
+    SIGNALR_UPDATE_TYPE_SYNC_CIPHER_DELETE,
+    payload.revisionDate,
+    payload.contextId ?? null,
+    null,
+    {
+      UserId: payload.userId,
+      Id: payload.cipherId,
+      OrganizationId: payload.organizationId ?? null,
+      CollectionIds: Array.isArray(payload.collectionIds) ? payload.collectionIds : null,
+      RevisionDate: payload.revisionDate,
+    }
+  ));
+}
+
+export function notifyUserFolderCreate(
+  env: Env,
+  payload: {
+    userId: string;
+    folderId: string;
+    revisionDate: string;
+    contextId?: string | null;
+  }
+): void {
+  waitUntil(notifyUserUpdate(
+    env,
+    payload.userId,
+    SIGNALR_UPDATE_TYPE_SYNC_FOLDER_CREATE,
+    payload.revisionDate,
+    payload.contextId ?? null,
+    null,
+    {
+      UserId: payload.userId,
+      Id: payload.folderId,
+      RevisionDate: payload.revisionDate,
+    }
+  ));
+}
+
+export function notifyUserFolderUpdate(
+  env: Env,
+  payload: {
+    userId: string;
+    folderId: string;
+    revisionDate: string;
+    contextId?: string | null;
+  }
+): void {
+  waitUntil(notifyUserUpdate(
+    env,
+    payload.userId,
+    SIGNALR_UPDATE_TYPE_SYNC_FOLDER_UPDATE,
+    payload.revisionDate,
+    payload.contextId ?? null,
+    null,
+    {
+      UserId: payload.userId,
+      Id: payload.folderId,
+      RevisionDate: payload.revisionDate,
+    }
+  ));
+}
+
+export function notifyUserFolderDelete(
+  env: Env,
+  payload: {
+    userId: string;
+    folderId: string;
+    revisionDate: string;
+    contextId?: string | null;
+  }
+): void {
+  waitUntil(notifyUserUpdate(
+    env,
+    payload.userId,
+    SIGNALR_UPDATE_TYPE_SYNC_FOLDER_DELETE,
+    payload.revisionDate,
+    payload.contextId ?? null,
+    null,
+    {
+      UserId: payload.userId,
+      Id: payload.folderId,
+      RevisionDate: payload.revisionDate,
+    }
+  ));
+}
+
+export function notifyUserSendCreate(
+  env: Env,
+  payload: {
+    userId: string;
+    sendId: string;
+    revisionDate: string;
+    contextId?: string | null;
+  }
+): void {
+  waitUntil(notifyUserUpdate(
+    env,
+    payload.userId,
+    SIGNALR_UPDATE_TYPE_SYNC_SEND_CREATE,
+    payload.revisionDate,
+    payload.contextId ?? null,
+    null,
+    {
+      UserId: payload.userId,
+      Id: payload.sendId,
+      RevisionDate: payload.revisionDate,
+    }
+  ));
+}
+
+export function notifyUserSendUpdate(
+  env: Env,
+  payload: {
+    userId: string;
+    sendId: string;
+    revisionDate: string;
+    contextId?: string | null;
+  }
+): void {
+  waitUntil(notifyUserUpdate(
+    env,
+    payload.userId,
+    SIGNALR_UPDATE_TYPE_SYNC_SEND_UPDATE,
+    payload.revisionDate,
+    payload.contextId ?? null,
+    null,
+    {
+      UserId: payload.userId,
+      Id: payload.sendId,
+      RevisionDate: payload.revisionDate,
+    }
+  ));
+}
+
+export function notifyUserSendDelete(
+  env: Env,
+  payload: {
+    userId: string;
+    sendId: string;
+    revisionDate: string;
+    contextId?: string | null;
+  }
+): void {
+  waitUntil(notifyUserUpdate(
+    env,
+    payload.userId,
+    SIGNALR_UPDATE_TYPE_SYNC_SEND_DELETE,
+    payload.revisionDate,
+    payload.contextId ?? null,
+    null,
+    {
+      UserId: payload.userId,
+      Id: payload.sendId,
+      RevisionDate: payload.revisionDate,
+    }
+  ));
 }
 
 export function notifyUserLogout(

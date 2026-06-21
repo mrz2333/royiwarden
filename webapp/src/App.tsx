@@ -136,8 +136,8 @@ const THEME_STORAGE_KEY = 'nodewarden.theme.preference.v1';
 const SIGNALR_RECORD_SEPARATOR = String.fromCharCode(0x1e);
 const SIGNALR_UPDATE_TYPE_SYNC_VAULT = 5;
 const SIGNALR_UPDATE_TYPE_LOG_OUT = 11;
-const SIGNALR_UPDATE_TYPE_DEVICE_STATUS = 12;
-const SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS = 13;
+const SIGNALR_UPDATE_TYPE_DEVICE_STATUS = 101;
+const SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS = 102;
 
 type ThemePreference = 'system' | 'light' | 'dark';
 type LockTimeoutMinutes = 0 | 1 | 5 | 15 | 30;
