@@ -102,6 +102,7 @@ async function processSendFileUpload(
   const storage = new StorageService(env.DB);
   const revisionDate = await storage.updateRevisionDate(send.userId);
   notifyVaultSyncForRequest(request, env, send.userId, revisionDate);
+  notifySendUpdateForRequest(request, env, send.id, send.userId, revisionDate);
 
   return new Response(null, { status: 201 });
 }

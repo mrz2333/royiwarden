@@ -20,6 +20,7 @@ import {
   saveProfileSnapshot,
   revokeCurrentSession,
   getTotpStatus,
+  getVaultRevisionDate,
   saveSession,
   stripProfileSecrets,
 } from '@/lib/api/auth';
@@ -33,7 +34,7 @@ import { clearAuditLogs, getAuditLogSettings, listAdminInvites, listAdminUsers, 
 import { getDomainRules, saveDomainRules } from '@/lib/api/domains';
 import { getSendById, getSends } from '@/lib/api/send';
 import { getCipherById, getFolderById, repairCipherKeyMismatches, repairCipherUriChecksums } from '@/lib/api/vault';
-import { getCachedVaultCoreSnapshot, invalidateVaultCoreSyncSnapshot, loadVaultCoreSyncSnapshot } from '@/lib/api/vault-sync';
+import { getCachedVaultCoreSnapshot, invalidateVaultCoreSyncSnapshot, loadVaultCoreSyncSnapshot, saveVaultCoreSyncSnapshot } from '@/lib/api/vault-sync';
 import { silentlyRepairBackupSettingsIfNeeded } from '@/lib/backup-settings-repair';
 import {
   parseSignalRTextFrames,
@@ -1361,7 +1362,15 @@ export default function App() {
     return items.filter((item) => String(item.id || '').trim() !== normalizedId);
   }
 
-  function patchVaultCoreSnapshot(updater: (snapshot: VaultCoreSnapshot) => VaultCoreSnapshot): void {
+  function revisionStampFromIso(value: unknown): number | null {
+    const stamp = new Date(String(value || '').trim()).getTime();
+    return Number.isFinite(stamp) && stamp > 0 ? stamp : null;
+  }
+
+  function patchVaultCoreSnapshot(
+    updater: (snapshot: VaultCoreSnapshot) => VaultCoreSnapshot,
+    options?: { revisionStamp?: number | null }
+  ): void {
     if (!vaultCacheKey) return;
     let nextSnapshot: VaultCoreSnapshot | null = null;
     queryClient.setQueryData(['vault-core', vaultCacheKey], (previous?: VaultCoreSnapshot) => {
@@ -1369,34 +1378,50 @@ export default function App() {
       nextSnapshot = updater(base);
       return nextSnapshot;
     });
-    if (nextSnapshot) setCachedVaultCore(nextSnapshot);
+    if (nextSnapshot) {
+      setCachedVaultCore(nextSnapshot);
+      void saveVaultCoreSyncSnapshot(vaultCacheKey, nextSnapshot, options?.revisionStamp ?? null);
+    }
   }
 
-  function upsertEncryptedCipher(cipher: Cipher): void {
+  async function refreshVaultCoreRevisionStamp(): Promise<void> {
+    if (!vaultCacheKey || !session?.accessToken) return;
+    try {
+      const revisionStamp = await getVaultRevisionDate(authedFetch);
+      const currentSnapshot = normalizeVaultCoreSnapshot(
+        queryClient.getQueryData<VaultCoreSnapshot>(['vault-core', vaultCacheKey]) || cachedVaultCore
+      );
+      await saveVaultCoreSyncSnapshot(vaultCacheKey, currentSnapshot, revisionStamp);
+    } catch {
+      // A stale revision stamp only affects the next cache validation; the local resource patch remains valid.
+    }
+  }
+
+  function upsertEncryptedCipher(cipher: Cipher, revisionStamp?: number | null): void {
     patchVaultCoreSnapshot((snapshot) => ({
       ...snapshot,
       ciphers: upsertById(snapshot.ciphers, cipher),
-    }));
+    }), { revisionStamp: revisionStamp ?? revisionStampFromIso(cipher.revisionDate) });
   }
 
-  function deleteCipherLocally(cipherId: string): void {
+  function deleteCipherLocally(cipherId: string, revisionStamp?: number | null): void {
     const id = String(cipherId || '').trim();
     if (!id) return;
     patchVaultCoreSnapshot((snapshot) => ({
       ...snapshot,
       ciphers: removeById(snapshot.ciphers, id),
-    }));
+    }), { revisionStamp });
     setDecryptedCiphers((current) => removeById(current, id));
   }
 
-  function upsertEncryptedFolder(folder: VaultFolder): void {
+  function upsertEncryptedFolder(folder: VaultFolder, revisionStamp?: number | null): void {
     patchVaultCoreSnapshot((snapshot) => ({
       ...snapshot,
       folders: upsertById(snapshot.folders, folder),
-    }));
+    }), { revisionStamp: revisionStamp ?? revisionStampFromIso(folder.revisionDate) });
   }
 
-  function deleteFolderLocally(folderId: string): void {
+  function deleteFolderLocally(folderId: string, revisionStamp?: number | null): void {
     const id = String(folderId || '').trim();
     if (!id) return;
     patchVaultCoreSnapshot((snapshot) => ({
@@ -1405,38 +1430,38 @@ export default function App() {
       ciphers: snapshot.ciphers.map((cipher) => (
         String(cipher.folderId || '').trim() === id ? { ...cipher, folderId: null } : cipher
       )),
-    }));
+    }), { revisionStamp });
     setDecryptedFolders((current) => removeById(current, id));
     setDecryptedCiphers((current) => current.map((cipher) => (
       String(cipher.folderId || '').trim() === id ? { ...cipher, folderId: null } : cipher
     )));
   }
 
-  function upsertEncryptedSend(send: Send): void {
+  function upsertEncryptedSend(send: Send, revisionStamp?: number | null): void {
     patchVaultCoreSnapshot((snapshot) => ({
       ...snapshot,
       sends: upsertById(snapshot.sends, send),
-    }));
+    }), { revisionStamp: revisionStamp ?? revisionStampFromIso(send.revisionDate) });
     queryClient.setQueryData(sendsQueryKey, (previous?: Send[]) => upsertById(Array.isArray(previous) ? previous : [], send));
   }
 
-  function deleteSendLocally(sendId: string): void {
+  function deleteSendLocally(sendId: string, revisionStamp?: number | null): void {
     const id = String(sendId || '').trim();
     if (!id) return;
     patchVaultCoreSnapshot((snapshot) => ({
       ...snapshot,
       sends: removeById(snapshot.sends, id),
-    }));
+    }), { revisionStamp });
     queryClient.setQueryData(sendsQueryKey, (previous?: Send[]) => removeById(Array.isArray(previous) ? previous : [], id));
     setDecryptedSends((current) => removeById(current, id));
   }
 
-  async function upsertCipherFromNotification(cipherId: string): Promise<void> {
+  async function upsertCipherFromNotification(cipherId: string, revisionStamp?: number | null): Promise<void> {
     const id = String(cipherId || '').trim();
     if (!id || !session?.symEncKey || !session?.symMacKey) return;
     try {
       const encrypted = await getCipherById(authedFetch, id);
-      upsertEncryptedCipher(encrypted);
+      upsertEncryptedCipher(encrypted, revisionStamp);
       const result = await decryptVaultCore({
         folders: [],
         ciphers: [encrypted],
@@ -1454,12 +1479,12 @@ export default function App() {
     }
   }
 
-  async function upsertFolderFromNotification(folderId: string): Promise<void> {
+  async function upsertFolderFromNotification(folderId: string, revisionStamp?: number | null): Promise<void> {
     const id = String(folderId || '').trim();
     if (!id || !session?.symEncKey || !session?.symMacKey) return;
     try {
       const encrypted = await getFolderById(authedFetch, id);
-      upsertEncryptedFolder(encrypted);
+      upsertEncryptedFolder(encrypted, revisionStamp);
       const result = await decryptVaultCore({
         folders: [encrypted],
         ciphers: [],
@@ -1477,12 +1502,12 @@ export default function App() {
     }
   }
 
-  async function upsertSendFromNotification(sendId: string): Promise<void> {
+  async function upsertSendFromNotification(sendId: string, revisionStamp?: number | null): Promise<void> {
     const id = String(sendId || '').trim();
     if (!id || !session?.symEncKey || !session?.symMacKey) return;
     try {
       const encrypted = await getSendById(authedFetch, id);
-      upsertEncryptedSend(encrypted);
+      upsertEncryptedSend(encrypted, revisionStamp);
       const sends = await decryptSends({
         sends: [encrypted],
         symEncKeyB64: session.symEncKey,
@@ -1576,11 +1601,18 @@ export default function App() {
         const frames = parseSignalRTextFrames(event.data);
         for (const frame of frames) {
           if (frame.type !== 1 || frame.target !== 'ReceiveMessage') continue;
-          const updateType = Number(frame.arguments?.[0]?.Type || 0);
-          const contextId = String(frame.arguments?.[0]?.ContextId || '').trim();
-          const payload = frame.arguments?.[0]?.Payload;
+          const message = frame.arguments?.[0] as Record<string, unknown> | undefined;
+          const updateType = Number(message?.Type || 0);
+          const contextId = String(message?.ContextId || '').trim();
+          const payload = message?.Payload;
           const payloadRecord = payload && typeof payload === 'object' ? payload as Record<string, unknown> : null;
           const resourceId = String(payloadRecord?.Id || payloadRecord?.id || '').trim();
+          const revisionStamp = revisionStampFromIso(
+            payloadRecord?.RevisionDate
+            || payloadRecord?.revisionDate
+            || message?.Date
+            || message?.date
+          );
           if (updateType === SIGNALR_UPDATE_TYPE_LOG_OUT) {
             logoutNow();
             return;
@@ -1590,7 +1622,6 @@ export default function App() {
             continue;
           }
           if (updateType === SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS) {
-            const payload = frame.arguments?.[0]?.Payload;
             if (isBackupProgressDetail(payload)) dispatchBackupProgress(payload);
             continue;
           }
@@ -1606,27 +1637,27 @@ export default function App() {
             continue;
           }
           if ((updateType === SIGNALR_UPDATE_TYPE_SYNC_CIPHER_CREATE || updateType === SIGNALR_UPDATE_TYPE_SYNC_CIPHER_UPDATE) && resourceId) {
-            void upsertCipherFromNotification(resourceId);
+            void upsertCipherFromNotification(resourceId, revisionStamp);
             continue;
           }
           if (updateType === SIGNALR_UPDATE_TYPE_SYNC_CIPHER_DELETE && resourceId) {
-            deleteCipherLocally(resourceId);
+            deleteCipherLocally(resourceId, revisionStamp);
             continue;
           }
           if ((updateType === SIGNALR_UPDATE_TYPE_SYNC_FOLDER_CREATE || updateType === SIGNALR_UPDATE_TYPE_SYNC_FOLDER_UPDATE) && resourceId) {
-            void upsertFolderFromNotification(resourceId);
+            void upsertFolderFromNotification(resourceId, revisionStamp);
             continue;
           }
           if (updateType === SIGNALR_UPDATE_TYPE_SYNC_FOLDER_DELETE && resourceId) {
-            deleteFolderLocally(resourceId);
+            deleteFolderLocally(resourceId, revisionStamp);
             continue;
           }
           if ((updateType === SIGNALR_UPDATE_TYPE_SYNC_SEND_CREATE || updateType === SIGNALR_UPDATE_TYPE_SYNC_SEND_UPDATE) && resourceId) {
-            void upsertSendFromNotification(resourceId);
+            void upsertSendFromNotification(resourceId, revisionStamp);
             continue;
           }
           if (updateType === SIGNALR_UPDATE_TYPE_SYNC_SEND_DELETE && resourceId) {
-            deleteSendLocally(resourceId);
+            deleteSendLocally(resourceId, revisionStamp);
             continue;
           }
           if (updateType === SIGNALR_UPDATE_TYPE_SYNC_VAULT) continue;
@@ -1688,8 +1719,33 @@ export default function App() {
     },
     refetchSends: refetchSendsFromVaultCore,
     onNotify: pushToast,
+    patchEncryptedCiphers: (updater) => {
+      patchVaultCoreSnapshot((snapshot) => ({
+        ...snapshot,
+        ciphers: updater(snapshot.ciphers),
+      }));
+    },
+    patchEncryptedFolders: (updater) => {
+      patchVaultCoreSnapshot((snapshot) => ({
+        ...snapshot,
+        folders: updater(snapshot.folders),
+      }));
+    },
+    patchEncryptedSends: (updater) => {
+      let nextSends: Send[] = [];
+      patchVaultCoreSnapshot((snapshot) => {
+        nextSends = updater(snapshot.sends);
+        return {
+          ...snapshot,
+          sends: nextSends,
+        };
+      });
+      queryClient.setQueryData(sendsQueryKey, nextSends);
+    },
     patchDecryptedCiphers: setDecryptedCiphers,
     patchDecryptedFolders: setDecryptedFolders,
+    patchDecryptedSends: setDecryptedSends,
+    refreshVaultRevisionStamp: refreshVaultCoreRevisionStamp,
   });
   const accountSecurityActions = useAccountSecurityActions({
     authedFetch,

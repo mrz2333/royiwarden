@@ -43,7 +43,7 @@ export async function createFolder(
   authedFetch: AuthedFetch,
   session: SessionState,
   name: string
-): Promise<{ id: string; name?: string | null }> {
+): Promise<Folder> {
   if (!session.symEncKey || !session.symMacKey) throw new Error('Vault key unavailable');
   const enc = base64ToBytes(session.symEncKey);
   const mac = base64ToBytes(session.symMacKey);
@@ -54,9 +54,9 @@ export async function createFolder(
     body: JSON.stringify({ name: encryptedName }),
   });
   if (!resp.ok) throw new Error('Create folder failed');
-  const body = await parseJson<{ id?: string; name?: string | null }>(resp);
+  const body = await parseJson<Folder>(resp);
   if (!body?.id) throw new Error('Create folder failed');
-  return { id: body.id, name: body.name ?? null };
+  return body;
 }
 
 export async function encryptFolderImportName(session: SessionState, name: string): Promise<string> {
@@ -92,7 +92,7 @@ export async function updateFolder(
   session: SessionState,
   folderId: string,
   name: string
-): Promise<void> {
+): Promise<Folder> {
   const id = String(folderId || '').trim();
   if (!id) throw new Error('Folder id is required');
   if (!session.symEncKey || !session.symMacKey) throw new Error('Vault key unavailable');
@@ -105,6 +105,9 @@ export async function updateFolder(
     body: JSON.stringify({ name: encryptedName }),
   });
   if (!resp.ok) throw new Error('Update folder failed');
+  const body = await parseJson<Folder>(resp);
+  if (!body?.id) throw new Error('Update folder failed');
+  return body;
 }
 
 export async function getCiphers(authedFetch: AuthedFetch, cacheKey: string): Promise<Cipher[]> {
