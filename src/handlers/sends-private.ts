@@ -683,6 +683,9 @@ export async function handleBulkDeleteSends(request: Request, env: Env, userId: 
   const revisionDate = await storage.bulkDeleteSends(body.ids, userId);
   if (revisionDate) {
     notifyVaultSyncForRequest(request, env, userId, revisionDate);
+    for (const send of sends) {
+      notifySendDeleteForRequest(request, env, send.id, userId, revisionDate);
+    }
     await writeSendAudit(storage, request, userId, 'send.delete.bulk', {
       count: sends.length,
       requestedCount: body.ids.length,

@@ -202,9 +202,23 @@ export async function handleBulkDeleteFolders(request: Request, env: Env, userId
     return errorResponse('Folder ids are required', 400);
   }
 
+  const folders = (
+    await Promise.all(ids.map(async (id) => {
+      const folder = await storage.getFolder(id);
+      return folder && folder.userId === userId ? folder : null;
+    }))
+  ).filter((folder): folder is Folder => !!folder);
   const revisionDate = await storage.bulkDeleteFolders(ids, userId);
   if (revisionDate) {
     notifyVaultSyncForRequest(request, env, userId, revisionDate);
+    for (const folder of folders) {
+      notifyUserFolderDelete(env, {
+        userId,
+        folderId: folder.id,
+        revisionDate,
+        contextId: readActingDeviceIdentifier(request),
+      });
+    }
     await writeFolderAudit(storage, request, userId, 'folder.delete.bulk', {
       count: ids.length,
     });

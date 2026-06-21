@@ -31,8 +31,8 @@ import {
 } from '@/lib/api/auth-requests';
 import { clearAuditLogs, getAuditLogSettings, listAdminInvites, listAdminUsers, listAuditLogs, saveAuditLogSettings, type AuditLogFilters } from '@/lib/api/admin';
 import { getDomainRules, saveDomainRules } from '@/lib/api/domains';
-import { getSends } from '@/lib/api/send';
-import { repairCipherKeyMismatches, repairCipherUriChecksums } from '@/lib/api/vault';
+import { getSendById, getSends } from '@/lib/api/send';
+import { getCipherById, getFolderById, repairCipherKeyMismatches, repairCipherUriChecksums } from '@/lib/api/vault';
 import { getCachedVaultCoreSnapshot, invalidateVaultCoreSyncSnapshot, loadVaultCoreSyncSnapshot } from '@/lib/api/vault-sync';
 import { silentlyRepairBackupSettingsIfNeeded } from '@/lib/backup-settings-repair';
 import {
@@ -134,8 +134,18 @@ function normalizeRoutePath(path: string): string {
 }
 const THEME_STORAGE_KEY = 'nodewarden.theme.preference.v1';
 const SIGNALR_RECORD_SEPARATOR = String.fromCharCode(0x1e);
+const SIGNALR_UPDATE_TYPE_SYNC_CIPHER_UPDATE = 0;
+const SIGNALR_UPDATE_TYPE_SYNC_CIPHER_CREATE = 1;
+const SIGNALR_UPDATE_TYPE_SYNC_FOLDER_DELETE = 3;
+const SIGNALR_UPDATE_TYPE_SYNC_CIPHERS = 4;
 const SIGNALR_UPDATE_TYPE_SYNC_VAULT = 5;
+const SIGNALR_UPDATE_TYPE_SYNC_FOLDER_CREATE = 7;
+const SIGNALR_UPDATE_TYPE_SYNC_FOLDER_UPDATE = 8;
+const SIGNALR_UPDATE_TYPE_SYNC_CIPHER_DELETE = 9;
 const SIGNALR_UPDATE_TYPE_LOG_OUT = 11;
+const SIGNALR_UPDATE_TYPE_SYNC_SEND_CREATE = 12;
+const SIGNALR_UPDATE_TYPE_SYNC_SEND_UPDATE = 13;
+const SIGNALR_UPDATE_TYPE_SYNC_SEND_DELETE = 14;
 const SIGNALR_UPDATE_TYPE_DEVICE_STATUS = 101;
 const SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS = 102;
 
@@ -1327,6 +1337,169 @@ export default function App() {
 
   silentRefreshVaultRef.current = refreshVaultSilently;
 
+  function normalizeVaultCoreSnapshot(snapshot?: Partial<VaultCoreSnapshot> | null): VaultCoreSnapshot {
+    return {
+      ciphers: Array.isArray(snapshot?.ciphers) ? snapshot.ciphers : [],
+      folders: Array.isArray(snapshot?.folders) ? snapshot.folders : [],
+      sends: Array.isArray(snapshot?.sends) ? snapshot.sends : [],
+    };
+  }
+
+  function upsertById<T extends { id: string }>(items: T[], nextItem: T): T[] {
+    const nextId = String(nextItem.id || '').trim();
+    if (!nextId) return items;
+    const index = items.findIndex((item) => String(item.id || '').trim() === nextId);
+    if (index < 0) return [...items, nextItem];
+    const next = items.slice();
+    next[index] = nextItem;
+    return next;
+  }
+
+  function removeById<T extends { id: string }>(items: T[], id: string): T[] {
+    const normalizedId = String(id || '').trim();
+    if (!normalizedId) return items;
+    return items.filter((item) => String(item.id || '').trim() !== normalizedId);
+  }
+
+  function patchVaultCoreSnapshot(updater: (snapshot: VaultCoreSnapshot) => VaultCoreSnapshot): void {
+    if (!vaultCacheKey) return;
+    let nextSnapshot: VaultCoreSnapshot | null = null;
+    queryClient.setQueryData(['vault-core', vaultCacheKey], (previous?: VaultCoreSnapshot) => {
+      const base = normalizeVaultCoreSnapshot(previous || cachedVaultCore);
+      nextSnapshot = updater(base);
+      return nextSnapshot;
+    });
+    if (nextSnapshot) setCachedVaultCore(nextSnapshot);
+  }
+
+  function upsertEncryptedCipher(cipher: Cipher): void {
+    patchVaultCoreSnapshot((snapshot) => ({
+      ...snapshot,
+      ciphers: upsertById(snapshot.ciphers, cipher),
+    }));
+  }
+
+  function deleteCipherLocally(cipherId: string): void {
+    const id = String(cipherId || '').trim();
+    if (!id) return;
+    patchVaultCoreSnapshot((snapshot) => ({
+      ...snapshot,
+      ciphers: removeById(snapshot.ciphers, id),
+    }));
+    setDecryptedCiphers((current) => removeById(current, id));
+  }
+
+  function upsertEncryptedFolder(folder: VaultFolder): void {
+    patchVaultCoreSnapshot((snapshot) => ({
+      ...snapshot,
+      folders: upsertById(snapshot.folders, folder),
+    }));
+  }
+
+  function deleteFolderLocally(folderId: string): void {
+    const id = String(folderId || '').trim();
+    if (!id) return;
+    patchVaultCoreSnapshot((snapshot) => ({
+      ...snapshot,
+      folders: removeById(snapshot.folders, id),
+      ciphers: snapshot.ciphers.map((cipher) => (
+        String(cipher.folderId || '').trim() === id ? { ...cipher, folderId: null } : cipher
+      )),
+    }));
+    setDecryptedFolders((current) => removeById(current, id));
+    setDecryptedCiphers((current) => current.map((cipher) => (
+      String(cipher.folderId || '').trim() === id ? { ...cipher, folderId: null } : cipher
+    )));
+  }
+
+  function upsertEncryptedSend(send: Send): void {
+    patchVaultCoreSnapshot((snapshot) => ({
+      ...snapshot,
+      sends: upsertById(snapshot.sends, send),
+    }));
+    queryClient.setQueryData(sendsQueryKey, (previous?: Send[]) => upsertById(Array.isArray(previous) ? previous : [], send));
+  }
+
+  function deleteSendLocally(sendId: string): void {
+    const id = String(sendId || '').trim();
+    if (!id) return;
+    patchVaultCoreSnapshot((snapshot) => ({
+      ...snapshot,
+      sends: removeById(snapshot.sends, id),
+    }));
+    queryClient.setQueryData(sendsQueryKey, (previous?: Send[]) => removeById(Array.isArray(previous) ? previous : [], id));
+    setDecryptedSends((current) => removeById(current, id));
+  }
+
+  async function upsertCipherFromNotification(cipherId: string): Promise<void> {
+    const id = String(cipherId || '').trim();
+    if (!id || !session?.symEncKey || !session?.symMacKey) return;
+    try {
+      const encrypted = await getCipherById(authedFetch, id);
+      upsertEncryptedCipher(encrypted);
+      const result = await decryptVaultCore({
+        folders: [],
+        ciphers: [encrypted],
+        symEncKeyB64: session.symEncKey,
+        symMacKeyB64: session.symMacKey,
+      });
+      const decrypted = result.ciphers[0];
+      if (decrypted) setDecryptedCiphers((current) => upsertById(current, decrypted));
+    } catch (error) {
+      if ((error as { status?: number }).status === 404) {
+        deleteCipherLocally(id);
+        return;
+      }
+      console.warn('Failed to upsert cipher from notification:', error);
+    }
+  }
+
+  async function upsertFolderFromNotification(folderId: string): Promise<void> {
+    const id = String(folderId || '').trim();
+    if (!id || !session?.symEncKey || !session?.symMacKey) return;
+    try {
+      const encrypted = await getFolderById(authedFetch, id);
+      upsertEncryptedFolder(encrypted);
+      const result = await decryptVaultCore({
+        folders: [encrypted],
+        ciphers: [],
+        symEncKeyB64: session.symEncKey,
+        symMacKeyB64: session.symMacKey,
+      });
+      const decrypted = result.folders[0];
+      if (decrypted) setDecryptedFolders((current) => upsertById(current, decrypted));
+    } catch (error) {
+      if ((error as { status?: number }).status === 404) {
+        deleteFolderLocally(id);
+        return;
+      }
+      console.warn('Failed to upsert folder from notification:', error);
+    }
+  }
+
+  async function upsertSendFromNotification(sendId: string): Promise<void> {
+    const id = String(sendId || '').trim();
+    if (!id || !session?.symEncKey || !session?.symMacKey) return;
+    try {
+      const encrypted = await getSendById(authedFetch, id);
+      upsertEncryptedSend(encrypted);
+      const sends = await decryptSends({
+        sends: [encrypted],
+        symEncKeyB64: session.symEncKey,
+        symMacKeyB64: session.symMacKey,
+        origin: window.location.origin,
+      });
+      const decrypted = sends[0];
+      if (decrypted) setDecryptedSends((current) => upsertById(current, decrypted));
+    } catch (error) {
+      if ((error as { status?: number }).status === 404) {
+        deleteSendLocally(id);
+        return;
+      }
+      console.warn('Failed to upsert send from notification:', error);
+    }
+  }
+
   useEffect(() => {
     if (IS_DEMO_MODE) return;
     if (phase !== 'app' || !session?.accessToken || !session?.symEncKey || !session?.symMacKey || !vaultInitialDecryptDone) return;
@@ -1404,6 +1577,10 @@ export default function App() {
         for (const frame of frames) {
           if (frame.type !== 1 || frame.target !== 'ReceiveMessage') continue;
           const updateType = Number(frame.arguments?.[0]?.Type || 0);
+          const contextId = String(frame.arguments?.[0]?.ContextId || '').trim();
+          const payload = frame.arguments?.[0]?.Payload;
+          const payloadRecord = payload && typeof payload === 'object' ? payload as Record<string, unknown> : null;
+          const resourceId = String(payloadRecord?.Id || payloadRecord?.id || '').trim();
           if (updateType === SIGNALR_UPDATE_TYPE_LOG_OUT) {
             logoutNow();
             return;
@@ -1417,16 +1594,42 @@ export default function App() {
             if (isBackupProgressDetail(payload)) dispatchBackupProgress(payload);
             continue;
           }
-          if (updateType !== SIGNALR_UPDATE_TYPE_SYNC_VAULT) continue;
-          const contextId = String(frame.arguments?.[0]?.ContextId || '').trim();
           if (contextId && contextId === getCurrentDeviceIdentifier()) continue;
-          if (notificationRefreshTimerRef.current !== null) {
-            window.clearTimeout(notificationRefreshTimerRef.current);
+          if (updateType === SIGNALR_UPDATE_TYPE_SYNC_CIPHERS) {
+            if (notificationRefreshTimerRef.current !== null) {
+              window.clearTimeout(notificationRefreshTimerRef.current);
+            }
+            notificationRefreshTimerRef.current = window.setTimeout(() => {
+              notificationRefreshTimerRef.current = null;
+              void silentRefreshVaultRef.current();
+            }, 250);
+            continue;
           }
-          notificationRefreshTimerRef.current = window.setTimeout(() => {
-            notificationRefreshTimerRef.current = null;
-            void silentRefreshVaultRef.current();
-          }, 250);
+          if ((updateType === SIGNALR_UPDATE_TYPE_SYNC_CIPHER_CREATE || updateType === SIGNALR_UPDATE_TYPE_SYNC_CIPHER_UPDATE) && resourceId) {
+            void upsertCipherFromNotification(resourceId);
+            continue;
+          }
+          if (updateType === SIGNALR_UPDATE_TYPE_SYNC_CIPHER_DELETE && resourceId) {
+            deleteCipherLocally(resourceId);
+            continue;
+          }
+          if ((updateType === SIGNALR_UPDATE_TYPE_SYNC_FOLDER_CREATE || updateType === SIGNALR_UPDATE_TYPE_SYNC_FOLDER_UPDATE) && resourceId) {
+            void upsertFolderFromNotification(resourceId);
+            continue;
+          }
+          if (updateType === SIGNALR_UPDATE_TYPE_SYNC_FOLDER_DELETE && resourceId) {
+            deleteFolderLocally(resourceId);
+            continue;
+          }
+          if ((updateType === SIGNALR_UPDATE_TYPE_SYNC_SEND_CREATE || updateType === SIGNALR_UPDATE_TYPE_SYNC_SEND_UPDATE) && resourceId) {
+            void upsertSendFromNotification(resourceId);
+            continue;
+          }
+          if (updateType === SIGNALR_UPDATE_TYPE_SYNC_SEND_DELETE && resourceId) {
+            deleteSendLocally(resourceId);
+            continue;
+          }
+          if (updateType === SIGNALR_UPDATE_TYPE_SYNC_VAULT) continue;
         }
       });
 

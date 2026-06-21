@@ -10,6 +10,7 @@ import type {
 import {
   BULK_API_CHUNK_SIZE,
   chunkArray,
+  createApiError,
   parseErrorMessage,
   parseJson,
   uploadDirectEncryptedPayload,
@@ -25,6 +26,17 @@ const NODEWARDEN_WEB_REPAIR_HEADER = 'X-NodeWarden-Web';
 export async function getFolders(authedFetch: AuthedFetch, cacheKey: string): Promise<Folder[]> {
   const body = await loadVaultCoreSyncSnapshot(authedFetch, cacheKey);
   return body.folders || [];
+}
+
+export async function getFolderById(authedFetch: AuthedFetch, folderId: string): Promise<Folder> {
+  const id = String(folderId || '').trim();
+  if (!id) throw new Error('Folder id is required');
+  const resp = await authedFetch(`/api/folders/${encodeURIComponent(id)}`);
+  if (resp.status === 404) throw createApiError('Folder not found', 404);
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, 'Load folder failed'));
+  const body = await parseJson<Folder>(resp);
+  if (!body?.id) throw new Error('Load folder failed');
+  return body;
 }
 
 export async function createFolder(
@@ -98,6 +110,17 @@ export async function updateFolder(
 export async function getCiphers(authedFetch: AuthedFetch, cacheKey: string): Promise<Cipher[]> {
   const body = await loadVaultCoreSyncSnapshot(authedFetch, cacheKey);
   return body.ciphers || [];
+}
+
+export async function getCipherById(authedFetch: AuthedFetch, cipherId: string): Promise<Cipher> {
+  const id = String(cipherId || '').trim();
+  if (!id) throw new Error('Cipher id is required');
+  const resp = await authedFetch(`/api/ciphers/${encodeURIComponent(id)}`);
+  if (resp.status === 404) throw createApiError('Cipher not found', 404);
+  if (!resp.ok) throw new Error(await parseErrorMessage(resp, 'Load cipher failed'));
+  const body = await parseJson<Cipher>(resp);
+  if (!body?.id) throw new Error('Load cipher failed');
+  return body;
 }
 
 export interface CiphersImportPayload {
