@@ -31,6 +31,14 @@ function notifyVaultSyncForRequest(
   notifyUserVaultSync(env, userId, revisionDate, readActingDeviceIdentifier(request));
 }
 
+function contentDispositionAttachment(fileName: string | null | undefined): string {
+  const fallback = 'attachment';
+  const value = String(fileName || fallback)
+    .replace(/[\r\n"]/g, '_')
+    .trim() || fallback;
+  return `attachment; filename="${value}"`;
+}
+
 async function writeAttachmentAudit(
   storage: StorageService,
   request: Request,
@@ -415,7 +423,9 @@ export async function handlePublicDownloadAttachment(
     headers: {
       'Content-Type': object.contentType || 'application/octet-stream',
       'Content-Length': String(object.size),
+      'Content-Disposition': contentDispositionAttachment(attachment.fileName),
       'Cache-Control': 'private, no-cache',
+      'X-Content-Type-Options': 'nosniff',
     },
   });
 }
@@ -463,9 +473,13 @@ export async function handleDeleteAttachment(
   // Get updated cipher for response
   const updatedCipher = await storage.getCipher(cipherId);
   const attachments = await storage.getAttachmentsByCipher(cipherId);
+  const cipherResponse = cipherToResponse(updatedCipher!, attachments);
 
   return jsonResponse({
-    cipher: cipherToResponse(updatedCipher!, attachments),
+    Cipher: cipherResponse,
+    cipher: cipherResponse,
+    Object: 'deleteAttachment',
+    object: 'deleteAttachment',
   });
 }
 

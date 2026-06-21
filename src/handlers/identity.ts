@@ -140,6 +140,20 @@ function buildPreloginResponse(
   };
 }
 
+function masterPasswordPolicyResponse(): TokenResponse['MasterPasswordPolicy'] {
+  return {
+    minComplexity: 0,
+    minLength: 0,
+    requireUpper: false,
+    requireLower: false,
+    requireNumbers: false,
+    requireSpecial: false,
+    enforceOnLogin: false,
+    Object: 'masterPasswordPolicy',
+    object: 'masterPasswordPolicy',
+  };
+}
+
 function twoFactorRequiredResponse(message: string = 'Two factor required.'): Response {
   // Match Bitwarden Identity: TwoFactorProviders2 lists enabled 2FA providers only.
   // Clients expose recovery-code entry points themselves; Android 2026.4 fails to
@@ -151,9 +165,7 @@ function twoFactorRequiredResponse(message: string = 'Two factor required.'): Re
     TwoFactorProviders: providers,
     TwoFactorProviders2: providers2,
     SsoEmail2faSessionToken: null,
-    MasterPasswordPolicy: {
-      Object: 'masterPasswordPolicy',
-    },
+    MasterPasswordPolicy: masterPasswordPolicyResponse(),
   };
 
   // Bitwarden clients rely on these fields to trigger the 2FA UI flow.
@@ -446,9 +458,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       KdfParallelism: user.kdfParallelism,
       ForcePasswordReset: false,
       ResetMasterPassword: false,
-      MasterPasswordPolicy: {
-        Object: 'masterPasswordPolicy',
-      },
+      MasterPasswordPolicy: masterPasswordPolicyResponse(),
       ApiUseKeyConnector: false,
       scope: 'api offline_access',
       unofficialServer: true,
@@ -566,9 +576,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       KdfParallelism: user.kdfParallelism,
       ForcePasswordReset: false,
       ResetMasterPassword: false,
-      MasterPasswordPolicy: {
-        Object: 'masterPasswordPolicy',
-      },
+      MasterPasswordPolicy: masterPasswordPolicyResponse(),
       ApiUseKeyConnector: false,
       scope: 'api offline_access',
       unofficialServer: true,
@@ -696,9 +704,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       KdfParallelism: user.kdfParallelism,
       ForcePasswordReset: false,
       ResetMasterPassword: false,
-      MasterPasswordPolicy: {
-        Object: 'masterPasswordPolicy',
-      },
+      MasterPasswordPolicy: masterPasswordPolicyResponse(),
       ApiUseKeyConnector: false,
       scope: 'api offline_access',
       unofficialServer: true,
@@ -836,9 +842,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       KdfParallelism: user.kdfParallelism,
       ForcePasswordReset: false,
       ResetMasterPassword: false,
-      MasterPasswordPolicy: {
-        Object: 'masterPasswordPolicy',
-      },
+      MasterPasswordPolicy: masterPasswordPolicyResponse(),
       ApiUseKeyConnector: false,
       scope: 'api offline_access',
       unofficialServer: true,

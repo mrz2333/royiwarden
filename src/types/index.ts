@@ -465,7 +465,15 @@ export interface TokenResponse {
   scope: string;
   unofficialServer: boolean;
   MasterPasswordPolicy?: {
+    minComplexity: number;
+    minLength: number;
+    requireUpper: boolean;
+    requireLower: boolean;
+    requireNumbers: boolean;
+    requireSpecial: boolean;
+    enforceOnLogin: boolean;
     Object: string;
+    object?: string;
   } | null;
   ApiUseKeyConnector?: boolean;
   AccountKeys?: any | null;
@@ -494,12 +502,13 @@ export interface ProfileResponse {
   accountKeys: any | null;
   securityStamp: string;
   organizations: any[];
+  organizationsNew?: any[];
   providers: any[];
   providerOrganizations: any[];
   forcePasswordReset: boolean;
   avatarColor: string | null;
   creationDate: string;
-  verifyDevices?: boolean;
+  verifyDevices: boolean;
   role?: UserRole;
   status?: UserStatus;
   object: string;
@@ -558,6 +567,7 @@ export interface SyncResponse {
   ciphers: CipherResponse[];
   domains: any;
   policies: any[];
+  policiesNew?: any[];
   sends: SendResponse[];
   UserDecryption?: {
     MasterPasswordUnlock: MasterPasswordUnlock | null;
@@ -565,6 +575,10 @@ export interface SyncResponse {
     KeyConnectorOption?: null;
     WebAuthnPrfOption?: WebAuthnPrfDecryptionOption | null;
     WebAuthnPrfOptions?: WebAuthnPrfDecryptionOption[];
+    V2UpgradeToken?: {
+      WrappedUserKey1: string;
+      WrappedUserKey2: string;
+    } | null;
     Object?: string;
   } | null;
   // PascalCase for desktop/browser clients

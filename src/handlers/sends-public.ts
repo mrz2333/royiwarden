@@ -33,6 +33,14 @@ import {
   verifySendPasswordHashB64,
 } from './sends-shared';
 
+function contentDispositionAttachment(fileName: string | null | undefined): string {
+  const fallback = 'send-file';
+  const value = String(fileName || fallback)
+    .replace(/[\r\n"]/g, '_')
+    .trim() || fallback;
+  return `attachment; filename="${value}"`;
+}
+
 export async function handleAccessSend(request: Request, env: Env, accessId: string): Promise<Response> {
   const storage = new StorageService(env.DB);
   const sendId = fromAccessId(accessId);
@@ -282,6 +290,9 @@ export async function handleDownloadSendFile(
   if (!object) {
     return errorResponse('Send file not found', 404);
   }
+  const send = await storage.getSend(sendId);
+  const data = send ? parseStoredSendData(send) : {};
+  const fileName = typeof data.fileName === 'string' ? data.fileName : fileId;
 
   const firstUse = await storage.consumeAttachmentDownloadToken(`send:${claims.jti}`, claims.exp);
   if (!firstUse) {
@@ -292,7 +303,9 @@ export async function handleDownloadSendFile(
     headers: {
       'Content-Type': object.contentType || 'application/octet-stream',
       'Content-Length': String(object.size),
+      'Content-Disposition': contentDispositionAttachment(fileName),
       'Cache-Control': 'private, no-cache',
+      'X-Content-Type-Options': 'nosniff',
     },
   });
 }
