@@ -48,6 +48,22 @@ function normalizeOptionalId(value: unknown): string | null {
   return normalized ? normalized : null;
 }
 
+function readBooleanOrFallback(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function buildCipherPermissions(passthrough: Record<string, unknown>): { delete: boolean; restore: boolean } {
+  const raw = passthrough.permissions;
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? raw as Record<string, unknown>
+    : null;
+
+  return {
+    delete: readBooleanOrFallback(source?.delete, true),
+    restore: readBooleanOrFallback(source?.restore, true),
+  };
+}
+
 function notifyVaultSyncForRequest(
   request: Request,
   env: Env,
@@ -705,6 +721,7 @@ export function cipherToResponse(
     ? normalizeCipherSecureNoteForCompatibility((passthrough as any).secureNote ?? null) ?? { type: 0 }
     : null;
   const responseAttachments = applyCipherEmbeddedAttachmentMetadata(cipher, attachments);
+  const responsePermissions = buildCipherPermissions(passthrough);
 
   return {
     // Pass through ALL stored cipher fields (known + unknown)
@@ -718,12 +735,9 @@ export function cipherToResponse(
     revisionDate: updatedAt,
     deletedDate: deletedAt,
     archivedDate: archivedAt ?? null,
-    edit: true,
-    viewPassword: true,
-    permissions: {
-      delete: true,
-      restore: true,
-    },
+    edit: readBooleanOrFallback((passthrough as any).edit, true),
+    viewPassword: readBooleanOrFallback((passthrough as any).viewPassword, true),
+    permissions: responsePermissions,
     object: 'cipherDetails',
     collectionIds: Array.isArray((passthrough as any).collectionIds) ? (passthrough as any).collectionIds : [],
     attachments: formatAttachments(responseAttachments),
