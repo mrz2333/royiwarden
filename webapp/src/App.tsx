@@ -147,6 +147,8 @@ const SIGNALR_UPDATE_TYPE_LOG_OUT = 11;
 const SIGNALR_UPDATE_TYPE_SYNC_SEND_CREATE = 12;
 const SIGNALR_UPDATE_TYPE_SYNC_SEND_UPDATE = 13;
 const SIGNALR_UPDATE_TYPE_SYNC_SEND_DELETE = 14;
+const SIGNALR_UPDATE_TYPE_AUTH_REQUEST = 15;
+const SIGNALR_UPDATE_TYPE_AUTH_REQUEST_RESPONSE = 16;
 const SIGNALR_UPDATE_TYPE_DEVICE_STATUS = 101;
 const SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS = 102;
 
@@ -260,6 +262,7 @@ export default function App() {
   const sessionRef = useRef<SessionState | null>(initialBootstrap.session);
   const silentRefreshVaultRef = useRef<() => Promise<void>>(async () => {});
   const refreshAuthorizedDevicesRef = useRef<() => Promise<void>>(async () => {});
+  const refreshPendingAuthRequestsRef = useRef<() => Promise<void>>(async () => {});
   const repairAttemptRef = useRef<string>('');
   const uriChecksumRepairAttemptRef = useRef<string>('');
   const pendingVaultCoreQueryRefreshRef = useRef<Promise<{ data?: VaultCoreSnapshot } | unknown> | null>(null);
@@ -1083,8 +1086,9 @@ export default function App() {
     enabled: !IS_DEMO_MODE && phase === 'app' && !!session?.accessToken && vaultInitialDecryptDone,
     staleTime: 30_000,
   });
+  const pendingAuthRequestsQueryKey = useMemo(() => ['auth-requests-pending', vaultCacheKey || session?.email] as const, [vaultCacheKey, session?.email]);
   const pendingAuthRequestsQuery = useQuery({
-    queryKey: ['auth-requests-pending', vaultCacheKey || session?.email],
+    queryKey: pendingAuthRequestsQueryKey,
     queryFn: () => listPendingAuthRequests(authedFetch, profile?.email || session?.email || ''),
     enabled: !IS_DEMO_MODE && phase === 'app' && !!session?.accessToken && !!session?.symEncKey && !!session?.symMacKey && !!(profile?.email || session?.email),
     staleTime: 5_000,
@@ -1621,6 +1625,10 @@ export default function App() {
             void refreshAuthorizedDevicesRef.current();
             continue;
           }
+          if (updateType === SIGNALR_UPDATE_TYPE_AUTH_REQUEST || updateType === SIGNALR_UPDATE_TYPE_AUTH_REQUEST_RESPONSE) {
+            void refreshPendingAuthRequestsRef.current();
+            continue;
+          }
           if (updateType === SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS) {
             if (isBackupProgressDetail(payload)) dispatchBackupProgress(payload);
             continue;
@@ -1774,6 +1782,11 @@ export default function App() {
   refreshAuthorizedDevicesRef.current = async () => {
     if (!vaultInitialDecryptDone) return;
     await authorizedDevicesQuery.refetch();
+  };
+  refreshPendingAuthRequestsRef.current = async () => {
+    if (!vaultInitialDecryptDone || !(profile?.email || session?.email)) return;
+    setAuthRequestDialogDismissedId(null);
+    await pendingAuthRequestsQuery.refetch();
   };
 
   const hashPathRaw = typeof window !== 'undefined' ? window.location.hash || '' : '';
