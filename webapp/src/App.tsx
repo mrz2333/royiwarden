@@ -505,7 +505,7 @@ export default function App() {
     };
   }, [phase, session?.email, location, navigate]);
 
-  async function finalizeLogin(login: CompletedLogin, successMessage = t('txt_login_success')) {
+  async function finalizeLogin(login: CompletedLogin) {
     setSession(login.session);
     setProfile(login.profile);
     setUnlockPreparing(false);
@@ -519,7 +519,6 @@ export default function App() {
     if (location === '/' || location === '/login' || location === '/register' || location === '/lock') {
       navigate('/vault');
     }
-    pushToast('success', successMessage);
     void (async () => {
       try {
         const hydratedProfile = await login.profilePromise;
@@ -536,7 +535,7 @@ export default function App() {
     if (IS_DEMO_MODE) {
       setPendingAuthAction('login');
       try {
-        await finalizeLogin(createDemoCompletedLogin(loginValues.email), t('txt_login_success'));
+        await finalizeLogin(createDemoCompletedLogin(loginValues.email));
       } finally {
         setPendingAuthAction(null);
       }
@@ -608,7 +607,7 @@ export default function App() {
     try {
       const result = await performPasskeyLogin(defaultKdfIterations, expectedEmail);
       if (result.kind === 'success') {
-        await finalizeLogin(result.login, t('txt_unlocked'));
+        await finalizeLogin(result.login);
         return;
       }
       if (result.kind === 'password') {
@@ -650,7 +649,7 @@ export default function App() {
     setTotpSubmitting(true);
     try {
       const login = await performTotpLogin(pendingTotp, totpCode, rememberDevice);
-      await finalizeLogin(login, pendingTotpMode === 'unlock' ? t('txt_unlocked') : t('txt_login_success'));
+      await finalizeLogin(login);
     } catch (error) {
       pushToast('error', error instanceof Error ? error.message : t('txt_totp_verify_failed'));
     } finally {
@@ -790,7 +789,7 @@ export default function App() {
     if (IS_DEMO_MODE) {
       setPendingAuthAction('unlock');
       try {
-        await finalizeLogin(createDemoCompletedLogin(session.email), t('txt_unlocked'));
+        await finalizeLogin(createDemoCompletedLogin(session.email));
       } finally {
         setPendingAuthAction(null);
       }
@@ -804,7 +803,7 @@ export default function App() {
     try {
       const result = await performUnlock(session, profile, unlockPassword, defaultKdfIterations);
       if (result.kind === 'success') {
-        await finalizeLogin(result.login, t('txt_unlocked'));
+        await finalizeLogin(result.login);
         return;
       }
       if (result.kind === 'totp') {
