@@ -1626,7 +1626,7 @@ export default function App() {
             continue;
           }
           if (contextId && contextId === getCurrentDeviceIdentifier()) continue;
-          if (updateType === SIGNALR_UPDATE_TYPE_SYNC_CIPHERS) {
+          if (updateType === SIGNALR_UPDATE_TYPE_SYNC_CIPHERS || updateType === SIGNALR_UPDATE_TYPE_SYNC_VAULT) {
             if (notificationRefreshTimerRef.current !== null) {
               window.clearTimeout(notificationRefreshTimerRef.current);
             }
@@ -1660,7 +1660,6 @@ export default function App() {
             deleteSendLocally(resourceId, revisionStamp);
             continue;
           }
-          if (updateType === SIGNALR_UPDATE_TYPE_SYNC_VAULT) continue;
         }
       });
 

@@ -174,7 +174,7 @@ function buildSignalRMessagePackInvocation(
   target: string = 'ReceiveMessage'
 ): Uint8Array {
   // SignalR MessagePack hub protocol uses an array-based invocation shape:
-  // [type, headers, invocationId, target, arguments]
+  // [type, headers, invocationId, target, arguments, streamIds]
   const encodedPayload = encodeMsgPack([
     1,
     {},
@@ -187,6 +187,7 @@ function buildSignalRMessagePackInvocation(
         Payload: messagePayload,
       },
     ],
+    [],
   ]);
   return frameSignalRBinary(encodedPayload);
 }
@@ -217,7 +218,9 @@ export class NotificationsHub extends DurableObject<Env> {
       const revisionDate = String(body?.revisionDate || '').trim() || new Date().toISOString();
       const userId = String(request.headers.get('X-NodeWarden-UserId') || body?.userId || '').trim();
       const contextId = String(body?.contextId || '').trim() || null;
-      const updateType = Number(body?.updateType || SIGNALR_UPDATE_TYPE_SYNC_VAULT) || SIGNALR_UPDATE_TYPE_SYNC_VAULT;
+      const rawUpdateType = body?.updateType;
+      const parsedUpdateType = typeof rawUpdateType === 'number' ? rawUpdateType : Number(rawUpdateType);
+      const updateType = Number.isFinite(parsedUpdateType) ? parsedUpdateType : SIGNALR_UPDATE_TYPE_SYNC_VAULT;
       const targetDeviceIdentifier = String(body?.targetDeviceIdentifier || '').trim() || null;
       const payload = body?.payload && typeof body.payload === 'object'
         ? body.payload
