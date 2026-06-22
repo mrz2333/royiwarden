@@ -1,5 +1,6 @@
 import { DurableObject, waitUntil } from 'cloudflare:workers';
 import type { Env } from '../types';
+import { notifyMobilePush } from '../services/push-relay';
 
 const SIGNALR_RECORD_SEPARATOR = 0x1e;
 const SIGNALR_HANDSHAKE_ACK = new Uint8Array([0x7b, 0x7d, SIGNALR_RECORD_SEPARATOR]);
@@ -766,6 +767,16 @@ async function notifyUserUpdate(
           Date: revisionDate,
         },
       }),
+    });
+    await notifyMobilePush(env, {
+      userId,
+      updateType,
+      revisionDate,
+      contextId,
+      payload: payloadOverride || {
+        UserId: userId,
+        Date: revisionDate,
+      },
     });
   } catch (error) {
     console.error('Failed to broadcast realtime notification:', error);

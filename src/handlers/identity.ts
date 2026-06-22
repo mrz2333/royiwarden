@@ -10,6 +10,7 @@ import { readAuthRequestDeviceInfo } from '../utils/device';
 import { createRecoveryCode, recoveryCodeEquals } from '../utils/recovery-code';
 import { generateUUID } from '../utils/uuid';
 import { issueSendAccessToken } from './sends';
+import { registerMobilePushDevice } from '../services/push-relay';
 import {
   buildAccountKeys,
   buildUserDecryptionOptions,
@@ -48,6 +49,44 @@ async function resolveDeviceSession(
   const existingDevice = await storage.getDevice(userId, deviceInfo.deviceIdentifier);
   const sessionStamp = String(existingDevice?.sessionStamp || '').trim() || generateUUID();
   return { identifier: deviceInfo.deviceIdentifier, sessionStamp };
+}
+
+function readDevicePushToken(body: Record<string, string>): string {
+  return String(readBodyValue(body, ['devicePushToken', 'DevicePushToken', 'device_push_token']) || '').trim();
+}
+
+async function persistIdentityDevicePushToken(
+  env: Env,
+  storage: StorageService,
+  userId: string,
+  deviceSession: { identifier: string; sessionStamp: string } | null,
+  deviceType: number,
+  body: Record<string, string>
+): Promise<void> {
+  if (!deviceSession) return;
+  const pushToken = readDevicePushToken(body);
+  if (!pushToken) return;
+
+  const device = await storage.getDevice(userId, deviceSession.identifier);
+  if (!device) return;
+
+  const pushUuid = device.pushUuid || generateUUID();
+  await storage.updateDevicePushToken(userId, deviceSession.identifier, pushUuid, pushToken);
+  const registered = await registerMobilePushDevice(env, {
+    userId,
+    deviceIdentifier: deviceSession.identifier,
+    type: device.type || deviceType,
+    pushUuid,
+    pushToken,
+  });
+  console.info('Mobile push token updated from identity token request', {
+    userId,
+    deviceIdentifier: deviceSession.identifier,
+    deviceType: device.type || deviceType,
+    pushUuid,
+    pushTokenLength: pushToken.length,
+    relayRegistered: registered,
+  });
 }
 
 function shouldUseWebSession(request: Request): boolean {
@@ -414,6 +453,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
         deviceInfo.deviceType,
         deviceSession.sessionStamp
       );
+      await persistIdentityDevicePushToken(env, storage, user.id, deviceSession, deviceInfo.deviceType, body);
     }
 
     // Successful login - clear failed attempts
@@ -536,6 +576,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
         deviceInfo.deviceType,
         deviceSession.sessionStamp
       );
+      await persistIdentityDevicePushToken(env, storage, user.id, deviceSession, deviceInfo.deviceType, body);
     }
 
     await rateLimit.clearLoginAttempts(loginIdentifier);
@@ -664,6 +705,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
         deviceInfo.deviceType,
         deviceSession.sessionStamp
       );
+      await persistIdentityDevicePushToken(env, storage, user.id, deviceSession, deviceInfo.deviceType, body);
     }
 
     // Successful login - clear failed attempts

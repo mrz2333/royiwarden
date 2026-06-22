@@ -231,6 +231,8 @@ export interface Device {
   encryptedUserKey: string | null;
   encryptedPublicKey: string | null;
   encryptedPrivateKey: string | null;
+  pushUuid: string | null;
+  pushToken: string | null;
   devicePendingAuthRequest?: DevicePendingAuthRequest | null;
   lastSeenAt: string | null;
   createdAt: string;
