@@ -394,11 +394,11 @@
   }
 
   .sort-trigger.sort-trigger-labeled {
-    @apply h-[34px] w-[34px] min-w-[34px] gap-0 px-0 text-[0];
+    @apply h-[34px] w-auto min-w-0 gap-1.5 px-3 text-[13px];
   }
 
   .sort-trigger.sort-trigger-labeled .btn-icon {
-    @apply m-0;
+    @apply mr-0;
   }
 
   .desktop-create-menu-wrap {
