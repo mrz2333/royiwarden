@@ -2046,11 +2046,15 @@ export default function App() {
     }),
     onSaveBackupSettings: async (masterPassword: string, settings: AdminBackupSettings) => {
       const hash = await deriveCurrentMasterPasswordHash(masterPassword);
-      return backupActions.saveSettings(hash, settings);
+      const saved = await backupActions.saveSettings(hash, settings);
+      queryClient.setQueryData(['admin-backup-settings', vaultCacheKey], saved);
+      return saved;
     },
     onRunRemoteBackup: async (masterPassword: string, destinationId?: string | null) => {
       const hash = await deriveCurrentMasterPasswordHash(masterPassword);
-      return backupActions.runRemoteBackup(hash, destinationId);
+      const result = await backupActions.runRemoteBackup(hash, destinationId);
+      queryClient.setQueryData(['admin-backup-settings', vaultCacheKey], result.settings);
+      return result;
     },
     onListRemoteBackups: backupActions.listRemoteBackups,
     onDownloadRemoteBackup: async (masterPassword: string, destinationId: string, path: string, onProgress?: (percent: number | null) => void) => {

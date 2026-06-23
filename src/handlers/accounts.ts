@@ -366,7 +366,18 @@ export async function handleRegister(request: Request, env: Env): Promise<Respon
     if (msg.includes('unique') || msg.includes('constraint')) {
       return errorResponse('Email already registered', 409);
     }
+    console.error('Registration failed after invite reservation:', error);
     throw error;
+  }
+
+  try {
+    const assigned = await storage.assignInviteUsedBy(inviteCode, user.id);
+    if (!assigned) {
+      console.warn('Invite used_by was not assigned after registration', { inviteCode, userId: user.id });
+    }
+  } catch (error) {
+    // The invite is already consumed. Do not reactivate it after the user row exists.
+    console.error('Invite used_by assignment failed after registration:', error);
   }
 
   await writeAuditEvent(storage, {

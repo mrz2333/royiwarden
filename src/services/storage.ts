@@ -22,6 +22,7 @@ import {
   type AuditLogListOptions,
   createAuditLog as createStoredAuditLog,
   clearAuditLogs as clearStoredAuditLogs,
+  assignInviteUsedBy as assignStoredInviteUsedBy,
   createInvite as createStoredInvite,
   deleteAllInvites as deleteStoredInvites,
   getInvite as findStoredInvite,
@@ -149,7 +150,7 @@ const STORAGE_SCHEMA_VERSION_KEY = 'schema.version';
 // Bump this whenever src/services/storage-schema.ts or migrations/0001_init.sql
 // changes. Existing D1 installs only rerun ensureStorageSchema() when this value
 // differs from config.schema.version.
-const STORAGE_SCHEMA_VERSION = '2026-06-22-push-notifications';
+const STORAGE_SCHEMA_VERSION = '2026-06-23-invite-used-by';
 const REQUIRED_SCHEMA_TABLES = ['webauthn_credentials', 'webauthn_challenges', 'auth_requests'] as const;
 
 // D1-backed storage.
@@ -312,6 +313,10 @@ export class StorageService {
 
   async markInviteUsed(code: string, userId: string): Promise<boolean> {
     return markStoredInviteUsed(this.db, code, userId);
+  }
+
+  async assignInviteUsedBy(code: string, userId: string): Promise<boolean> {
+    return assignStoredInviteUsedBy(this.db, code, userId);
   }
 
   async revertInviteUsed(code: string, userId: string): Promise<boolean> {

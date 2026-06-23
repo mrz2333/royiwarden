@@ -78,6 +78,7 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   'code TEXT PRIMARY KEY, created_by TEXT NOT NULL, used_by TEXT, expires_at TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, ' +
   'FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE, ' +
   'FOREIGN KEY (used_by) REFERENCES users(id) ON DELETE SET NULL)',
+  'ALTER TABLE invites ADD COLUMN used_by TEXT',
   'CREATE INDEX IF NOT EXISTS idx_invites_status_expires ON invites(status, expires_at)',
   'CREATE INDEX IF NOT EXISTS idx_invites_created_by ON invites(created_by, created_at)',
 
