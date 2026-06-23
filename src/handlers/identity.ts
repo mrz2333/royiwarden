@@ -337,6 +337,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
     }
 
     let validatedAuthRequestId: string | null = null;
+    let authRequestLoginKey: string | null = null;
     let valid = false;
     const normalizedAuthRequestId = String(authRequestId || '').trim();
     if (normalizedAuthRequestId) {
@@ -349,10 +350,12 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
         authRequest.responseDate &&
         !authRequest.authenticationDate &&
         !isAuthRequestExpired(authRequest) &&
+        !!authRequest.key &&
         constantTimeEquals(authRequest.accessCode, passwordHash)
       );
       if (valid) {
         validatedAuthRequestId = authRequest!.id;
+        authRequestLoginKey = authRequest!.key;
       }
     } else {
       valid = await auth.verifyPassword(passwordHash, user.masterPasswordHash, user.email);
@@ -493,7 +496,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       token_type: 'Bearer',
       ...(shouldUseWebSession(request) ? { web_session: true } : { refresh_token: refreshToken }),
       ...(trustedTwoFactorTokenToReturn ? { TwoFactorToken: trustedTwoFactorTokenToReturn } : {}),
-      Key: user.key,
+      Key: authRequestLoginKey || user.key,
       PrivateKey: user.privateKey,
       AccountKeys: accountKeys,
       accountKeys: accountKeys,

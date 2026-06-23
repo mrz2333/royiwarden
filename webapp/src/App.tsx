@@ -238,6 +238,7 @@ export default function App() {
   const [disableTotpPassword, setDisableTotpPassword] = useState('');
   const [disableTotpSubmitting, setDisableTotpSubmitting] = useState(false);
   const [authRequestDialogDismissedId, setAuthRequestDialogDismissedId] = useState<string | null>(null);
+  const [authRequestDialogSelectedId, setAuthRequestDialogSelectedId] = useState<string | null>(null);
   const [authRequestSubmittingId, setAuthRequestSubmittingId] = useState<string | null>(null);
   const [recoverValues, setRecoverValues] = useState({ email: '', password: '', recoveryCode: '' });
   const [themePreference, setThemePreference] = useState<ThemePreference>(() => readThemePreference());
@@ -1119,7 +1120,20 @@ export default function App() {
   });
   const pendingAuthRequests = (pendingAuthRequestsQuery.data || []).filter(isPendingAuthRequest);
   const latestPendingAuthRequest = pendingAuthRequests[0] || null;
-  const authRequestDialogOpen = !!latestPendingAuthRequest && latestPendingAuthRequest.id !== authRequestDialogDismissedId;
+  const selectedPendingAuthRequest = authRequestDialogSelectedId
+    ? pendingAuthRequests.find((request) => request.id === authRequestDialogSelectedId) || null
+    : null;
+  const authRequestDialogRequest = selectedPendingAuthRequest || (
+    latestPendingAuthRequest && latestPendingAuthRequest.id !== authRequestDialogDismissedId
+      ? latestPendingAuthRequest
+      : null
+  );
+  const authRequestDialogOpen = !!authRequestDialogRequest;
+
+  async function beginApproveAuthRequest(authRequest: AuthRequest): Promise<void> {
+    setAuthRequestDialogSelectedId(authRequest.id);
+    setAuthRequestDialogDismissedId(null);
+  }
 
   async function approveAuthRequest(authRequest: AuthRequest): Promise<void> {
     if (!session) throw new Error(t('txt_vault_key_unavailable'));
@@ -1133,6 +1147,7 @@ export default function App() {
         requestApproved: true,
       });
       setAuthRequestDialogDismissedId(null);
+      setAuthRequestDialogSelectedId(null);
       pushToast('success', t('txt_auth_request_approved'));
       await pendingAuthRequestsQuery.refetch();
     } finally {
@@ -1148,6 +1163,7 @@ export default function App() {
         requestApproved: false,
       });
       setAuthRequestDialogDismissedId(null);
+      setAuthRequestDialogSelectedId(null);
       pushToast('success', t('txt_auth_request_denied'));
       await pendingAuthRequestsQuery.refetch();
     } finally {
@@ -2002,7 +2018,7 @@ export default function App() {
     onRefreshPendingAuthRequests: async () => {
       await pendingAuthRequestsQuery.refetch();
     },
-    onApproveAuthRequest: approveAuthRequest,
+    onApproveAuthRequest: beginApproveAuthRequest,
     onDenyAuthRequest: denyAuthRequest,
     onLockTimeoutChange: setLockTimeoutMinutes,
     onSessionTimeoutActionChange: setSessionTimeoutAction,
@@ -2278,21 +2294,24 @@ export default function App() {
       />
       <AuthRequestApprovalDialog
         open={authRequestDialogOpen}
-        authRequest={latestPendingAuthRequest}
+        authRequest={authRequestDialogRequest}
         submitting={!!authRequestSubmittingId}
         onApprove={() => {
-          if (!latestPendingAuthRequest) return;
-          void approveAuthRequest(latestPendingAuthRequest).catch((error) => {
+          if (!authRequestDialogRequest) return;
+          void approveAuthRequest(authRequestDialogRequest).catch((error) => {
             pushToast('error', error instanceof Error ? error.message : t('txt_auth_request_update_failed'));
           });
         }}
         onDeny={() => {
-          if (!latestPendingAuthRequest) return;
-          void denyAuthRequest(latestPendingAuthRequest).catch((error) => {
+          if (!authRequestDialogRequest) return;
+          void denyAuthRequest(authRequestDialogRequest).catch((error) => {
             pushToast('error', error instanceof Error ? error.message : t('txt_auth_request_update_failed'));
           });
         }}
-        onClose={() => setAuthRequestDialogDismissedId(latestPendingAuthRequest?.id || null)}
+        onClose={() => {
+          setAuthRequestDialogSelectedId(null);
+          setAuthRequestDialogDismissedId(authRequestDialogRequest?.id || null);
+        }}
       />
     </>
   );
