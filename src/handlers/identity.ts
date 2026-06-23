@@ -21,6 +21,7 @@ import {
   buildAccountPasskeyTokenUserDecryptionOption,
 } from './account-passkeys';
 import { isAuthRequestExpired } from '../services/storage-auth-request-repo';
+import { createPasskeyUserVerificationToken } from '../utils/user-verification-token';
 
 const TWO_FACTOR_REMEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const TWO_FACTOR_PROVIDER_AUTHENTICATOR = 0;
@@ -583,6 +584,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
 
     const accessToken = await auth.generateAccessToken(user, deviceSession);
     const refreshToken = await auth.generateRefreshToken(user.id, deviceSession);
+    const userVerificationToken = await createPasskeyUserVerificationToken(env, user.id, 'backup.settings.repair');
     const accountKeys = buildAccountKeys(user);
     const webAuthnPrfOption = buildAccountPasskeyTokenUserDecryptionOption(credential);
     const userDecryptionOptions = buildUserDecryptionOptions(user, webAuthnPrfOption);
@@ -621,6 +623,8 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       ApiUseKeyConnector: false,
       scope: 'api offline_access',
       unofficialServer: true,
+      UserVerificationToken: userVerificationToken,
+      userVerificationToken,
       UserDecryptionOptions: userDecryptionOptions,
       userDecryptionOptions: userDecryptionOptions,
     };

@@ -127,6 +127,17 @@ export async function markInviteUsed(db: D1Database, code: string, userId: strin
   return (result.meta.changes ?? 0) > 0;
 }
 
+export async function revertInviteUsed(db: D1Database, code: string, userId: string): Promise<boolean> {
+  const now = new Date().toISOString();
+  const result = await db
+    .prepare(
+      "UPDATE invites SET status = 'active', used_by = NULL, updated_at = ? WHERE code = ? AND status = 'used' AND used_by = ?"
+    )
+    .bind(now, code, userId)
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
 export async function revokeInvite(db: D1Database, code: string): Promise<boolean> {
   const now = new Date().toISOString();
   const result = await db

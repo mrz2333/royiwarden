@@ -11,6 +11,7 @@ import RecoverTwoFactorPage from '@/components/RecoverTwoFactorPage';
 import JwtWarningPage from '@/components/JwtWarningPage';
 import {
   createAuthedFetch,
+  deriveLoginHash,
   getAuthorizedDevices,
   clearProfileSnapshot,
   getCurrentDeviceIdentifier,
@@ -264,6 +265,11 @@ export default function App() {
   const refreshAuthorizedDevicesRef = useRef<() => Promise<void>>(async () => {});
   const refreshPendingAuthRequestsRef = useRef<() => Promise<void>>(async () => {});
   const repairAttemptRef = useRef<string>('');
+  const loginScopedBackupRepairAuthRef = useRef<{
+    accessToken: string;
+    masterPasswordHash?: string | null;
+    userVerificationToken?: string | null;
+  } | null>(null);
   const uriChecksumRepairAttemptRef = useRef<string>('');
   const pendingVaultCoreQueryRefreshRef = useRef<Promise<{ data?: VaultCoreSnapshot } | unknown> | null>(null);
   const pendingVaultCoreRefreshRef = useRef<Promise<unknown> | null>(null);
@@ -506,6 +512,14 @@ export default function App() {
   }, [phase, session?.email, location, navigate]);
 
   async function finalizeLogin(login: CompletedLogin) {
+    loginScopedBackupRepairAuthRef.current =
+      login.session.accessToken && (login.freshMasterPasswordHash || login.freshUserVerificationToken)
+        ? {
+            accessToken: login.session.accessToken,
+            masterPasswordHash: login.freshMasterPasswordHash || null,
+            userVerificationToken: login.freshUserVerificationToken || null,
+          }
+        : null;
     setSession(login.session);
     setProfile(login.profile);
     setUnlockPreparing(false);
@@ -1085,6 +1099,15 @@ export default function App() {
     enabled: !IS_DEMO_MODE && phase === 'app' && !!session?.accessToken && vaultInitialDecryptDone,
     staleTime: 30_000,
   });
+
+  async function deriveCurrentMasterPasswordHash(masterPassword: string): Promise<string> {
+    const email = String(profile?.email || session?.email || '').trim().toLowerCase();
+    if (!email) throw new Error(t('txt_profile_unavailable'));
+    const normalizedPassword = String(masterPassword || '');
+    if (!normalizedPassword) throw new Error(t('txt_master_password_is_required'));
+    const derived = await deriveLoginHash(email, normalizedPassword, defaultKdfIterations);
+    return derived.hash;
+  }
   const pendingAuthRequestsQueryKey = useMemo(() => ['auth-requests-pending', vaultCacheKey || session?.email] as const, [vaultCacheKey, session?.email]);
   const pendingAuthRequestsQuery = useQuery({
     queryKey: pendingAuthRequestsQueryKey,
@@ -1189,13 +1212,25 @@ export default function App() {
     if (!isAdminProfile(profile)) return;
     if (repairAttemptRef.current === session.accessToken) return;
 
+    const loginScopedRepairAuth = loginScopedBackupRepairAuthRef.current?.accessToken === session.accessToken
+      ? loginScopedBackupRepairAuthRef.current
+      : null;
     repairAttemptRef.current = session.accessToken;
-    void silentlyRepairBackupSettingsIfNeeded(session, profile);
+    void (async () => {
+      try {
+        await silentlyRepairBackupSettingsIfNeeded(session, profile, loginScopedRepairAuth);
+      } finally {
+        if (loginScopedBackupRepairAuthRef.current?.accessToken === session.accessToken) {
+          loginScopedBackupRepairAuthRef.current = null;
+        }
+      }
+    })();
   }, [phase, session?.accessToken, session?.symEncKey, session?.symMacKey, profile, vaultInitialDecryptDone]);
 
   useEffect(() => {
     if (session?.accessToken) return;
     repairAttemptRef.current = '';
+    loginScopedBackupRepairAuthRef.current = null;
     uriChecksumRepairAttemptRef.current = '';
   }, [session?.accessToken]);
 
@@ -1950,8 +1985,8 @@ export default function App() {
     sendUploadPercent: vaultSendActions.sendUploadPercent,
     onChangePassword: accountSecurityActions.changePassword,
     onSavePasswordHint: accountSecurityActions.savePasswordHint,
-    onEnableTotp: async (secret: string, token: string) => {
-      await accountSecurityActions.enableTotp(secret, token);
+    onEnableTotp: async (secret: string, token: string, masterPassword: string) => {
+      await accountSecurityActions.enableTotp(secret, token, masterPassword);
       await totpStatusQuery.refetch();
     },
     onOpenDisableTotp: () => setDisableTotpOpen(true),
@@ -1992,22 +2027,46 @@ export default function App() {
     onLoadAuditLogSettings: () => getAuditLogSettings(authedFetch),
     onSaveAuditLogSettings: (settings: AuditLogSettings) => saveAuditLogSettings(authedFetch, settings),
     onClearAuditLogs: () => clearAuditLogs(authedFetch),
-    onExportBackup: backupActions.exportBackup,
-    onImportBackup: backupActions.importBackup,
-    onImportBackupAllowingChecksumMismatch: backupActions.importBackupAllowingChecksumMismatch,
+    onExportBackup: async (masterPassword: string, includeAttachments?: boolean) => {
+      const hash = await deriveCurrentMasterPasswordHash(masterPassword);
+      return backupActions.exportBackup(hash, includeAttachments);
+    },
+    onImportBackup: async (masterPassword: string, file: File, replaceExisting?: boolean) => {
+      const hash = await deriveCurrentMasterPasswordHash(masterPassword);
+      return backupActions.importBackup(hash, file, replaceExisting);
+    },
+    onImportBackupAllowingChecksumMismatch: async (masterPassword: string, file: File, replaceExisting?: boolean) => {
+      const hash = await deriveCurrentMasterPasswordHash(masterPassword);
+      return backupActions.importBackupAllowingChecksumMismatch(hash, file, replaceExisting);
+    },
     onLoadBackupSettings: () => queryClient.ensureQueryData({
       queryKey: ['admin-backup-settings', vaultCacheKey],
       queryFn: () => backupActions.loadSettings(),
       staleTime: 30_000,
     }),
-    onSaveBackupSettings: backupActions.saveSettings,
-    onRunRemoteBackup: backupActions.runRemoteBackup,
+    onSaveBackupSettings: async (masterPassword: string, settings: AdminBackupSettings) => {
+      const hash = await deriveCurrentMasterPasswordHash(masterPassword);
+      return backupActions.saveSettings(hash, settings);
+    },
+    onRunRemoteBackup: async (masterPassword: string, destinationId?: string | null) => {
+      const hash = await deriveCurrentMasterPasswordHash(masterPassword);
+      return backupActions.runRemoteBackup(hash, destinationId);
+    },
     onListRemoteBackups: backupActions.listRemoteBackups,
-    onDownloadRemoteBackup: backupActions.downloadRemoteBackup,
+    onDownloadRemoteBackup: async (masterPassword: string, destinationId: string, path: string, onProgress?: (percent: number | null) => void) => {
+      const hash = await deriveCurrentMasterPasswordHash(masterPassword);
+      return backupActions.downloadRemoteBackup(hash, destinationId, path, onProgress);
+    },
     onInspectRemoteBackup: backupActions.inspectRemoteBackup,
     onDeleteRemoteBackup: backupActions.deleteRemoteBackup,
-    onRestoreRemoteBackup: backupActions.restoreRemoteBackup,
-    onRestoreRemoteBackupAllowingChecksumMismatch: backupActions.restoreRemoteBackupAllowingChecksumMismatch,
+    onRestoreRemoteBackup: async (masterPassword: string, destinationId: string, path: string, replaceExisting?: boolean) => {
+      const hash = await deriveCurrentMasterPasswordHash(masterPassword);
+      return backupActions.restoreRemoteBackup(hash, destinationId, path, replaceExisting);
+    },
+    onRestoreRemoteBackupAllowingChecksumMismatch: async (masterPassword: string, destinationId: string, path: string, replaceExisting?: boolean) => {
+      const hash = await deriveCurrentMasterPasswordHash(masterPassword);
+      return backupActions.restoreRemoteBackupAllowingChecksumMismatch(hash, destinationId, path, replaceExisting);
+    },
   };
   const effectiveMainRoutesProps = IS_DEMO_MODE
     ? createDemoMainRoutesProps(mainRoutesProps, pushToast, {

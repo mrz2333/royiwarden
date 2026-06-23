@@ -30,6 +30,7 @@ import {
   markInviteUsed as markStoredInviteUsed,
   pruneAuditLogs as pruneStoredAuditLogs,
   pruneAuditLogsToMax as pruneStoredAuditLogsToMax,
+  revertInviteUsed as revertStoredInviteUsed,
   revokeInvite as revokeStoredInvite,
 } from './storage-admin-repo';
 import {
@@ -311,6 +312,10 @@ export class StorageService {
 
   async markInviteUsed(code: string, userId: string): Promise<boolean> {
     return markStoredInviteUsed(this.db, code, userId);
+  }
+
+  async revertInviteUsed(code: string, userId: string): Promise<boolean> {
+    return revertStoredInviteUsed(this.db, code, userId);
   }
 
   async revokeInvite(code: string): Promise<boolean> {
