@@ -127,6 +127,12 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)',
   'CREATE INDEX IF NOT EXISTS idx_trusted_two_factor_device_tokens_user_device ON trusted_two_factor_device_tokens(user_id, device_identifier)',
 
+  'CREATE TABLE IF NOT EXISTS totp_login_replays (' +
+  'user_id TEXT NOT NULL, time_counter INTEGER NOT NULL, consumed_at INTEGER NOT NULL, ' +
+  'PRIMARY KEY (user_id, time_counter), ' +
+  'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)',
+  'CREATE INDEX IF NOT EXISTS idx_totp_login_replays_consumed_at ON totp_login_replays(consumed_at)',
+
   'CREATE TABLE IF NOT EXISTS webauthn_credentials (' +
   'id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, public_key TEXT NOT NULL, credential_id TEXT NOT NULL, counter INTEGER NOT NULL DEFAULT 0, ' +
   'type TEXT, aa_guid TEXT, transports TEXT, encrypted_user_key TEXT, encrypted_public_key TEXT, encrypted_private_key TEXT, supports_prf INTEGER NOT NULL DEFAULT 0, ' +

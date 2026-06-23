@@ -4,7 +4,7 @@ import { AuthService } from '../services/auth';
 import { RateLimitService, getClientIdentifier } from '../services/ratelimit';
 import { jsonResponse, errorResponse, identityErrorResponse } from '../utils/response';
 import { LIMITS } from '../config/limits';
-import { isTotpEnabled, verifyTotpToken } from '../utils/totp';
+import { findMatchingTotpCounter, isTotpEnabled } from '../utils/totp';
 import { createRefreshToken } from '../utils/jwt';
 import { readAuthRequestDeviceInfo } from '../utils/device';
 import { createRecoveryCode, recoveryCodeEquals } from '../utils/recovery-code';
@@ -409,8 +409,12 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
           return twoFactorRequiredResponse('Two factor required.');
         }
       } else if (normalizedTwoFactorProvider === String(TWO_FACTOR_PROVIDER_AUTHENTICATOR)) {
-        const totpOk = await verifyTotpToken(effectiveTotpSecret, normalizedTwoFactorToken);
-        if (!totpOk) {
+        const matchedCounter = await findMatchingTotpCounter(effectiveTotpSecret, normalizedTwoFactorToken);
+        if (matchedCounter == null) {
+          return recordFailedTwoFactorAndBuildResponse(rateLimit, loginIdentifier);
+        }
+        const consumed = await storage.consumeTotpLoginCounter(user.id, matchedCounter);
+        if (!consumed) {
           return recordFailedTwoFactorAndBuildResponse(rateLimit, loginIdentifier);
         }
       } else if (
