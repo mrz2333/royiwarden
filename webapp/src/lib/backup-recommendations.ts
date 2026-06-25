@@ -4,7 +4,7 @@ export interface RecommendedStorageLink {
 }
 
 export interface RecommendedProviderBase {
-  id: 'infinicloud' | 'koofr' | 'pcloud' | 'backblaze-b2' | 'cloudflare-r2';
+  id: 'infinicloud' | 'koofr' | 'pcloud' | 'backblaze-b2' | 'cloudflare-r2' | 'tigris';
   name: string;
   capacity: string;
   protocol: 'webdav' | 's3';
@@ -40,7 +40,13 @@ export interface CloudflareR2Provider extends RecommendedProviderBase {
   apiTokenUrl: string;
 }
 
-export type RecommendedProvider = InfinicloudProvider | KoofrProvider | PcloudProvider | BackblazeB2Provider | CloudflareR2Provider;
+export interface TigrisProvider extends RecommendedProviderBase {
+  id: 'tigris';
+  bucketUrl: string;
+  accessKeyUrl: string;
+}
+
+export type RecommendedProvider = InfinicloudProvider | KoofrProvider | PcloudProvider | BackblazeB2Provider | CloudflareR2Provider | TigrisProvider;
 
 export const RECOMMENDED_PROVIDERS: RecommendedProvider[] = [
   {
@@ -90,6 +96,15 @@ export const RECOMMENDED_PROVIDERS: RecommendedProvider[] = [
     signupUrl: 'https://dash.cloudflare.com/?to=/:account/r2/new',
     bucketUrl: 'https://dash.cloudflare.com/?to=/:account/r2/new',
     apiTokenUrl: 'https://dash.cloudflare.com/?to=/:account/r2/api-tokens/create?type=user',
+  },
+  {
+    id: 'tigris',
+    name: 'Tigris',
+    capacity: '5G',
+    protocol: 's3',
+    signupUrl: 'https://console.storage.dev/signup',
+    bucketUrl: 'https://console.storage.dev/createbucket',
+    accessKeyUrl: 'https://console.storage.dev/createaccesskey',
   },
 ];
 
