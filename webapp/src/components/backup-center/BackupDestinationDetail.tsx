@@ -151,6 +151,30 @@ function renderRecommendedProviderDetails(provider: RecommendedProvider) {
           </div>
         </div>
       );
+    case 'cloudflare-r2':
+      return (
+        <div className="backup-recommendation-steps">
+          <div className="backup-recommendation-step">
+            <strong>1.</strong> {t('txt_backup_recommend_cloudflare_r2_step_1_prefix')}{' '}
+            <a href={provider.bucketUrl} target="_blank" rel="noreferrer">{t('txt_backup_recommend_cloudflare_r2_bucket_link')}</a>
+            {t('txt_backup_recommend_cloudflare_r2_step_1_suffix')}
+          </div>
+          <div className="backup-recommendation-step">
+            <strong>2.</strong> {t('txt_backup_recommend_cloudflare_r2_step_2_prefix')}{' '}
+            <a href={provider.apiTokenUrl} target="_blank" rel="noreferrer">{t('txt_backup_recommend_cloudflare_r2_api_link')}</a>
+            {t('txt_backup_recommend_cloudflare_r2_step_2_suffix')}
+          </div>
+          <div className="backup-recommendation-step">
+            <strong>3.</strong> {t('txt_backup_recommend_cloudflare_r2_step_3')}
+          </div>
+          <div className="backup-recommendation-step">
+            <strong>4.</strong> {t('txt_backup_recommend_cloudflare_r2_step_4')}
+          </div>
+          <div className="backup-recommendation-step">
+            <strong>5.</strong> {t('txt_backup_recommend_cloudflare_r2_step_5')}
+          </div>
+        </div>
+      );
   }
 }
 
@@ -172,6 +196,7 @@ export function BackupDestinationDetail(props: BackupDestinationDetailProps) {
                 {props.selectedRecommendedProvider.id === 'infinicloud' ? t('txt_backup_recommend_infinicloud_summary')
                   : props.selectedRecommendedProvider.id === 'koofr' ? t('txt_backup_recommend_koofr_summary')
                     : props.selectedRecommendedProvider.id === 'backblaze-b2' ? t('txt_backup_recommend_backblaze_summary')
+                      : props.selectedRecommendedProvider.id === 'cloudflare-r2' ? t('txt_backup_recommend_cloudflare_r2_summary')
                     : t('txt_backup_recommend_pcloud_summary')}
               </div>
             </div>
@@ -412,7 +437,7 @@ export function BackupDestinationDetail(props: BackupDestinationDetailProps) {
                   className="input"
                   value={(props.selectedDestination.destination as WebDavBackupDestination).remotePath}
                   disabled={props.loadingSettings || props.disableWhileBusy}
-                  placeholder="nodewarden/backups"
+                  placeholder="nodewarden"
                   onInput={(event) => props.onUpdateDestination((destination) => ({
                     ...destination,
                     destination: {
@@ -529,7 +554,7 @@ export function BackupDestinationDetail(props: BackupDestinationDetailProps) {
                   className="input"
                   value={(props.selectedDestination.destination as S3BackupDestination).rootPath}
                   disabled={props.loadingSettings || props.disableWhileBusy}
-                  placeholder="nodewarden/backups"
+                  placeholder=""
                   onInput={(event) => props.onUpdateDestination((destination) => ({
                     ...destination,
                     destination: {
