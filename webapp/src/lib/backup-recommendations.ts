@@ -4,7 +4,7 @@ export interface RecommendedStorageLink {
 }
 
 export interface RecommendedProviderBase {
-  id: 'infinicloud' | 'koofr' | 'pcloud';
+  id: 'infinicloud' | 'koofr' | 'pcloud' | 'backblaze-b2';
   name: string;
   capacity: string;
   protocol: 'webdav' | 's3';
@@ -28,7 +28,13 @@ export interface PcloudProvider extends RecommendedProviderBase {
   id: 'pcloud';
 }
 
-export type RecommendedProvider = InfinicloudProvider | KoofrProvider | PcloudProvider;
+export interface BackblazeB2Provider extends RecommendedProviderBase {
+  id: 'backblaze-b2';
+  bucketsUrl: string;
+  applicationKeysUrl: string;
+}
+
+export type RecommendedProvider = InfinicloudProvider | KoofrProvider | PcloudProvider | BackblazeB2Provider;
 
 export const RECOMMENDED_PROVIDERS: RecommendedProvider[] = [
   {
@@ -60,6 +66,15 @@ export const RECOMMENDED_PROVIDERS: RecommendedProvider[] = [
     protocol: 'webdav',
     signupUrl: 'https://u.pcloud.com/#/register?invite=GITx7ZvEU1N7',
     hasAffiliateLink: true,
+  },
+  {
+    id: 'backblaze-b2',
+    name: 'Backblaze B2',
+    capacity: '10G',
+    protocol: 's3',
+    signupUrl: 'https://secure.backblaze.com/user_signin.htm',
+    bucketsUrl: 'https://secure.backblaze.com/b2_buckets.htm',
+    applicationKeysUrl: 'https://secure.backblaze.com/app_keys.htm',
   },
 ];
 
