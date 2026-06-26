@@ -200,10 +200,6 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.20), 0 8px 24px rgba(0, 0, 0, 0.16);
 }
 
-:root[data-theme='dark'] .app-shell {
-  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.30);
-}
-
 :root[data-theme='dark'] .list-item:hover {
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(139, 184, 255, 0.12);
 }
