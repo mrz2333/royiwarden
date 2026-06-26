@@ -228,6 +228,8 @@ const es: Record<string, string> = {
   "txt_backup_remote_folder": "Carpeta",
   "txt_backup_remote_unknown_time": "Hora desconocida",
   "txt_backup_remote_current_path": "Carpeta actual",
+  "txt_backup_remote_modified": "Modificado",
+  "txt_backup_remote_size": "Tamaño",
   "txt_backup_remote_load_failed": "Error al cargar copias de seguridad remotas",
   "txt_backup_remote_invalid_response": "Respuesta de copia de seguridad remota no válida",
   "txt_backup_remote_download_failed": "Error al descargar copia de seguridad remota",

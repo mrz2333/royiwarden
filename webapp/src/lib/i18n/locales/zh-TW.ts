@@ -228,6 +228,8 @@ const zhTW: Record<string, string> = {
   "txt_backup_remote_folder": "文件夾",
   "txt_backup_remote_unknown_time": "未知時間",
   "txt_backup_remote_current_path": "當前目錄",
+  "txt_backup_remote_modified": "修改時間",
+  "txt_backup_remote_size": "大小",
   "txt_backup_remote_load_failed": "讀取遠端備份失敗",
   "txt_backup_remote_invalid_response": "遠端備份響應無效",
   "txt_backup_remote_download_failed": "下載遠端備份失敗",

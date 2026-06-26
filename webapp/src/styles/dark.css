@@ -340,6 +340,7 @@
 :root[data-theme='dark'] .backup-recommendation-step,
 :root[data-theme='dark'] .backup-recommendation-inline-note,
 :root[data-theme='dark'] .backup-recommendation-linked-item,
+:root[data-theme='dark'] .backup-browser-head,
 :root[data-theme='dark'] .backup-browser-meta,
 :root[data-theme='dark'] .backup-browser-empty,
 :root[data-theme='dark'] .backup-inline-note,
@@ -358,6 +359,10 @@
 :root[data-theme='dark'] .backup-recommendation-step a:hover,
 :root[data-theme='dark'] .backup-recommendation-step a:focus-visible {
   color: var(--primary-strong);
+}
+
+:root[data-theme='dark'] .backup-browser-head {
+  background: var(--panel-subtle);
 }
 
 :root[data-theme='dark'] .restore-progress-overlay {

@@ -228,6 +228,8 @@ const en: Record<string, string> = {
   "txt_backup_remote_folder": "Folder",
   "txt_backup_remote_unknown_time": "Unknown time",
   "txt_backup_remote_current_path": "Current Folder",
+  "txt_backup_remote_modified": "Modified",
+  "txt_backup_remote_size": "Size",
   "txt_backup_remote_load_failed": "Loading remote backups failed",
   "txt_backup_remote_invalid_response": "Invalid remote backup response",
   "txt_backup_remote_download_failed": "Downloading remote backup failed",

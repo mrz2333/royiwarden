@@ -228,6 +228,8 @@ const zhCN: Record<string, string> = {
   "txt_backup_remote_folder": "文件夹",
   "txt_backup_remote_unknown_time": "未知时间",
   "txt_backup_remote_current_path": "当前目录",
+  "txt_backup_remote_modified": "修改时间",
+  "txt_backup_remote_size": "大小",
   "txt_backup_remote_load_failed": "读取远端备份失败",
   "txt_backup_remote_invalid_response": "远端备份响应无效",
   "txt_backup_remote_download_failed": "下载远端备份失败",

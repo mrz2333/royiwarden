@@ -228,6 +228,8 @@ const ru: Record<string, string> = {
   "txt_backup_remote_folder": "Папка",
   "txt_backup_remote_unknown_time": "Неизвестное время",
   "txt_backup_remote_current_path": "Текущая папка",
+  "txt_backup_remote_modified": "Изменено",
+  "txt_backup_remote_size": "Размер",
   "txt_backup_remote_load_failed": "Не удалось загрузить удаленные резервные копии.",
   "txt_backup_remote_invalid_response": "Неверный ответ удаленного резервного копирования",
   "txt_backup_remote_download_failed": "Не удалось загрузить удаленную резервную копию.",
