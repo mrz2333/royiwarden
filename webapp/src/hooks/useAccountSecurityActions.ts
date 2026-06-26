@@ -234,24 +234,33 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
         const normalizedName = String(name || '').trim() || t('txt_account_passkey');
         const derived = await deriveLoginHash(profile.email, normalizedPassword, defaultKdfIterations);
         const options = await getAccountPasskeyAttestationOptions(authedFetch, derived.hash);
-        const pending = await createAccountPasskeyCredential(options);
+        const pending = await createAccountPasskeyCredential(options, directUnlock);
         let keySet = null;
         let savedWithoutDirectUnlock = false;
         if (directUnlock) {
           if (!session?.symEncKey || !session?.symMacKey) throw new Error(t('txt_vault_key_unavailable'));
-          try {
-            keySet = await buildAccountPasskeyPrfKeySet(pending, {
-              symEncKey: session.symEncKey,
-              symMacKey: session.symMacKey,
-            });
-          } catch (error) {
-            if (!(error instanceof AccountPasskeyPrfUnavailableError)) throw error;
+          if (!pending.supportsPrf) {
             const shouldSaveLoginOnly = await confirmSaveLoginOnlyAccountPasskey();
             if (!shouldSaveLoginOnly) {
               onNotify('warning', t('txt_account_passkey_not_saved'));
               return null;
             }
             savedWithoutDirectUnlock = true;
+          } else {
+            try {
+              keySet = await buildAccountPasskeyPrfKeySet(pending, {
+                symEncKey: session.symEncKey,
+                symMacKey: session.symMacKey,
+              });
+            } catch (error) {
+              if (!(error instanceof AccountPasskeyPrfUnavailableError)) throw error;
+              const shouldSaveLoginOnly = await confirmSaveLoginOnlyAccountPasskey();
+              if (!shouldSaveLoginOnly) {
+                onNotify('warning', t('txt_account_passkey_not_saved'));
+                return null;
+              }
+              savedWithoutDirectUnlock = true;
+            }
           }
         }
         const credential = await saveAccountPasskey(authedFetch, {
