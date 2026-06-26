@@ -161,6 +161,11 @@ function shouldRetryCreateWithoutPrf(error: unknown): boolean {
   );
 }
 
+async function canRequestPrfExtension(): Promise<boolean> {
+  if (/\bFirefox\//i.test(navigator.userAgent)) return false;
+  return true;
+}
+
 async function getPublicKeyCredentialWithPrf(
   options: PublicKeyCredentialRequestOptions,
   salt: Uint8Array,
@@ -291,7 +296,7 @@ export async function createAccountPasskeyCredential(
     return credential;
   };
   let credential: PublicKeyCredential;
-  if (requestPrf) {
+  if (requestPrf && await canRequestPrfExtension()) {
     const prfOptions: PublicKeyCredentialCreationOptions = {
       ...nativeOptions,
       extensions: {
