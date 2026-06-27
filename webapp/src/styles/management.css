@@ -443,6 +443,10 @@
   color: #64748b;
 }
 
+.backup-browser-refresh-prompt {
+  @apply inline-flex flex-wrap items-center justify-center gap-2;
+}
+
 .backup-inline-note {
   @apply m-0 mb-3 leading-[1.5];
   color: #64748b;

@@ -193,7 +193,7 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   const [downloadingRemotePercent, setDownloadingRemotePercent] = useState<number | null>(null);
   const [restoringRemotePath, setRestoringRemotePath] = useState('');
   const [deletingRemotePath, setDeletingRemotePath] = useState('');
-  const [localError, setLocalError] = useState('');
+  const [, setLocalError] = useState('');
   const [restoreProgress, setRestoreProgress] = useState<BackupProgressState | null>(null);
   const [restoreElapsedSeconds, setRestoreElapsedSeconds] = useState(0);
   const [confirmLocalRestoreOpen, setConfirmLocalRestoreOpen] = useState(false);
@@ -974,7 +974,6 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
         }}
       />
 
-      {localError ? <div className="local-error">{localError}</div> : null}
       {restoreProgress && typeof document !== 'undefined' ? createPortal((
         <div className="restore-progress-overlay" aria-live="polite">
           <section className="restore-progress-card restore-progress-modal">

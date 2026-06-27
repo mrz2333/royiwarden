@@ -32,6 +32,18 @@ export function RemoteBackupBrowser(props: RemoteBackupBrowserProps) {
       : t('txt_downloading_percent', { percent: props.downloadingRemotePercent });
   };
 
+  const renderRefreshPrompt = () => (
+    <div className="backup-browser-empty">
+      <span className="backup-browser-refresh-prompt">
+        <span>{t('txt_backup_remote_cached_empty_prefix')}</span>
+        <button type="button" className="btn btn-secondary small" disabled={!props.canBrowse || props.loadingRemoteBrowser || props.disableWhileBusy} onClick={props.onRefresh}>
+          {t('txt_backup_remote_refresh')}
+        </button>
+        <span>{t('txt_backup_remote_cached_empty_suffix')}</span>
+      </span>
+    </div>
+  );
+
   return (
     <>
       <div className="backup-divider" />
@@ -42,8 +54,10 @@ export function RemoteBackupBrowser(props: RemoteBackupBrowserProps) {
 
       {!props.destinationIsSaved ? (
         <div className="backup-browser-empty">{t('txt_backup_remote_save_first')}</div>
+      ) : props.loadingRemoteBrowser && !props.remoteBrowser ? (
+        <div className="backup-browser-empty">{t('txt_backup_remote_loading')}</div>
       ) : !props.remoteBrowser ? (
-        <div className="backup-browser-empty">{t('txt_backup_remote_cached_empty')}</div>
+        renderRefreshPrompt()
       ) : (
         <>
           <div className="backup-browser-path">
