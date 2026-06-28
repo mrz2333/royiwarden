@@ -66,6 +66,12 @@ export interface CompletedLogin {
   session: SessionState;
   profile: Profile;
   profilePromise: Promise<Profile>;
+  freshMasterPasswordHash?: string | null;
+  freshUserVerificationToken?: string | null;
+}
+
+function readTokenUserVerificationToken(token: TokenSuccess): string | null {
+  return String(token.UserVerificationToken || token.userVerificationToken || '').trim() || null;
 }
 
 export type PasswordLoginResult =
@@ -279,20 +285,16 @@ export async function hydrateLockedSession(
   fallbackProfile: Profile | null = null
 ): Promise<{ session: SessionState | null; profile: Profile | null }> {
   const hasOfflineUnlock = hasOfflineUnlockRecord(session.email);
-  let serviceReachable = true;
-  if (hasOfflineUnlock) {
-    serviceReachable = await probeNodeWardenService();
-    if (!serviceReachable) {
-      return {
-        session,
-        profile: fallbackProfile || loadOfflineProfileSnapshot(session.email),
-      };
-    }
+  if (hasOfflineUnlock && browserReportsOffline()) {
+    return {
+      session,
+      profile: fallbackProfile || loadOfflineProfileSnapshot(session.email),
+    };
   }
 
   const refreshedSession = await maybeRefreshSession(session);
   if (!refreshedSession?.accessToken) {
-    if (hasOfflineUnlock && !serviceReachable) {
+    if (hasOfflineUnlock && (browserReportsOffline() || !(await probeNodeWardenService()))) {
       return {
         session,
         profile: fallbackProfile || loadOfflineProfileSnapshot(session.email),
@@ -323,7 +325,8 @@ export async function completeLogin(
   token: TokenSuccess,
   email: string,
   masterKey: Uint8Array,
-  fallbackKdfIterations: number
+  fallbackKdfIterations: number,
+  freshMasterPasswordHash?: string | null
 ): Promise<CompletedLogin> {
   const normalizedEmail = email.trim().toLowerCase();
   const fallbackProfile = loadProfileSnapshot(normalizedEmail);
@@ -352,6 +355,8 @@ export async function completeLogin(
     session: { ...baseSession, ...keys },
     profile,
     profilePromise: getProfile(tempFetch),
+    freshMasterPasswordHash: freshMasterPasswordHash || null,
+    freshUserVerificationToken: readTokenUserVerificationToken(token),
   };
 }
 
@@ -364,7 +369,8 @@ async function completeLoginWithVaultKeys(
   token: TokenSuccess,
   email: string,
   keys: { symEncKey: string; symMacKey: string },
-  fallbackKdfIterations: number
+  fallbackKdfIterations: number,
+  freshMasterPasswordHash?: string | null
 ): Promise<CompletedLogin> {
   const normalizedEmail = email.trim().toLowerCase();
   const fallbackProfile = loadProfileSnapshot(normalizedEmail);
@@ -389,6 +395,8 @@ async function completeLoginWithVaultKeys(
     session: { ...baseSession, ...keys },
     profile,
     profilePromise: getProfile(tempFetch),
+    freshMasterPasswordHash: freshMasterPasswordHash || null,
+    freshUserVerificationToken: readTokenUserVerificationToken(token),
   };
 }
 
@@ -404,7 +412,7 @@ export async function performPasswordLogin(
   if ('access_token' in token && token.access_token) {
     return {
       kind: 'success',
-      login: await completeLogin(token, normalizedEmail, derived.masterKey, derived.kdfIterations),
+      login: await completeLogin(token, normalizedEmail, derived.masterKey, derived.kdfIterations, derived.hash),
     };
   }
 
@@ -480,7 +488,7 @@ export async function completePasskeyPasswordLogin(
   password: string
 ): Promise<CompletedLogin> {
   const derived = await deriveLoginHashLocally(pending.email, password, pending.kdfIterations);
-  return completeLogin(pending.token, pending.email, derived.masterKey, pending.kdfIterations);
+  return completeLogin(pending.token, pending.email, derived.masterKey, pending.kdfIterations, derived.hash);
 }
 
 export async function performTotpLogin(
@@ -493,7 +501,7 @@ export async function performTotpLogin(
     rememberDevice,
   });
   if ('access_token' in token && token.access_token) {
-    return completeLogin(token, pendingTotp.email, pendingTotp.masterKey, pendingTotp.kdfIterations);
+    return completeLogin(token, pendingTotp.email, pendingTotp.masterKey, pendingTotp.kdfIterations, pendingTotp.passwordHash);
   }
   const tokenError = token as { error_description?: string; error?: string };
   throw new Error(translateServerError(tokenError.error_description || tokenError.error, t('txt_totp_verify_failed')));
@@ -512,7 +520,7 @@ export async function performRecoverTwoFactorLogin(
 
   if ('access_token' in token && token.access_token) {
     return {
-      login: await completeLogin(token, normalizedEmail, derived.masterKey, derived.kdfIterations),
+      login: await completeLogin(token, normalizedEmail, derived.masterKey, derived.kdfIterations, derived.hash),
       newRecoveryCode: recovered.newRecoveryCode || null,
     };
   }
@@ -561,6 +569,7 @@ export async function performUnlock(
           session: offline.session,
           profile: offline.profile,
           profilePromise: Promise.resolve(offline.profile),
+          freshMasterPasswordHash: null,
         },
       };
     } catch {
@@ -571,14 +580,8 @@ export async function performUnlock(
     }
   };
 
-  if (hasOfflineUnlock) {
-    if (browserReportsOffline()) {
-      return unlockOffline();
-    }
-    const serviceReachable = await probeNodeWardenService();
-    if (!serviceReachable) {
-      return unlockOffline();
-    }
+  if (hasOfflineUnlock && browserReportsOffline()) {
+    return unlockOffline();
   }
 
   let token: TokenSuccess | { TwoFactorProviders?: unknown; error_description?: string; error?: string };
@@ -599,7 +602,7 @@ export async function performUnlock(
   if ('access_token' in token && token.access_token) {
     return {
       kind: 'success',
-      login: await completeLogin(token, normalizedEmail, derived.masterKey, derived.kdfIterations),
+      login: await completeLogin(token, normalizedEmail, derived.masterKey, derived.kdfIterations, derived.hash),
     };
   }
 

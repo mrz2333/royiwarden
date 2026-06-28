@@ -34,24 +34,33 @@ import { BackupOperationsSidebar } from './backup-center/BackupOperationsSidebar
 
 interface BackupCenterPageProps {
   currentUserId: string | null;
-  onExport: (includeAttachments?: boolean) => Promise<void>;
-  onImport: (file: File, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
-  onImportAllowingChecksumMismatch: (file: File, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
+  onExport: (masterPassword: string, includeAttachments?: boolean) => Promise<void>;
+  onImport: (masterPassword: string, file: File, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
+  onImportAllowingChecksumMismatch: (masterPassword: string, file: File, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
   onLoadSettings: () => Promise<AdminBackupSettings>;
-  onSaveSettings: (settings: AdminBackupSettings) => Promise<AdminBackupSettings>;
-  onRunRemoteBackup: (destinationId?: string | null) => Promise<AdminBackupRunResponse>;
+  onSaveSettings: (masterPassword: string, settings: AdminBackupSettings) => Promise<AdminBackupSettings>;
+  onRunRemoteBackup: (masterPassword: string, destinationId?: string | null) => Promise<AdminBackupRunResponse>;
   onListRemoteBackups: (destinationId: string, path: string) => Promise<RemoteBackupBrowserResponse>;
-  onDownloadRemoteBackup: (destinationId: string, path: string, onProgress?: (percent: number | null) => void) => Promise<void>;
+  onDownloadRemoteBackup: (masterPassword: string, destinationId: string, path: string, onProgress?: (percent: number | null) => void) => Promise<void>;
   onInspectRemoteBackup: (destinationId: string, path: string) => Promise<{ object: 'backup-remote-integrity'; destinationId: string; path: string; fileName: string; integrity: BackupFileIntegrityCheckResult }>;
   onDeleteRemoteBackup: (destinationId: string, path: string) => Promise<void>;
-  onRestoreRemoteBackup: (destinationId: string, path: string, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
-  onRestoreRemoteBackupAllowingChecksumMismatch: (destinationId: string, path: string, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
+  onRestoreRemoteBackup: (masterPassword: string, destinationId: string, path: string, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
+  onRestoreRemoteBackupAllowingChecksumMismatch: (masterPassword: string, destinationId: string, path: string, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
   onNotify: (type: 'success' | 'error' | 'warning', text: string) => void;
 }
 
 type PendingRestoreIntegrity =
   | { source: 'local'; fileName: string; result: BackupFileIntegrityCheckResult }
   | { source: 'remote'; fileName: string; path: string; result: BackupFileIntegrityCheckResult };
+
+type PendingBackupVerification =
+  | { action: 'export' }
+  | { action: 'saveSettings' }
+  | { action: 'deleteDestination'; destinationId: string; settings: AdminBackupSettings }
+  | { action: 'import'; replaceExisting: boolean; allowChecksumMismatch: boolean; knownIntegrity?: BackupFileIntegrityCheckResult }
+  | { action: 'runRemoteBackup' }
+  | { action: 'downloadRemote'; path: string }
+  | { action: 'restoreRemote'; path: string; replaceExisting: boolean; allowChecksumMismatch: boolean; knownIntegrity?: BackupFileIntegrityCheckResult };
 
 interface BackupProgressPhase {
   titleKey: string;
@@ -184,7 +193,7 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   const [downloadingRemotePercent, setDownloadingRemotePercent] = useState<number | null>(null);
   const [restoringRemotePath, setRestoringRemotePath] = useState('');
   const [deletingRemotePath, setDeletingRemotePath] = useState('');
-  const [localError, setLocalError] = useState('');
+  const [, setLocalError] = useState('');
   const [restoreProgress, setRestoreProgress] = useState<BackupProgressState | null>(null);
   const [restoreElapsedSeconds, setRestoreElapsedSeconds] = useState(0);
   const [confirmLocalRestoreOpen, setConfirmLocalRestoreOpen] = useState(false);
@@ -193,6 +202,9 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   const [confirmIntegrityWarningOpen, setConfirmIntegrityWarningOpen] = useState(false);
   const [confirmDeleteDestinationOpen, setConfirmDeleteDestinationOpen] = useState(false);
   const [confirmRemoteDeleteOpen, setConfirmRemoteDeleteOpen] = useState(false);
+  const [pendingBackupVerification, setPendingBackupVerification] = useState<PendingBackupVerification | null>(null);
+  const [backupPasswordValue, setBackupPasswordValue] = useState('');
+  const [backupPasswordSubmitting, setBackupPasswordSubmitting] = useState(false);
   const [pendingRestoreIntegrity, setPendingRestoreIntegrity] = useState<PendingRestoreIntegrity | null>(null);
   const [pendingRemoteRestorePath, setPendingRemoteRestorePath] = useState('');
   const [pendingRemoteDeletePath, setPendingRemoteDeletePath] = useState('');
@@ -209,7 +221,7 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   const selectedDestination = getDestinationById(settings, selectedDestinationId);
   const savedSelectedDestination = getDestinationById(savedSettings, selectedDestinationId);
   const selectedDestinationIsSaved = !!savedSelectedDestination;
-  const disableWhileBusy = exporting || importing || savingSettings || runningRemoteBackup;
+  const disableWhileBusy = exporting || importing || savingSettings || runningRemoteBackup || backupPasswordSubmitting;
   const currentRemoteBrowserPath = savedSelectedDestination ? (remoteBrowserPathByDestination[savedSelectedDestination.id] || '') : '';
   const currentRemoteBrowserKey = savedSelectedDestination ? getRemoteBrowserCacheKey(savedSelectedDestination.id, currentRemoteBrowserPath) : '';
   const remoteBrowser = currentRemoteBrowserKey ? remoteBrowserCache[currentRemoteBrowserKey] || null : null;
@@ -226,6 +238,18 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   const recommendedS3Providers = RECOMMENDED_PROVIDERS.filter((provider) => provider.protocol === 's3');
   const canRunSelectedDestination = !!selectedDestination && selectedDestinationIsSaved;
   const canBrowseSelectedDestination = !!savedSelectedDestination;
+  const backupPasswordPromptTitle =
+    pendingBackupVerification?.action === 'export'
+      ? t('txt_backup_export')
+      : pendingBackupVerification?.action === 'saveSettings' || pendingBackupVerification?.action === 'deleteDestination'
+        ? t('txt_backup_save_settings')
+        : pendingBackupVerification?.action === 'runRemoteBackup'
+          ? t('txt_backup_run_manual')
+      : pendingBackupVerification?.action === 'downloadRemote'
+        ? t('txt_backup_remote_download')
+        : pendingBackupVerification?.action === 'restoreRemote'
+          ? t('txt_backup_import')
+          : t('txt_backup_import');
 
   useEffect(() => {
     let cancelled = false;
@@ -478,10 +502,16 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
       destinations: (savedSettings?.destinations || []).filter((destination) => destination.id !== destinationIdToDelete),
     };
 
+    setPendingBackupVerification({ action: 'deleteDestination', destinationId: destinationIdToDelete, settings: nextSettings });
+    setBackupPasswordValue('');
+    setConfirmDeleteDestinationOpen(false);
+  }
+
+  async function executeDeleteDestination(masterPassword: string, destinationIdToDelete: string, payload: AdminBackupSettings) {
     setSavingSettings(true);
     setLocalError('');
     try {
-      const saved = await props.onSaveSettings(nextSettings);
+      const saved = await props.onSaveSettings(masterPassword, payload);
       const nextDraftDestinations = settings.destinations.filter((destination) => destination.id !== destinationIdToDelete);
       const nextSelected = getFirstVisibleDestinationId({ destinations: nextDraftDestinations }) || getFirstVisibleDestinationId(saved);
       setSavedSettings(saved);
@@ -507,11 +537,17 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   }
 
   async function handleExport() {
+    if (exporting) return;
+    setPendingBackupVerification({ action: 'export' });
+    setBackupPasswordValue('');
+  }
+
+  async function executeExport(masterPassword: string) {
     setLocalError('');
     setExporting(true);
     try {
       startRestoreProgress('backup-export', t('txt_backup_export'), { source: 'local', includeAttachments: exportIncludeAttachments });
-      await props.onExport(exportIncludeAttachments);
+      await props.onExport(masterPassword, exportIncludeAttachments);
       props.onNotify('success', t('txt_backup_export_success'));
     } catch (error) {
       const message = error instanceof Error ? error.message : t('txt_backup_export_failed');
@@ -535,6 +571,28 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
       props.onNotify('error', message);
       return;
     }
+    setPendingBackupVerification({
+      action: 'import',
+      replaceExisting,
+      allowChecksumMismatch,
+      knownIntegrity,
+    });
+    setBackupPasswordValue('');
+  }
+
+  async function executeLocalRestore(
+    masterPassword: string,
+    replaceExisting: boolean,
+    allowChecksumMismatch: boolean = false,
+    knownIntegrity?: BackupFileIntegrityCheckResult
+  ) {
+    if (importing) return;
+    if (!selectedFile) {
+      const message = t('txt_backup_file_required');
+      setLocalError(message);
+      props.onNotify('error', message);
+      return;
+    }
     setLocalError('');
     setConfirmLocalRestoreOpen(false);
     setConfirmReplaceOpen(false);
@@ -547,8 +605,8 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
         delayMs: replaceExisting ? 480 : 1400,
       });
       const result = allowChecksumMismatch
-        ? await props.onImportAllowingChecksumMismatch(selectedFile, replaceExisting)
-        : await props.onImport(selectedFile, replaceExisting);
+        ? await props.onImportAllowingChecksumMismatch(masterPassword, selectedFile, replaceExisting)
+        : await props.onImport(masterPassword, selectedFile, replaceExisting);
       props.onNotify('success', `${buildIntegrityStatusMessage(integrity)} ${t('txt_backup_restore_success_relogin')}`);
       const skippedMessage = buildSkippedImportMessage(result);
       if (skippedMessage) props.onNotify('warning', skippedMessage);
@@ -573,12 +631,18 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   }
 
   async function handleSaveSettings() {
+    if (savingSettings) return;
+    setPendingBackupVerification({ action: 'saveSettings' });
+    setBackupPasswordValue('');
+  }
+
+  async function executeSaveSettings(masterPassword: string) {
     const payload = buildSettingsPayloadForSelectedDestination();
     const destinationIdToInvalidate = selectedDestinationId;
     setSavingSettings(true);
     setLocalError('');
     try {
-      const saved = await props.onSaveSettings(payload);
+      const saved = await props.onSaveSettings(masterPassword, payload);
       const nextSelected =
         (selectedDestinationId && saved.destinations.some((destination) => destination.id === selectedDestinationId) && selectedDestinationId)
         || getFirstVisibleDestinationId(saved)
@@ -613,6 +677,12 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   }
 
   async function handleRunRemoteBackup() {
+    if (!selectedDestination || runningRemoteBackup) return;
+    setPendingBackupVerification({ action: 'runRemoteBackup' });
+    setBackupPasswordValue('');
+  }
+
+  async function executeRunRemoteBackup(masterPassword: string) {
     if (!selectedDestination) return;
     setRunningRemoteBackup(true);
     setLocalError('');
@@ -621,7 +691,7 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
         source: 'remote',
         includeAttachments: !!selectedDestination.includeAttachments,
       });
-      const result = await props.onRunRemoteBackup(selectedDestination.id);
+      const result = await props.onRunRemoteBackup(masterPassword, selectedDestination.id);
       setSavedSettings(result.settings);
       setSettings(result.settings);
       setSelectedDestinationId(selectedDestination.id);
@@ -638,12 +708,17 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   }
 
   async function handleDownloadRemote(path: string) {
+    setPendingBackupVerification({ action: 'downloadRemote', path });
+    setBackupPasswordValue('');
+  }
+
+  async function executeDownloadRemote(masterPassword: string, path: string) {
     if (!savedSelectedDestination) return;
     setDownloadingRemotePath(path);
     setDownloadingRemotePercent(null);
     setLocalError('');
     try {
-      await props.onDownloadRemoteBackup(savedSelectedDestination.id, path, setDownloadingRemotePercent);
+      await props.onDownloadRemoteBackup(masterPassword, savedSelectedDestination.id, path, setDownloadingRemotePercent);
     } catch (error) {
       const message = error instanceof Error ? error.message : t('txt_backup_remote_download_failed');
       setLocalError(message);
@@ -727,6 +802,25 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
   ) {
     if (restoringRemotePath) return;
     if (!savedSelectedDestination) return;
+    setPendingBackupVerification({
+      action: 'restoreRemote',
+      path,
+      replaceExisting,
+      allowChecksumMismatch,
+      knownIntegrity,
+    });
+    setBackupPasswordValue('');
+  }
+
+  async function executeRemoteRestore(
+    masterPassword: string,
+    path: string,
+    replaceExisting: boolean,
+    allowChecksumMismatch: boolean = false,
+    knownIntegrity?: BackupFileIntegrityCheckResult
+  ) {
+    if (restoringRemotePath) return;
+    if (!savedSelectedDestination) return;
     setConfirmRemoteReplaceOpen(false);
     setConfirmIntegrityWarningOpen(false);
     setRestoringRemotePath(path);
@@ -738,8 +832,8 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
         delayMs: replaceExisting ? 480 : 1400,
       });
       const result = allowChecksumMismatch
-        ? await props.onRestoreRemoteBackupAllowingChecksumMismatch(savedSelectedDestination.id, path, replaceExisting)
-        : await props.onRestoreRemoteBackup(savedSelectedDestination.id, path, replaceExisting);
+        ? await props.onRestoreRemoteBackupAllowingChecksumMismatch(masterPassword, savedSelectedDestination.id, path, replaceExisting)
+        : await props.onRestoreRemoteBackup(masterPassword, savedSelectedDestination.id, path, replaceExisting);
       setConfirmRemoteReplaceOpen(false);
       setPendingRemoteRestorePath('');
       props.onNotify('success', `${buildIntegrityStatusMessage(integrity.result, { remote: true })} ${t('txt_backup_restore_success_relogin')}`);
@@ -759,6 +853,38 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
       window.setTimeout(() => clearRestoreProgress(), 1200);
     } finally {
       setRestoringRemotePath('');
+    }
+  }
+
+  async function submitBackupPasswordPrompt(): Promise<void> {
+    const request = pendingBackupVerification;
+    const masterPassword = backupPasswordValue;
+    if (!request || backupPasswordSubmitting) return;
+    if (!masterPassword.trim()) {
+      props.onNotify('error', t('txt_master_password_is_required'));
+      return;
+    }
+    setBackupPasswordSubmitting(true);
+    setPendingBackupVerification(null);
+    setBackupPasswordValue('');
+    try {
+      if (request.action === 'export') {
+        await executeExport(masterPassword);
+      } else if (request.action === 'saveSettings') {
+        await executeSaveSettings(masterPassword);
+      } else if (request.action === 'deleteDestination') {
+        await executeDeleteDestination(masterPassword, request.destinationId, request.settings);
+      } else if (request.action === 'import') {
+        await executeLocalRestore(masterPassword, request.replaceExisting, request.allowChecksumMismatch, request.knownIntegrity);
+      } else if (request.action === 'runRemoteBackup') {
+        await executeRunRemoteBackup(masterPassword);
+      } else if (request.action === 'downloadRemote') {
+        await executeDownloadRemote(masterPassword, request.path);
+      } else if (request.action === 'restoreRemote') {
+        await executeRemoteRestore(masterPassword, request.path, request.replaceExisting, request.allowChecksumMismatch, request.knownIntegrity);
+      }
+    } finally {
+      setBackupPasswordSubmitting(false);
     }
   }
 
@@ -848,7 +974,6 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
         }}
       />
 
-      {localError ? <div className="local-error">{localError}</div> : null}
       {restoreProgress && typeof document !== 'undefined' ? createPortal((
         <div className="restore-progress-overlay" aria-live="polite">
           <section className="restore-progress-card restore-progress-modal">
@@ -892,6 +1017,33 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
           </section>
         </div>
       ), document.body) : null}
+
+      <ConfirmDialog
+        open={pendingBackupVerification !== null}
+        title={backupPasswordPromptTitle}
+        message={t('txt_enter_master_password_to_continue')}
+        confirmText={t('txt_continue')}
+        cancelText={t('txt_cancel')}
+        confirmDisabled={backupPasswordSubmitting || !backupPasswordValue.trim()}
+        cancelDisabled={backupPasswordSubmitting}
+        onConfirm={() => void submitBackupPasswordPrompt()}
+        onCancel={() => {
+          if (backupPasswordSubmitting) return;
+          setPendingBackupVerification(null);
+          setBackupPasswordValue('');
+        }}
+      >
+        <label className="field">
+          <span>{t('txt_master_password')}</span>
+          <input
+            className="input"
+            type="password"
+            autoComplete="current-password"
+            value={backupPasswordValue}
+            onInput={(event) => setBackupPasswordValue((event.currentTarget as HTMLInputElement).value)}
+          />
+        </label>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={confirmLocalRestoreOpen}

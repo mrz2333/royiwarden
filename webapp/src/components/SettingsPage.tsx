@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Clipboard, KeyRound, RefreshCw, ShieldCheck, ShieldOff, Trash2 } from 'lucide-preact';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import qrcode from 'qrcode-generator';
-import type { AccountPasskeyCredential, AuthRequest, Profile } from '@/lib/types';
+import type { AccountPasskeyCredential, Profile } from '@/lib/types';
 import { AVAILABLE_LOCALES, getLocale, setLocale, t, type Locale } from '@/lib/i18n';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import PendingAuthRequestsPanel from '@/components/PendingAuthRequestsPanel';
 
 interface SettingsPageProps {
   profile: Profile;
@@ -14,7 +13,7 @@ interface SettingsPageProps {
   sessionTimeoutAction: 'lock' | 'logout';
   onChangePassword: (currentPassword: string, nextPassword: string, nextPassword2: string) => Promise<void>;
   onSavePasswordHint: (masterPasswordHint: string) => Promise<void>;
-  onEnableTotp: (secret: string, token: string) => Promise<void>;
+  onEnableTotp: (secret: string, token: string, masterPassword: string) => Promise<void>;
   onOpenDisableTotp: () => void;
   onGetRecoveryCode: (masterPassword: string) => Promise<string>;
   onGetApiKey: (masterPassword: string) => Promise<string>;
@@ -23,17 +22,13 @@ interface SettingsPageProps {
   onCreateAccountPasskey: (name: string, masterPassword: string, directUnlock: boolean) => Promise<AccountPasskeyCredential | null>;
   onEnableAccountPasskeyDirectUnlock: (id: string, masterPassword: string) => Promise<void>;
   onDeleteAccountPasskey: (id: string, masterPassword: string) => Promise<void>;
-  pendingAuthRequests: AuthRequest[];
-  pendingAuthRequestsLoading: boolean;
-  onRefreshPendingAuthRequests: () => Promise<void>;
-  onApproveAuthRequest: (request: AuthRequest) => Promise<void>;
-  onDenyAuthRequest: (request: AuthRequest) => Promise<void>;
   onLockTimeoutChange: (minutes: 0 | 1 | 5 | 15 | 30) => void;
   onSessionTimeoutActionChange: (action: 'lock' | 'logout') => void;
   onNotify?: (type: 'success' | 'error' | 'warning', text: string) => void;
 }
 
 type MasterPasswordPromptAction =
+  | 'enableTotp'
   | 'recovery'
   | 'apiKey'
   | 'rotateApiKey'
@@ -141,12 +136,12 @@ export default function SettingsPage(props: SettingsPageProps) {
   }, [props.profile.email, secret]);
 
   async function enableTotp(): Promise<void> {
-    try {
-      await props.onEnableTotp(secret, token);
-      setTotpLocked(true);
-    } catch {
-      // Keep inputs editable after a failed attempt.
+    if (totpLocked) return;
+    if (!secret.trim() || !token.trim()) {
+      props.onNotify?.('error', t('txt_secret_and_code_are_required'));
+      return;
     }
+    openMasterPasswordPrompt('enableTotp');
   }
 
   async function refreshAccountPasskeys(): Promise<void> {
@@ -178,7 +173,10 @@ export default function SettingsPage(props: SettingsPageProps) {
     const masterPassword = masterPasswordPromptValue;
     setMasterPasswordPromptSubmitting(true);
     try {
-      if (masterPasswordPrompt === 'recovery') {
+      if (masterPasswordPrompt === 'enableTotp') {
+        await props.onEnableTotp(secret, token, masterPassword);
+        setTotpLocked(true);
+      } else if (masterPasswordPrompt === 'recovery') {
         const code = await props.onGetRecoveryCode(masterPassword);
         setRecoveryCode(code);
         props.onNotify?.('success', t('txt_recovery_code_loaded'));
@@ -214,7 +212,9 @@ export default function SettingsPage(props: SettingsPageProps) {
   }
 
   const masterPasswordPromptTitle =
-    masterPasswordPrompt === 'recovery'
+    masterPasswordPrompt === 'enableTotp'
+      ? t('txt_enable_totp')
+      : masterPasswordPrompt === 'recovery'
       ? t('txt_view_recovery_code')
       : masterPasswordPrompt === 'rotateApiKey'
         ? t('txt_rotate_api_key')
@@ -509,15 +509,6 @@ export default function SettingsPage(props: SettingsPageProps) {
           )}
         </div>
       </section>
-
-      <PendingAuthRequestsPanel
-        pendingAuthRequests={props.pendingAuthRequests}
-        pendingAuthRequestsLoading={props.pendingAuthRequestsLoading}
-        onRefreshPendingAuthRequests={props.onRefreshPendingAuthRequests}
-        onApproveAuthRequest={props.onApproveAuthRequest}
-        onDenyAuthRequest={props.onDenyAuthRequest}
-      />
-
       <section className="settings-module sensitive-actions-module">
         <div className="sensitive-actions-grid">
           <div className="sensitive-action">

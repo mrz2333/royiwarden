@@ -27,6 +27,7 @@ import {
   handleNotificationsNegotiate,
 } from './handlers/notifications';
 import { handlePublicUploadSendFile } from './handlers/sends';
+import { isSafeWebsiteIconContentType } from './utils/content-type';
 import { jsonResponse } from './utils/response';
 import { StorageService } from './services/storage';
 import type { Env } from './types';
@@ -126,6 +127,7 @@ function buildConfigResponse(origin: string) {
       'email-verification': true,
       'pm-19051-send-email-verification': false,
       'pm-19148-innovation-archive': true,
+      'pm-30529-webauthn-related-origins': true,
       'unauth-ui-refresh': true,
       'web-push': false,
     },
@@ -241,6 +243,7 @@ function iconResponse(body: BodyInit | null, contentType: string | null): Respon
     headers: {
       'Content-Type': contentType || 'image/png',
       'Cache-Control': `public, max-age=${LIMITS.cache.iconTtlSeconds}, immutable`,
+      'Content-Security-Policy': "default-src 'none'; img-src 'self' data:; sandbox",
     },
   });
 }
@@ -272,7 +275,7 @@ async function handleWebsiteIcon(host: string, fallbackMode: 'default' | 'not-fo
 
       if (!resp.ok) continue;
       const contentType = String(resp.headers.get('Content-Type') || '').toLowerCase();
-      if (!contentType.startsWith('image/')) continue;
+      if (!isSafeWebsiteIconContentType(contentType)) continue;
 
       const contentLength = getPositiveContentLength(resp.headers);
       if (contentLength !== null && contentLength > ICON_MAX_BUFFER_BYTES) continue;
@@ -467,7 +470,7 @@ export async function handlePublicRoute(
     const blocked = await enforcePublicRateLimit('public-read', LIMITS.rateLimit.publicReadRequestsPerMinute);
     if (blocked) return blocked;
     const origin = new URL(request.url).origin;
-    return jsonResponse(buildConfigResponse(origin));
+    return jsonResponse(buildConfigResponse(origin), 200, { 'Cache-Control': 'no-store' });
   }
 
   if (path === '/api/version' && method === 'GET') {

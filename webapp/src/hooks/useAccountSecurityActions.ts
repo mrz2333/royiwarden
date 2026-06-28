@@ -3,6 +3,7 @@ import {
   changeMasterPassword,
   deleteAllAuthorizedDevices,
   deleteAuthorizedDevice,
+  deleteAuthorizedDevices,
   deriveLoginHash,
   deleteAccountPasskey as deleteAccountPasskeyApi,
   enableAccountPasskeyDirectUnlock as enableAccountPasskeyDirectUnlockApi,
@@ -145,14 +146,30 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
         }
       },
 
-      async enableTotp(secret: string, token: string) {
+      async enableTotp(secret: string, token: string, masterPassword: string) {
+        if (!profile) {
+          const error = new Error(t('txt_profile_unavailable'));
+          onNotify('error', error.message);
+          throw error;
+        }
         if (!secret.trim() || !token.trim()) {
           const error = new Error(t('txt_secret_and_code_are_required'));
           onNotify('error', error.message);
           throw error;
         }
+        if (!masterPassword) {
+          const error = new Error(t('txt_master_password_is_required'));
+          onNotify('error', error.message);
+          throw error;
+        }
         try {
-          await setTotp(authedFetch, { enabled: true, secret: secret.trim(), token: token.trim() });
+          const derived = await deriveLoginHash(profile.email, masterPassword, defaultKdfIterations);
+          await setTotp(authedFetch, {
+            enabled: true,
+            secret: secret.trim(),
+            token: token.trim(),
+            masterPasswordHash: derived.hash,
+          });
           onNotify('success', t('txt_totp_enabled'));
         } catch (error) {
           onNotify('error', error instanceof Error ? error.message : t('txt_enable_totp_failed'));
@@ -218,24 +235,33 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
         const normalizedName = String(name || '').trim() || t('txt_account_passkey');
         const derived = await deriveLoginHash(profile.email, normalizedPassword, defaultKdfIterations);
         const options = await getAccountPasskeyAttestationOptions(authedFetch, derived.hash);
-        const pending = await createAccountPasskeyCredential(options);
+        const pending = await createAccountPasskeyCredential(options, directUnlock);
         let keySet = null;
         let savedWithoutDirectUnlock = false;
         if (directUnlock) {
           if (!session?.symEncKey || !session?.symMacKey) throw new Error(t('txt_vault_key_unavailable'));
-          try {
-            keySet = await buildAccountPasskeyPrfKeySet(pending, {
-              symEncKey: session.symEncKey,
-              symMacKey: session.symMacKey,
-            });
-          } catch (error) {
-            if (!(error instanceof AccountPasskeyPrfUnavailableError)) throw error;
+          if (!pending.supportsPrf) {
             const shouldSaveLoginOnly = await confirmSaveLoginOnlyAccountPasskey();
             if (!shouldSaveLoginOnly) {
               onNotify('warning', t('txt_account_passkey_not_saved'));
               return null;
             }
             savedWithoutDirectUnlock = true;
+          } else {
+            try {
+              keySet = await buildAccountPasskeyPrfKeySet(pending, {
+                symEncKey: session.symEncKey,
+                symMacKey: session.symMacKey,
+              });
+            } catch (error) {
+              if (!(error instanceof AccountPasskeyPrfUnavailableError)) throw error;
+              const shouldSaveLoginOnly = await confirmSaveLoginOnlyAccountPasskey();
+              if (!shouldSaveLoginOnly) {
+                onNotify('warning', t('txt_account_passkey_not_saved'));
+                return null;
+              }
+              savedWithoutDirectUnlock = true;
+            }
           }
         }
         const credential = await saveAccountPasskey(authedFetch, {
@@ -358,6 +384,38 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
                 onNotify('success', t('txt_device_removed'));
               } catch (error) {
                 onNotify('error', error instanceof Error ? error.message : t('txt_remove_device_failed'));
+              }
+            })();
+          },
+        });
+      },
+
+      openRemoveSelectedDevices(devices: AuthorizedDevice[]) {
+        const selectedDevices = devices.filter((device) => String(device.identifier || '').trim());
+        if (selectedDevices.length === 0) {
+          onNotify('warning', t('txt_no_devices_selected'));
+          return;
+        }
+        const includesCurrentDevice = selectedDevices.some((device) => device.identifier === getCurrentDeviceIdentifier());
+        onSetConfirm({
+          title: t('txt_remove_selected_devices', { count: selectedDevices.length }),
+          message: includesCurrentDevice
+            ? t('txt_remove_selected_devices_and_sign_out_current', { count: selectedDevices.length })
+            : t('txt_remove_selected_devices_confirm', { count: selectedDevices.length }),
+          danger: true,
+          onConfirm: () => {
+            onSetConfirm(null);
+            void (async () => {
+              try {
+                await deleteAuthorizedDevices(authedFetch, selectedDevices);
+                onNotify('success', t('txt_selected_devices_removed', { count: selectedDevices.length }));
+                if (includesCurrentDevice) {
+                  onLogoutNow();
+                  return;
+                }
+                await refetchAuthorizedDevices();
+              } catch (error) {
+                onNotify('error', error instanceof Error ? error.message : t('txt_remove_selected_devices_failed'));
               }
             })();
           },

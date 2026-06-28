@@ -78,6 +78,7 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   'code TEXT PRIMARY KEY, created_by TEXT NOT NULL, used_by TEXT, expires_at TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, ' +
   'FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE, ' +
   'FOREIGN KEY (used_by) REFERENCES users(id) ON DELETE SET NULL)',
+  'ALTER TABLE invites ADD COLUMN used_by TEXT',
   'CREATE INDEX IF NOT EXISTS idx_invites_status_expires ON invites(status, expires_at)',
   'CREATE INDEX IF NOT EXISTS idx_invites_created_by ON invites(created_by, created_at)',
 
@@ -94,7 +95,7 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   'CREATE INDEX IF NOT EXISTS idx_audit_logs_level_created ON audit_logs(level, created_at)',
 
   'CREATE TABLE IF NOT EXISTS devices (' +
-  'user_id TEXT NOT NULL, device_identifier TEXT NOT NULL, name TEXT NOT NULL, type INTEGER NOT NULL, session_stamp TEXT, encrypted_user_key TEXT, encrypted_public_key TEXT, encrypted_private_key TEXT, banned INTEGER NOT NULL DEFAULT 0, banned_at TEXT, device_note TEXT, last_seen_at TEXT, ' +
+  'user_id TEXT NOT NULL, device_identifier TEXT NOT NULL, name TEXT NOT NULL, type INTEGER NOT NULL, session_stamp TEXT, encrypted_user_key TEXT, encrypted_public_key TEXT, encrypted_private_key TEXT, push_uuid TEXT, push_token TEXT, banned INTEGER NOT NULL DEFAULT 0, banned_at TEXT, device_note TEXT, last_seen_at TEXT, ' +
   'created_at TEXT NOT NULL, updated_at TEXT NOT NULL, ' +
   'PRIMARY KEY (user_id, device_identifier), ' +
   'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)',
@@ -103,11 +104,14 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   'ALTER TABLE devices ADD COLUMN encrypted_user_key TEXT',
   'ALTER TABLE devices ADD COLUMN encrypted_public_key TEXT',
   'ALTER TABLE devices ADD COLUMN encrypted_private_key TEXT',
+  'ALTER TABLE devices ADD COLUMN push_uuid TEXT',
+  'ALTER TABLE devices ADD COLUMN push_token TEXT',
   'ALTER TABLE devices ADD COLUMN banned INTEGER NOT NULL DEFAULT 0',
   'ALTER TABLE devices ADD COLUMN banned_at TEXT',
   'ALTER TABLE devices ADD COLUMN device_note TEXT',
   'ALTER TABLE devices ADD COLUMN last_seen_at TEXT',
   'CREATE INDEX IF NOT EXISTS idx_devices_user_last_seen ON devices(user_id, last_seen_at)',
+  'CREATE INDEX IF NOT EXISTS idx_devices_user_push ON devices(user_id, push_token)',
 
   'CREATE TABLE IF NOT EXISTS auth_requests (' +
   'id TEXT PRIMARY KEY, user_id TEXT NOT NULL, organization_id TEXT, type INTEGER NOT NULL, request_device_identifier TEXT NOT NULL, request_device_type INTEGER NOT NULL, ' +
@@ -122,6 +126,12 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   'token TEXT PRIMARY KEY, user_id TEXT NOT NULL, device_identifier TEXT NOT NULL, expires_at INTEGER NOT NULL, ' +
   'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)',
   'CREATE INDEX IF NOT EXISTS idx_trusted_two_factor_device_tokens_user_device ON trusted_two_factor_device_tokens(user_id, device_identifier)',
+
+  'CREATE TABLE IF NOT EXISTS totp_login_replays (' +
+  'user_id TEXT NOT NULL, time_counter INTEGER NOT NULL, consumed_at INTEGER NOT NULL, ' +
+  'PRIMARY KEY (user_id, time_counter), ' +
+  'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)',
+  'CREATE INDEX IF NOT EXISTS idx_totp_login_replays_consumed_at ON totp_login_replays(consumed_at)',
 
   'CREATE TABLE IF NOT EXISTS webauthn_credentials (' +
   'id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, public_key TEXT NOT NULL, credential_id TEXT NOT NULL, counter INTEGER NOT NULL DEFAULT 0, ' +
