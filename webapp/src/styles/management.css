@@ -1520,8 +1520,12 @@
   table-layout: fixed;
 }
 
+.authorized-devices-col-select {
+  width: 4%;
+}
+
 .authorized-devices-col-device {
-  width: 28%;
+  width: 26%;
 }
 
 .authorized-devices-col-type {
@@ -1542,6 +1546,12 @@
 
 .authorized-devices-col-actions {
   width: 26%;
+}
+
+.authorized-device-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #2563eb;
 }
 
 .authorized-devices-table td:first-child {

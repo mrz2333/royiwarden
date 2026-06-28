@@ -3,6 +3,7 @@ import {
   changeMasterPassword,
   deleteAllAuthorizedDevices,
   deleteAuthorizedDevice,
+  deleteAuthorizedDevices,
   deriveLoginHash,
   deleteAccountPasskey as deleteAccountPasskeyApi,
   enableAccountPasskeyDirectUnlock as enableAccountPasskeyDirectUnlockApi,
@@ -383,6 +384,38 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
                 onNotify('success', t('txt_device_removed'));
               } catch (error) {
                 onNotify('error', error instanceof Error ? error.message : t('txt_remove_device_failed'));
+              }
+            })();
+          },
+        });
+      },
+
+      openRemoveSelectedDevices(devices: AuthorizedDevice[]) {
+        const selectedDevices = devices.filter((device) => String(device.identifier || '').trim());
+        if (selectedDevices.length === 0) {
+          onNotify('warning', t('txt_no_devices_selected'));
+          return;
+        }
+        const includesCurrentDevice = selectedDevices.some((device) => device.identifier === getCurrentDeviceIdentifier());
+        onSetConfirm({
+          title: t('txt_remove_selected_devices', { count: selectedDevices.length }),
+          message: includesCurrentDevice
+            ? t('txt_remove_selected_devices_and_sign_out_current', { count: selectedDevices.length })
+            : t('txt_remove_selected_devices_confirm', { count: selectedDevices.length }),
+          danger: true,
+          onConfirm: () => {
+            onSetConfirm(null);
+            void (async () => {
+              try {
+                await deleteAuthorizedDevices(authedFetch, selectedDevices);
+                onNotify('success', t('txt_selected_devices_removed', { count: selectedDevices.length }));
+                if (includesCurrentDevice) {
+                  onLogoutNow();
+                  return;
+                }
+                await refetchAuthorizedDevices();
+              } catch (error) {
+                onNotify('error', error instanceof Error ? error.message : t('txt_remove_selected_devices_failed'));
               }
             })();
           },

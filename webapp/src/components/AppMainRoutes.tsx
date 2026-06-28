@@ -57,6 +57,7 @@ export interface AppMainRoutesProps {
   lockTimeoutMinutes: 0 | 1 | 5 | 15 | 30;
   sessionTimeoutAction: 'lock' | 'logout';
   authorizedDevices: AuthorizedDevice[];
+  currentDeviceIdentifier: string;
   authorizedDevicesLoading: boolean;
   authorizedDevicesError: string;
   domainRules: DomainRules | null;
@@ -130,6 +131,7 @@ export interface AppMainRoutesProps {
   onRevokeDeviceTrust: (device: AuthorizedDevice) => void;
   onTrustDevicePermanently: (device: AuthorizedDevice) => void;
   onRemoveDevice: (device: AuthorizedDevice) => void;
+  onRemoveSelectedDevices: (devices: AuthorizedDevice[]) => void;
   onRevokeAllDeviceTrust: () => void;
   onRemoveAllDevices: () => void;
   onCreateInvite: (hours: number) => Promise<void>;
@@ -347,6 +349,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
             <Suspense fallback={<RouteContentFallback />}>
               <SecurityDevicesPage
                 devices={props.authorizedDevices}
+                currentDeviceIdentifier={props.currentDeviceIdentifier}
                 loading={props.authorizedDevicesLoading}
                 error={props.authorizedDevicesError}
                 pendingAuthRequests={props.pendingAuthRequests}
@@ -359,6 +362,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
                 onRevokeTrust={props.onRevokeDeviceTrust}
                 onTrustPermanently={props.onTrustDevicePermanently}
                 onRemoveDevice={props.onRemoveDevice}
+                onRemoveSelectedDevices={props.onRemoveSelectedDevices}
                 onRevokeAll={props.onRevokeAllDeviceTrust}
                 onRemoveAll={props.onRemoveAllDevices}
               />
