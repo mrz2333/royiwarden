@@ -136,6 +136,19 @@ function withPrfExtension(
   };
 }
 
+function withoutPrfExtension<T extends PublicKeyCredentialCreationOptions | PublicKeyCredentialRequestOptions>(options: T): T {
+  const extensions = { ...(((options as any).extensions || {}) as Record<string, unknown>) };
+  delete extensions.prf;
+  if (!Object.keys(extensions).length) {
+    const { extensions: _extensions, ...rest } = options as any;
+    return rest as T;
+  }
+  return {
+    ...options,
+    extensions: extensions as any,
+  };
+}
+
 function readPrfFirstResult(credential: PublicKeyCredential): ArrayBuffer | undefined {
   const result = (credential.getClientExtensionResults() as any).prf?.results?.first;
   return result instanceof ArrayBuffer ? result : undefined;
@@ -171,6 +184,14 @@ async function getPublicKeyCredentialWithPrf(
   salt: Uint8Array,
   credentialIds: string[] = []
 ): Promise<PublicKeyCredential> {
+  const baseOptions = withoutPrfExtension(options);
+  if (!(await canRequestPrfExtension())) {
+    const credential = await navigator.credentials.get({ publicKey: baseOptions });
+    if (!(credential instanceof PublicKeyCredential)) {
+      throw new Error(t('txt_no_passkey_selected'));
+    }
+    return credential;
+  }
   const attempts = credentialIds.length
     ? [
         buildCredentialPrfExtension(salt, credentialIds),
@@ -181,7 +202,7 @@ async function getPublicKeyCredentialWithPrf(
   for (let index = 0; index < attempts.length; index += 1) {
     try {
       const credential = await navigator.credentials.get({
-        publicKey: withPrfExtension(options, attempts[index]),
+        publicKey: withPrfExtension(baseOptions, attempts[index]),
       });
       if (!(credential instanceof PublicKeyCredential)) {
         throw new Error(t('txt_no_passkey_selected'));
@@ -287,7 +308,7 @@ export async function createAccountPasskeyCredential(
   if (!window.PublicKeyCredential || !navigator.credentials) {
     throw new Error(t('txt_passkey_browser_not_supported'));
   }
-  const nativeOptions = cloneCreationOptions(response.options);
+  const nativeOptions = withoutPrfExtension(cloneCreationOptions(response.options));
   const createWithOptions = async (options: PublicKeyCredentialCreationOptions): Promise<PublicKeyCredential> => {
     const credential = await navigator.credentials.create({ publicKey: options });
     if (!(credential instanceof PublicKeyCredential)) {
