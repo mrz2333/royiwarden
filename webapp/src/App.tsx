@@ -1115,8 +1115,6 @@ export default function App() {
     queryFn: () => listPendingAuthRequests(authedFetch, profile?.email || session?.email || ''),
     enabled: !IS_DEMO_MODE && phase === 'app' && !!session?.accessToken && !!session?.symEncKey && !!session?.symMacKey && !!(profile?.email || session?.email),
     staleTime: 5_000,
-    refetchInterval: 15_000,
-    refetchIntervalInBackground: true,
   });
   const pendingAuthRequests = (pendingAuthRequestsQuery.data || []).filter(isPendingAuthRequest);
   const latestPendingAuthRequest = pendingAuthRequests[0] || null;
@@ -2015,7 +2013,8 @@ export default function App() {
     onEnableAccountPasskeyDirectUnlock: accountSecurityActions.enableAccountPasskeyDirectUnlock,
     onDeleteAccountPasskey: accountSecurityActions.deleteAccountPasskey,
     pendingAuthRequests,
-    pendingAuthRequestsLoading: pendingAuthRequestsQuery.isFetching,
+    pendingAuthRequestsLoading: pendingAuthRequestsQuery.isLoading,
+    pendingAuthRequestsRefreshing: pendingAuthRequestsQuery.isFetching && !pendingAuthRequestsQuery.isLoading,
     onRefreshPendingAuthRequests: async () => {
       await pendingAuthRequestsQuery.refetch();
     },

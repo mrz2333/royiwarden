@@ -119,6 +119,7 @@ export interface AppMainRoutesProps {
   onDeleteAccountPasskey: (id: string, masterPassword: string) => Promise<void>;
   pendingAuthRequests: AuthRequest[];
   pendingAuthRequestsLoading: boolean;
+  pendingAuthRequestsRefreshing: boolean;
   onRefreshPendingAuthRequests: () => Promise<void>;
   onApproveAuthRequest: (request: AuthRequest) => Promise<void>;
   onDenyAuthRequest: (request: AuthRequest) => Promise<void>;
@@ -354,6 +355,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
                 error={props.authorizedDevicesError}
                 pendingAuthRequests={props.pendingAuthRequests}
                 pendingAuthRequestsLoading={props.pendingAuthRequestsLoading}
+                pendingAuthRequestsRefreshing={props.pendingAuthRequestsRefreshing}
                 onRefresh={() => void props.onRefreshAuthorizedDevices()}
                 onRefreshPendingAuthRequests={props.onRefreshPendingAuthRequests}
                 onApproveAuthRequest={props.onApproveAuthRequest}
