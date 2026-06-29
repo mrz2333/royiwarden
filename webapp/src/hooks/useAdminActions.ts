@@ -1,5 +1,5 @@
 import { useMemo } from 'preact/hooks';
-import { createInvite, deleteAllInvites, deleteInvite, deleteUser, setUserStatus } from '@/lib/api/admin';
+import { createInvite, deleteAllInvites, deleteInvalidInvites, deleteInvite, deleteUser, setUserStatus } from '@/lib/api/admin';
 import { t } from '@/lib/i18n';
 import type { AppConfirmState } from '@/components/AppGlobalOverlays';
 import type { AuthedFetch } from '@/lib/api/shared';
@@ -59,6 +59,26 @@ export default function useAdminActions(options: UseAdminActionsOptions) {
                 onNotify('success', t('txt_invite_deleted'));
               } catch (error) {
                 onNotify('error', error instanceof Error ? error.message : t('txt_delete_invite_failed'));
+              }
+            })();
+          },
+        });
+      },
+
+      async deleteInvalidInvites() {
+        onSetConfirm({
+          title: t('txt_delete_invalid_invites'),
+          message: t('txt_delete_invalid_invites_confirm_message'),
+          danger: true,
+          onConfirm: () => {
+            onSetConfirm(null);
+            void (async () => {
+              try {
+                await deleteInvalidInvites(authedFetch);
+                await refetchInvites();
+                onNotify('success', t('txt_invalid_invites_deleted'));
+              } catch (error) {
+                onNotify('error', error instanceof Error ? error.message : t('txt_delete_invalid_invites_failed'));
               }
             })();
           },

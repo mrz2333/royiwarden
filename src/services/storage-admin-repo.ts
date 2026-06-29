@@ -159,6 +159,15 @@ export async function deleteInvite(db: D1Database, code: string): Promise<boolea
   return (result.meta.changes ?? 0) > 0;
 }
 
+export async function deleteInvalidInvites(db: D1Database): Promise<number> {
+  const now = new Date().toISOString();
+  const result = await db
+    .prepare("DELETE FROM invites WHERE status != 'active' OR expires_at <= ?")
+    .bind(now)
+    .run();
+  return Number(result.meta.changes ?? 0);
+}
+
 export async function deleteAllInvites(db: D1Database): Promise<number> {
   const result = await db.prepare('DELETE FROM invites').run();
   return Number(result.meta.changes ?? 0);

@@ -137,6 +137,7 @@ export interface AppMainRoutesProps {
   onRemoveAllDevices: () => void;
   onCreateInvite: (hours: number) => Promise<void>;
   onRefreshAdmin: () => void;
+  onDeleteInvalidInvites: () => Promise<void>;
   onDeleteAllInvites: () => Promise<void>;
   onToggleUserStatus: (userId: string, status: 'active' | 'banned') => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
@@ -413,6 +414,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
               error={props.adminError}
               onRefresh={props.onRefreshAdmin}
               onCreateInvite={props.onCreateInvite}
+              onDeleteInvalidInvites={props.onDeleteInvalidInvites}
               onDeleteAllInvites={props.onDeleteAllInvites}
               onToggleUserStatus={props.onToggleUserStatus}
               onDeleteUser={props.onDeleteUser}

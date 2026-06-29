@@ -2036,6 +2036,7 @@ export default function App() {
     onRemoveAllDevices: accountSecurityActions.openRemoveAllDevices,
     onRefreshAdmin: adminActions.refreshAdmin,
     onCreateInvite: adminActions.createInvite,
+    onDeleteInvalidInvites: adminActions.deleteInvalidInvites,
     onDeleteAllInvites: adminActions.deleteAllInvites,
     onToggleUserStatus: adminActions.toggleUserStatus,
     onDeleteUser: adminActions.deleteUser,

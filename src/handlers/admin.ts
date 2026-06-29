@@ -277,12 +277,21 @@ export async function handleAdminDeleteAllInvites(
   env: Env,
   actorUser: User
 ): Promise<Response> {
-  void request;
   if (!isAdmin(actorUser)) {
     return errorResponse('Forbidden', 403);
   }
 
   const storage = new StorageService(env.DB);
+  const url = new URL(request.url);
+  if (url.searchParams.get('scope') === 'invalid') {
+    const deleted = await storage.deleteInvalidInvites();
+    await writeAuditLog(storage, actorUser.id, 'admin.invite.delete_invalid', 'invite', null, {
+      deleted,
+    }, request);
+
+    return jsonResponse({ deleted }, 200);
+  }
+
   const deleted = await storage.deleteAllInvites();
   await writeAuditLog(storage, actorUser.id, 'admin.invite.delete_all', 'invite', null, {
     deleted,

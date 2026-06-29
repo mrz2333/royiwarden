@@ -1127,6 +1127,13 @@ export function createDemoMainRoutesProps(base: AppMainRoutesProps, notify: Noti
     onRefreshAdmin: () => {
       notify('success', t('txt_demo_admin_refreshed'));
     },
+    onDeleteInvalidInvites: async () => {
+      const now = Date.now();
+      state.setInvites((prev) => prev.filter((invite) => (
+        invite.status === 'active' && (!invite.expiresAt || new Date(invite.expiresAt).getTime() > now)
+      )));
+      notify('success', t('txt_invalid_invites_deleted'));
+    },
     onDeleteAllInvites: async () => {
       state.setInvites([]);
       notify('success', t('txt_all_invites_deleted'));

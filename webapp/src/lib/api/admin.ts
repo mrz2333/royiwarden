@@ -29,6 +29,11 @@ export async function deleteInvite(authedFetch: AuthedFetch, code: string): Prom
   if (!resp.ok) throw new Error('Delete invite failed');
 }
 
+export async function deleteInvalidInvites(authedFetch: AuthedFetch): Promise<void> {
+  const resp = await authedFetch('/api/admin/invites?scope=invalid', { method: 'DELETE' });
+  if (!resp.ok) throw new Error('Delete invalid invites failed');
+}
+
 export async function deleteAllInvites(authedFetch: AuthedFetch): Promise<void> {
   const resp = await authedFetch('/api/admin/invites', { method: 'DELETE' });
   if (!resp.ok) throw new Error('Delete all invites failed');

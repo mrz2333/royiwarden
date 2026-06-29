@@ -25,6 +25,7 @@ import {
   assignInviteUsedBy as assignStoredInviteUsedBy,
   createInvite as createStoredInvite,
   deleteInvite as deleteStoredInvite,
+  deleteInvalidInvites as deleteStoredInvalidInvites,
   deleteAllInvites as deleteStoredInvites,
   getInvite as findStoredInvite,
   listAuditLogs as listStoredAuditLogs,
@@ -331,6 +332,10 @@ export class StorageService {
 
   async deleteInvite(code: string): Promise<boolean> {
     return deleteStoredInvite(this.db, code);
+  }
+
+  async deleteInvalidInvites(): Promise<number> {
+    return deleteStoredInvalidInvites(this.db);
   }
 
   async deleteAllInvites(): Promise<number> {
