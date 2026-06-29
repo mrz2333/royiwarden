@@ -151,11 +151,10 @@ export async function revertInviteUsed(db: D1Database, code: string, userId: str
   return (result.meta.changes ?? 0) > 0;
 }
 
-export async function revokeInvite(db: D1Database, code: string): Promise<boolean> {
-  const now = new Date().toISOString();
+export async function deleteInvite(db: D1Database, code: string): Promise<boolean> {
   const result = await db
-    .prepare("UPDATE invites SET status = 'revoked', updated_at = ? WHERE code = ? AND status = 'active'")
-    .bind(now, code)
+    .prepare('DELETE FROM invites WHERE code = ?')
+    .bind(code)
     .run();
   return (result.meta.changes ?? 0) > 0;
 }

@@ -24,6 +24,7 @@ import {
   clearAuditLogs as clearStoredAuditLogs,
   assignInviteUsedBy as assignStoredInviteUsedBy,
   createInvite as createStoredInvite,
+  deleteInvite as deleteStoredInvite,
   deleteAllInvites as deleteStoredInvites,
   getInvite as findStoredInvite,
   listAuditLogs as listStoredAuditLogs,
@@ -32,7 +33,6 @@ import {
   pruneAuditLogs as pruneStoredAuditLogs,
   pruneAuditLogsToMax as pruneStoredAuditLogsToMax,
   revertInviteUsed as revertStoredInviteUsed,
-  revokeInvite as revokeStoredInvite,
 } from './storage-admin-repo';
 import {
   bulkDeleteFolders as deleteStoredFolders,
@@ -329,8 +329,8 @@ export class StorageService {
     return revertStoredInviteUsed(this.db, code, userId);
   }
 
-  async revokeInvite(code: string): Promise<boolean> {
-    return revokeStoredInvite(this.db, code);
+  async deleteInvite(code: string): Promise<boolean> {
+    return deleteStoredInvite(this.db, code);
   }
 
   async deleteAllInvites(): Promise<number> {

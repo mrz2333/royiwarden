@@ -16,7 +16,7 @@ interface AdminPageProps {
   onDeleteAllInvites: () => Promise<void>;
   onToggleUserStatus: (userId: string, currentStatus: 'active' | 'banned') => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
-  onRevokeInvite: (code: string) => Promise<void>;
+  onDeleteInvite: (code: string) => Promise<void>;
 }
 
 export default function AdminPage(props: AdminPageProps) {
@@ -184,11 +184,9 @@ export default function AdminPage(props: AdminPageProps) {
                     >
                       <Clipboard size={14} className="btn-icon" /> {t('txt_copy_link')}
                     </button>
-                    {invite.status === 'active' && (
-                      <button type="button" className="btn btn-danger" onClick={() => void props.onRevokeInvite(invite.code)}>
-                        <Trash2 size={14} className="btn-icon" /> {t('txt_revoke')}
-                      </button>
-                    )}
+                    <button type="button" className="btn btn-danger" onClick={() => void props.onDeleteInvite(invite.code)}>
+                      <Trash2 size={14} className="btn-icon" /> {t('txt_delete')}
+                    </button>
                   </div>
                 </td>
               </tr>

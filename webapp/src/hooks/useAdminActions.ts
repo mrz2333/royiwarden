@@ -1,5 +1,5 @@
 import { useMemo } from 'preact/hooks';
-import { createInvite, deleteAllInvites, deleteUser, revokeInvite, setUserStatus } from '@/lib/api/admin';
+import { createInvite, deleteAllInvites, deleteInvite, deleteUser, setUserStatus } from '@/lib/api/admin';
 import { t } from '@/lib/i18n';
 import type { AppConfirmState } from '@/components/AppGlobalOverlays';
 import type { AuthedFetch } from '@/lib/api/shared';
@@ -45,14 +45,24 @@ export default function useAdminActions(options: UseAdminActionsOptions) {
         }
       },
 
-      async revokeInvite(code: string) {
-        try {
-          await revokeInvite(authedFetch, code);
-          await refetchInvites();
-          onNotify('success', t('txt_invite_revoked'));
-        } catch (error) {
-          onNotify('error', error instanceof Error ? error.message : t('txt_revoke_invite_failed'));
-        }
+      async deleteInvite(code: string) {
+        onSetConfirm({
+          title: t('txt_delete_invite'),
+          message: t('txt_delete_invite_confirm_message'),
+          danger: true,
+          onConfirm: () => {
+            onSetConfirm(null);
+            void (async () => {
+              try {
+                await deleteInvite(authedFetch, code);
+                await refetchInvites();
+                onNotify('success', t('txt_invite_deleted'));
+              } catch (error) {
+                onNotify('error', error instanceof Error ? error.message : t('txt_delete_invite_failed'));
+              }
+            })();
+          },
+        });
       },
 
       async deleteAllInvites() {

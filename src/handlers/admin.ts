@@ -249,7 +249,7 @@ export async function handleAdminListInvites(
 }
 
 // DELETE /api/admin/invites/:code
-export async function handleAdminRevokeInvite(
+export async function handleAdminDeleteInvite(
   request: Request,
   env: Env,
   actorUser: User,
@@ -260,12 +260,14 @@ export async function handleAdminRevokeInvite(
   }
 
   const storage = new StorageService(env.DB);
-  const revoked = await storage.revokeInvite(code);
-  if (!revoked) {
-    return errorResponse('Invite not found or already inactive', 404);
+  const deleted = await storage.deleteInvite(code);
+  if (!deleted) {
+    return errorResponse('Invite not found', 404);
   }
 
-  await writeAuditLog(storage, actorUser.id, 'admin.invite.revoke', 'invite', null, null, request);
+  await writeAuditLog(storage, actorUser.id, 'admin.invite.delete', 'invite', null, {
+    code,
+  }, request);
   return new Response(null, { status: 204 });
 }
 

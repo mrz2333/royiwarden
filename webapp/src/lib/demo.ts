@@ -1141,11 +1141,9 @@ export function createDemoMainRoutesProps(base: AppMainRoutesProps, notify: Noti
       state.setUsers((prev) => prev.filter((user) => user.id !== userId));
       notify('success', t('txt_user_deleted'));
     },
-    onRevokeInvite: async (code) => {
-      state.setInvites((prev) => prev.map((invite) => (
-        invite.code === code ? { ...invite, status: 'inactive' } : invite
-      )));
-      notify('success', t('txt_invite_revoked'));
+    onDeleteInvite: async (code) => {
+      state.setInvites((prev) => prev.filter((invite) => invite.code !== code));
+      notify('success', t('txt_invite_deleted'));
     },
     onLoadAuditLogSettings: async () => ({ retentionDays: 90, maxEntries: null }),
     onSaveAuditLogSettings: async (settings) => {
