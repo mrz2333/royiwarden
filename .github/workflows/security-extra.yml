@@ -174,6 +174,7 @@ jobs:
   scorecard:
     name: OpenSSF Scorecard
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
 
     permissions:
       contents: read
