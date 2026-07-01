@@ -1,6 +1,7 @@
 import type { RefObject } from 'preact';
 import { createPortal } from 'preact/compat';
 import { ArrowDown, ArrowUp, CheckCheck, Download, Paperclip, Plus, QrCode, RefreshCw, Star, StarOff, Trash2, Upload, X } from 'lucide-preact';
+import jsQR from 'jsqr';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useDialogLifecycle } from '@/components/ConfirmDialog';
 import type { Cipher, Folder, VaultDraft, VaultDraftField } from '@/lib/types';
@@ -171,16 +172,33 @@ export default function VaultEditor(props: VaultEditorProps) {
     return new window.BarcodeDetector({ formats: ['qr_code'] });
   };
 
-  const decodeTotpQrImage = async (source: ImageBitmapSource): Promise<boolean> => {
+  const decodeTotpQrCanvas = (source: ImageBitmap | HTMLVideoElement): string => {
+    const width = 'videoWidth' in source ? source.videoWidth : source.width;
+    const height = 'videoHeight' in source ? source.videoHeight : source.height;
+    if (!width || !height) return '';
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) return '';
+    context.drawImage(source, 0, 0, width, height);
+    const imageData = context.getImageData(0, 0, width, height);
+    return String(jsQR(imageData.data, width, height)?.data || '').trim();
+  };
+
+  const decodeTotpQrImage = async (source: ImageBitmap): Promise<boolean> => {
     const detector = createTotpQrDetector();
-    if (!detector) {
-      setTotpQrStatus(t('txt_totp_qr_unsupported'));
-      return false;
+    if (detector) {
+      try {
+        const results = await detector.detect(source);
+        const value = String(results[0]?.rawValue || '').trim();
+        if (value && applyTotpQrValue(value)) return true;
+      } catch {
+        // Fall back to jsQR when the native detector is present but not usable.
+      }
     }
-    const results = await detector.detect(source);
-    const value = String(results[0]?.rawValue || '').trim();
-    if (!value) return false;
-    return applyTotpQrValue(value);
+    const value = decodeTotpQrCanvas(source);
+    return value ? applyTotpQrValue(value) : false;
   };
 
   const handleTotpQrFile = async (file: File | null) => {
@@ -207,13 +225,6 @@ export default function VaultEditor(props: VaultEditorProps) {
     }
     let stopped = false;
     const detector = createTotpQrDetector();
-    if (!detector) {
-      setTotpQrStatus(t('txt_totp_qr_unsupported'));
-      return () => {
-        stopped = true;
-        stopTotpQrScanner();
-      };
-    }
     if (!navigator.mediaDevices?.getUserMedia) {
       setTotpQrStatus(t('txt_totp_qr_camera_unavailable'));
       return () => {
@@ -230,8 +241,16 @@ export default function VaultEditor(props: VaultEditorProps) {
         return;
       }
       try {
-        const results = await detector.detect(video);
-        const value = String(results[0]?.rawValue || '').trim();
+        let value = '';
+        if (detector) {
+          try {
+            const results = await detector.detect(video);
+            value = String(results[0]?.rawValue || '').trim();
+          } catch {
+            // Fall back to jsQR when the native detector is present but not usable.
+          }
+        }
+        if (!value) value = decodeTotpQrCanvas(video);
         if (value && applyTotpQrValue(value)) return;
       } catch {
         // Keep the camera active; transient frame decode failures are common.
