@@ -181,6 +181,11 @@ export default function VaultEditor(props: VaultEditorProps) {
     canvas.height = height;
     const context = canvas.getContext('2d');
     if (!context) return '';
+    // jsQR ignores alpha and reads RGB directly, so transparent pixels would be
+    // treated as black. Composite over white first so transparent-background QR
+    // exports do not become black-on-black and fail to decode.
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
     context.drawImage(source, 0, 0, width, height);
     const imageData = context.getImageData(0, 0, width, height);
     return String(jsQR(imageData.data, width, height)?.data || '').trim();
