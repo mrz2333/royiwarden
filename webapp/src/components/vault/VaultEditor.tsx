@@ -229,6 +229,7 @@ export default function VaultEditor(props: VaultEditorProps) {
       return;
     }
     let stopped = false;
+    let lastCanvasScan = 0;
     const detector = createTotpQrDetector();
     if (!navigator.mediaDevices?.getUserMedia) {
       setTotpQrStatus(t('txt_totp_qr_camera_unavailable'));
@@ -255,7 +256,16 @@ export default function VaultEditor(props: VaultEditorProps) {
             // Fall back to jsQR when the native detector is present but not usable.
           }
         }
-        if (!value) value = decodeTotpQrCanvas(video);
+        // The jsQR fallback runs a synchronous full-frame decode, so throttle
+        // it to a few times per second instead of every animation frame to
+        // avoid pegging the CPU while a code is being aligned.
+        if (!value) {
+          const now = performance.now();
+          if (now - lastCanvasScan >= 250) {
+            lastCanvasScan = now;
+            value = decodeTotpQrCanvas(video);
+          }
+        }
         if (value && applyTotpQrValue(value)) return;
       } catch {
         // Keep the camera active; transient frame decode failures are common.
