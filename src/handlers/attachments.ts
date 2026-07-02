@@ -1,4 +1,4 @@
-import { Env, Attachment, Cipher, DEFAULT_DEV_SECRET } from '../types';
+import { Env, Attachment, Cipher } from '../types';
 import { notifyUserCipherUpdate, notifyUserVaultSync } from '../durable/notifications-hub';
 import { StorageService } from '../services/storage';
 import { jsonResponse, errorResponse } from '../utils/response';
@@ -405,10 +405,8 @@ export async function handlePublicDownloadAttachment(
   cipherId: string,
   attachmentId: string
 ): Promise<Response> {
-  const secret = (env.JWT_SECRET || '').trim();
-  if (!secret || secret.length < LIMITS.auth.jwtSecretMinLength || secret === DEFAULT_DEV_SECRET) {
-    return errorResponse('Server configuration error', 500);
-  }
+  const secret = getSafeJwtSecret(env);
+  if (!secret) return errorResponse('Server configuration error', 500);
 
   const url = new URL(request.url);
   const token = url.searchParams.get('token');
@@ -418,7 +416,7 @@ export async function handlePublicDownloadAttachment(
   }
 
   // Verify token
-  const claims = await verifyFileDownloadToken(token, env.JWT_SECRET);
+  const claims = await verifyFileDownloadToken(token, secret);
   if (!claims) {
     return errorResponse('Invalid or expired token', 401);
   }

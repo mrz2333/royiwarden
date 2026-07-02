@@ -1,4 +1,4 @@
-import { Env, User, DEFAULT_DEV_SECRET } from '../types';
+import { Env, User } from '../types';
 import { StorageService } from '../services/storage';
 import { AuthService } from '../services/auth';
 import { RateLimitService, getClientIdentifier } from '../services/ratelimit';
@@ -150,10 +150,9 @@ function normalizeMasterPasswordHint(input: string | null | undefined): string |
   return normalized ? normalized : null;
 }
 
-function jwtSecretUnsafeReason(env: Env): 'missing' | 'default' | 'too_short' | null {
+function jwtSecretUnsafeReason(env: Env): 'missing' | 'too_short' | null {
   const secret = (env.JWT_SECRET || '').trim();
   if (!secret) return 'missing';
-  if (secret === DEFAULT_DEV_SECRET) return 'default';
   if (secret.length < LIMITS.auth.jwtSecretMinLength) return 'too_short';
   return null;
 }
@@ -242,9 +241,7 @@ export async function handleRegister(request: Request, env: Env): Promise<Respon
   if (unsafe) {
     const message = unsafe === 'missing'
       ? 'JWT_SECRET is not set'
-      : unsafe === 'default'
-        ? 'JWT_SECRET is using the default/sample value. Please change it.'
-        : 'JWT_SECRET must be at least 32 characters';
+      : 'JWT_SECRET must be at least 32 characters';
     return errorResponse(message, 400);
   }
 
