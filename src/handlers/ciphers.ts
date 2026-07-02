@@ -812,7 +812,7 @@ export async function handleGetCiphers(request: Request, env: Env, userId: strin
 // GET /api/ciphers/:id
 export async function handleGetCipher(request: Request, env: Env, userId: string, id: string): Promise<Response> {
   const storage = new StorageService(env.DB);
-  const cipher = await storage.getCipher(id);
+  const cipher = await storage.getCipherForUser(id, userId);
 
   if (!cipher || cipher.userId !== userId) {
     return errorResponse('Cipher not found', 404);
@@ -827,8 +827,8 @@ export async function handleGetCipher(request: Request, env: Env, userId: string
 
 async function verifyFolderOwnership(storage: StorageService, folderId: string | null | undefined, userId: string): Promise<boolean> {
   if (!folderId) return true;
-  const folder = await storage.getFolder(folderId);
-  return !!(folder && folder.userId === userId);
+  const folder = await storage.getFolderForUser(folderId, userId);
+  return !!folder;
 }
 
 // POST /api/ciphers
@@ -909,7 +909,7 @@ export async function handleCreateCipher(request: Request, env: Env, userId: str
 // PUT /api/ciphers/:id
 export async function handleUpdateCipher(request: Request, env: Env, userId: string, id: string): Promise<Response> {
   const storage = new StorageService(env.DB);
-  const existingCipher = await storage.getCipher(id);
+  const existingCipher = await storage.getCipherForUser(id, userId);
 
   if (!existingCipher || existingCipher.userId !== userId) {
     return errorResponse('Cipher not found', 404);
@@ -1020,7 +1020,7 @@ export async function handleUpdateCipher(request: Request, env: Env, userId: str
 // DELETE /api/ciphers/:id
 export async function handleDeleteCipher(request: Request, env: Env, userId: string, id: string): Promise<Response> {
   const storage = new StorageService(env.DB);
-  const cipher = await storage.getCipher(id);
+  const cipher = await storage.getCipherForUser(id, userId);
 
   if (!cipher || cipher.userId !== userId) {
     return errorResponse('Cipher not found', 404);
@@ -1052,7 +1052,7 @@ export async function handleDeleteCipher(request: Request, env: Env, userId: str
 // - If item is already soft-deleted -> hard delete.
 export async function handleDeleteCipherCompat(request: Request, env: Env, userId: string, id: string): Promise<Response> {
   const storage = new StorageService(env.DB);
-  const cipher = await storage.getCipher(id);
+  const cipher = await storage.getCipherForUser(id, userId);
 
   if (!cipher || cipher.userId !== userId) {
     return errorResponse('Cipher not found', 404);
@@ -1079,7 +1079,7 @@ export async function handleDeleteCipherCompat(request: Request, env: Env, userI
 // DELETE /api/ciphers/:id (permanent)
 export async function handlePermanentDeleteCipher(request: Request, env: Env, userId: string, id: string): Promise<Response> {
   const storage = new StorageService(env.DB);
-  const cipher = await storage.getCipher(id);
+  const cipher = await storage.getCipherForUser(id, userId);
 
   if (!cipher || cipher.userId !== userId) {
     return errorResponse('Cipher not found', 404);
@@ -1104,7 +1104,7 @@ export async function handlePermanentDeleteCipher(request: Request, env: Env, us
 // PUT /api/ciphers/:id/restore
 export async function handleRestoreCipher(request: Request, env: Env, userId: string, id: string): Promise<Response> {
   const storage = new StorageService(env.DB);
-  const cipher = await storage.getCipher(id);
+  const cipher = await storage.getCipherForUser(id, userId);
 
   if (!cipher || cipher.userId !== userId) {
     return errorResponse('Cipher not found', 404);
@@ -1126,7 +1126,7 @@ export async function handleRestoreCipher(request: Request, env: Env, userId: st
 // PUT /api/ciphers/:id/partial - Update only favorite/folderId
 export async function handlePartialUpdateCipher(request: Request, env: Env, userId: string, id: string): Promise<Response> {
   const storage = new StorageService(env.DB);
-  const cipher = await storage.getCipher(id);
+  const cipher = await storage.getCipherForUser(id, userId);
 
   if (!cipher || cipher.userId !== userId) {
     return errorResponse('Cipher not found', 404);
@@ -1218,7 +1218,7 @@ function parseCipherIdList(body: { ids?: unknown }): string[] | null {
 // PUT/POST /api/ciphers/:id/archive
 export async function handleArchiveCipher(request: Request, env: Env, userId: string, id: string): Promise<Response> {
   const storage = new StorageService(env.DB);
-  const cipher = await storage.getCipher(id);
+  const cipher = await storage.getCipherForUser(id, userId);
 
   if (!cipher || cipher.userId !== userId) {
     return errorResponse('Cipher not found', 404);
@@ -1244,7 +1244,7 @@ export async function handleArchiveCipher(request: Request, env: Env, userId: st
 // PUT/POST /api/ciphers/:id/unarchive
 export async function handleUnarchiveCipher(request: Request, env: Env, userId: string, id: string): Promise<Response> {
   const storage = new StorageService(env.DB);
-  const cipher = await storage.getCipher(id);
+  const cipher = await storage.getCipherForUser(id, userId);
 
   if (!cipher || cipher.userId !== userId) {
     return errorResponse('Cipher not found', 404);

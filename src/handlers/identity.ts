@@ -341,7 +341,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
     let valid = false;
     const normalizedAuthRequestId = String(authRequestId || '').trim();
     if (normalizedAuthRequestId) {
-      const authRequest = await storage.getAuthRequestById(normalizedAuthRequestId);
+      const authRequest = await storage.getAuthRequestByIdForUser(normalizedAuthRequestId, user.id);
       valid = !!(
         authRequest &&
         authRequest.userId === user.id &&
