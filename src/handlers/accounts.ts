@@ -6,6 +6,7 @@ import { auditRequestMetadata, writeAuditEvent, safeWriteAuditEvent } from '../s
 import { jsonResponse, errorResponse } from '../utils/response';
 import { generateUUID } from '../utils/uuid';
 import { LIMITS } from '../config/limits';
+import { hashApiKey } from '../utils/api-key';
 import { isTotpEnabled, verifyTotpToken } from '../utils/totp';
 import { createRecoveryCode, recoveryCodeEquals } from '../utils/recovery-code';
 import { buildAccountKeys } from '../utils/user-decryption';
@@ -1194,29 +1195,28 @@ async function apiKey(request: Request, env: Env, userId: string, rotate: boolea
   const valid = await auth.verifyPassword(currentHash, user.masterPasswordHash, user.email);
   if (!valid) return errorResponse('Invalid password', 400);
 
-  if (rotate || user.apiKey === null) {
-    // Upstream apikeys are 30-character random alphanumeric strings
-    user.apiKey = randomStringAlphanum(LIMITS.auth.clientSecretLength);
-    if (rotate) {
-      user.securityStamp = generateUUID();
-      await storage.deleteRefreshTokensByUserId(user.id);
-    }
-    user.updatedAt = new Date().toISOString();
-    await storage.saveUser(user);
-    AuthService.invalidateUserCache(user.id);
-    await writeAuditEvent(storage, {
-      actorUserId: user.id,
-      action: rotate ? 'account.api_key.rotate' : 'account.api_key.create',
-      category: 'security',
-      level: rotate ? 'security' : 'info',
-      targetType: 'user',
-      targetId: user.id,
-      metadata: auditRequestMetadata(request),
-    });
+  // Only the fresh secret is returned once; the database stores a hash.
+  const plainApiKey = randomStringAlphanum(LIMITS.auth.clientSecretLength);
+  user.apiKey = await hashApiKey(plainApiKey);
+  if (rotate) {
+    user.securityStamp = generateUUID();
+    await storage.deleteRefreshTokensByUserId(user.id);
   }
+  user.updatedAt = new Date().toISOString();
+  await storage.saveUser(user);
+  AuthService.invalidateUserCache(user.id);
+  await writeAuditEvent(storage, {
+    actorUserId: user.id,
+    action: rotate ? 'account.api_key.rotate' : 'account.api_key.create',
+    category: 'security',
+    level: rotate ? 'security' : 'info',
+    targetType: 'user',
+    targetId: user.id,
+    metadata: auditRequestMetadata(request),
+  });
 
   return jsonResponse({
-    apiKey: user.apiKey,
+    apiKey: plainApiKey,
     revisionDate: user.updatedAt,
     object: 'apiKey',
   });
