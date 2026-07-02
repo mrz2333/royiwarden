@@ -419,9 +419,11 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
         }
         user.totpSecret = null;
         user.totpRecoveryCode = createRecoveryCode();
+        user.securityStamp = generateUUID();
         user.updatedAt = new Date().toISOString();
         await storage.saveUser(user);
         await storage.deleteRefreshTokensByUserId(user.id);
+        AuthService.invalidateUserCache(user.id);
         rememberRequested = false;
       } else {
         // Unsupported provider for this server profile behaves as an invalid 2FA attempt.
