@@ -297,7 +297,7 @@ h4 {
 }
 
 .app-main {
-  grid-template-columns: 212px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   background: var(--panel-soft);
 }
 

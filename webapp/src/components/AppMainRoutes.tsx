@@ -39,6 +39,7 @@ export interface AppMainRoutesProps {
   session: SessionState | null;
   mobileLayout: boolean;
   mobileSidebarToggleKey: number;
+  themePreference: 'system' | 'light' | 'dark';
   importRoute: string;
   settingsHomeRoute: string;
   settingsAccountRoute: string;
@@ -66,6 +67,7 @@ export interface AppMainRoutesProps {
   onNavigate: (path: string) => void;
   onLogout: () => void;
   onNotify: (type: 'success' | 'error' | 'warning', text: string) => void;
+  onThemePreferenceChange: (preference: 'system' | 'light' | 'dark') => void;
   onImport: (
     payload: CiphersImportPayload,
     options: { folderMode: 'original' | 'none' | 'target'; targetFolderId: string | null },
@@ -266,8 +268,11 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
               <SettingsPage
                 profile={props.profile}
                 totpEnabled={props.totpEnabled}
+                themePreference={props.themePreference}
                 lockTimeoutMinutes={props.lockTimeoutMinutes}
                 sessionTimeoutAction={props.sessionTimeoutAction}
+                onThemePreferenceChange={props.onThemePreferenceChange}
+                onVerifyMasterPassword={props.onVerifyMasterPassword}
                 onChangePassword={props.onChangePassword}
                 onSavePasswordHint={props.onSavePasswordHint}
                 onEnableTotp={props.onEnableTotp}
