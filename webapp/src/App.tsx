@@ -20,7 +20,7 @@ import {
   loadProfileSnapshot,
   saveProfileSnapshot,
   revokeCurrentSession,
-  getTotpStatus,
+  getTwoFactorProviderStatus,
   getVaultRevisionDate,
   saveSession,
   stripProfileSecrets,
@@ -658,7 +658,7 @@ export default function App() {
     if (totpSubmitting) return;
     if (!pendingTotp) return;
     if (!totpCode.trim()) {
-      pushToast('error', t('txt_please_input_totp_code'));
+      pushToast('error', pendingTotp.providerType === 3 ? t('txt_please_input_yubikey_otp') : t('txt_please_input_totp_code'));
       return;
     }
     setTotpSubmitting(true);
@@ -666,7 +666,7 @@ export default function App() {
       const login = await performTotpLogin(pendingTotp, totpCode, rememberDevice);
       await finalizeLogin(login);
     } catch (error) {
-      pushToast('error', error instanceof Error ? error.message : t('txt_totp_verify_failed'));
+      pushToast('error', error instanceof Error ? error.message : pendingTotp.providerType === 3 ? t('txt_yubikey_verify_failed') : t('txt_totp_verify_failed'));
     } finally {
       setTotpSubmitting(false);
     }
@@ -951,6 +951,7 @@ export default function App() {
         confirm={null}
         onCancelConfirm={() => {}}
         pendingTotpOpen={false}
+        pendingTotpProviderType={0}
         totpCode=""
         rememberDevice={false}
         onTotpCodeChange={() => {}}
@@ -1081,9 +1082,9 @@ export default function App() {
     enabled: !IS_DEMO_MODE && phase === 'app' && !!session?.accessToken && isAdmin && vaultInitialDecryptDone,
     staleTime: 30_000,
   });
-  const totpStatusQuery = useQuery({
-    queryKey: ['totp-status', vaultCacheKey || session?.email],
-    queryFn: () => getTotpStatus(authedFetch),
+  const twoFactorStatusQuery = useQuery({
+    queryKey: ['two-factor-status', vaultCacheKey || session?.email],
+    queryFn: () => getTwoFactorProviderStatus(authedFetch),
     enabled: !IS_DEMO_MODE && phase === 'app' && !!session?.accessToken && vaultInitialDecryptDone,
     staleTime: 30_000,
   });
@@ -1816,7 +1817,7 @@ export default function App() {
     onNotify: pushToast,
     onProfileUpdated: setProfile,
     onSetConfirm: setConfirm,
-    refetchTotpStatus: totpStatusQuery.refetch,
+    refetchTwoFactorStatus: twoFactorStatusQuery.refetch,
     refetchAuthorizedDevices: authorizedDevicesQuery.refetch,
   });
   const adminActions = useAdminActions({
@@ -1954,7 +1955,8 @@ export default function App() {
     invites: invitesQuery.data || [],
     adminLoading: (usersQuery.isFetching && !usersQuery.data) || (invitesQuery.isFetching && !invitesQuery.data),
     adminError: usersQuery.isError || invitesQuery.isError ? t('txt_load_admin_data_failed') : '',
-    totpEnabled: !!totpStatusQuery.data?.enabled,
+    totpEnabled: !!twoFactorStatusQuery.data?.totpEnabled,
+    yubikeyEnabled: !!twoFactorStatusQuery.data?.yubikeyEnabled,
     lockTimeoutMinutes,
     sessionTimeoutAction,
     authorizedDevices: authorizedDevicesQuery.data || [],
@@ -2004,9 +2006,14 @@ export default function App() {
     onSavePasswordHint: accountSecurityActions.savePasswordHint,
     onEnableTotp: async (secret: string, token: string, masterPassword: string) => {
       await accountSecurityActions.enableTotp(secret, token, masterPassword);
-      await totpStatusQuery.refetch();
+      await twoFactorStatusQuery.refetch();
     },
     onOpenDisableTotp: () => setDisableTotpOpen(true),
+    onGetYubiKeySettings: accountSecurityActions.getYubiKeySettings,
+    onSaveYubiKeySettings: accountSecurityActions.saveYubiKeySettings,
+    onSaveYubiKeyApiCredentials: accountSecurityActions.saveYubiKeyApiCredentials,
+    onBootstrapYubiKeyApiCredentials: accountSecurityActions.bootstrapYubiKeyApiCredentials,
+    onDisableYubiKey: accountSecurityActions.disableYubiKey,
     onGetRecoveryCode: accountSecurityActions.getRecoveryCode,
     onGetApiKey: accountSecurityActions.getApiKey,
     onRotateApiKey: accountSecurityActions.rotateApiKey,
@@ -2014,6 +2021,9 @@ export default function App() {
     onCreateAccountPasskey: accountSecurityActions.createAccountPasskey,
     onEnableAccountPasskeyDirectUnlock: accountSecurityActions.enableAccountPasskeyDirectUnlock,
     onDeleteAccountPasskey: accountSecurityActions.deleteAccountPasskey,
+    onRefreshTwoFactorStatus: async () => {
+      await twoFactorStatusQuery.refetch();
+    },
     pendingAuthRequests,
     pendingAuthRequestsLoading: pendingAuthRequestsQuery.isLoading,
     pendingAuthRequestsRefreshing: pendingAuthRequestsQuery.isFetching && !pendingAuthRequestsQuery.isLoading,
@@ -2208,6 +2218,7 @@ export default function App() {
           confirm={confirm}
           onCancelConfirm={() => setConfirm(null)}
           pendingTotpOpen={!!pendingTotp}
+          pendingTotpProviderType={pendingTotp?.providerType ?? 0}
           totpCode={totpCode}
           rememberDevice={rememberDevice}
           onTotpCodeChange={setTotpCode}
@@ -2267,6 +2278,7 @@ export default function App() {
         confirm={confirm}
         onCancelConfirm={() => setConfirm(null)}
         pendingTotpOpen={false}
+        pendingTotpProviderType={0}
         totpCode=""
         rememberDevice={false}
         onTotpCodeChange={() => {}}

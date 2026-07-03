@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Clipboard, KeyRound, RefreshCw, ShieldCheck, ShieldOff, Trash2 } from 'lucide-preact';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import qrcode from 'qrcode-generator';
-import type { AccountPasskeyCredential, Profile } from '@/lib/types';
+import type { AccountPasskeyCredential, Profile, YubiKeyOtpSettings } from '@/lib/types';
 import { AVAILABLE_LOCALES, getLocale, setLocale, t, type Locale } from '@/lib/i18n';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface SettingsPageProps {
   profile: Profile;
   totpEnabled: boolean;
+  yubikeyEnabled: boolean;
   themePreference: ThemePreference;
   lockTimeoutMinutes: 0 | 1 | 5 | 15 | 30;
   sessionTimeoutAction: 'lock' | 'logout';
@@ -18,6 +19,11 @@ interface SettingsPageProps {
   onSavePasswordHint: (masterPasswordHint: string) => Promise<void>;
   onEnableTotp: (secret: string, token: string, masterPassword: string) => Promise<void>;
   onOpenDisableTotp: () => void;
+  onGetYubiKeySettings: (masterPassword: string) => Promise<YubiKeyOtpSettings>;
+  onSaveYubiKeySettings: (keys: string[], nfc: boolean, masterPassword: string) => Promise<YubiKeyOtpSettings>;
+  onSaveYubiKeyApiCredentials: (clientId: string, secretKey: string, masterPassword: string) => Promise<YubiKeyOtpSettings>;
+  onBootstrapYubiKeyApiCredentials: (otp: string, masterPassword: string) => Promise<YubiKeyOtpSettings>;
+  onDisableYubiKey: (masterPassword: string) => Promise<void>;
   onGetRecoveryCode: (masterPassword: string) => Promise<string>;
   onGetApiKey: (masterPassword: string) => Promise<string>;
   onRotateApiKey: (masterPassword: string) => Promise<string>;
@@ -25,6 +31,7 @@ interface SettingsPageProps {
   onCreateAccountPasskey: (name: string, masterPassword: string, directUnlock: boolean) => Promise<AccountPasskeyCredential | null>;
   onEnableAccountPasskeyDirectUnlock: (id: string, masterPassword: string) => Promise<void>;
   onDeleteAccountPasskey: (id: string, masterPassword: string) => Promise<void>;
+  onRefreshTwoFactorStatus: () => Promise<void>;
   onLockTimeoutChange: (minutes: 0 | 1 | 5 | 15 | 30) => void;
   onSessionTimeoutActionChange: (action: 'lock' | 'logout') => void;
   onNotify?: (type: 'success' | 'error' | 'warning', text: string) => void;
@@ -39,6 +46,7 @@ type MasterPasswordPromptAction =
   | 'apiKey'
   | 'rotateApiKey'
   | 'manageTotp'
+  | 'manageYubiKey'
   | 'createPasskey'
   | 'enablePasskeyDirectUnlock'
   | 'deletePasskey';
@@ -50,6 +58,18 @@ const LOCK_TIMEOUT_OPTIONS = [
   { value: 30, labelKey: 'txt_timeout_30_minutes' },
   { value: 0, labelKey: 'txt_timeout_never' },
 ] as const;
+
+const EMPTY_YUBIKEY_KEYS: [string, string, string, string, string] = ['', '', '', '', ''];
+
+function formatStoredYubiKey(value: string): string {
+  if (!value) return '';
+  if (value.length >= 44) return value;
+  return `${value}${'•'.repeat(44 - value.length)}`;
+}
+
+function normalizeYubiKeyFieldValue(value: string): string {
+  return value.replace(/\s+/g, '').toLowerCase();
+}
 
 function randomBase32Secret(length: number): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -111,6 +131,19 @@ export default function SettingsPage(props: SettingsPageProps) {
   const [rotateApiKeyConfirmOpen, setRotateApiKeyConfirmOpen] = useState(false);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [totpManageDialogOpen, setTotpManageDialogOpen] = useState(false);
+  const [yubiKeyDialogOpen, setYubiKeyDialogOpen] = useState(false);
+  const [yubiKeyMasterPassword, setYubiKeyMasterPassword] = useState('');
+  const [yubiKeyEnabled, setYubiKeyEnabled] = useState(props.yubikeyEnabled || !!props.profile.yubikeyEnabled);
+  const [yubiKeyKeys, setYubiKeyKeys] = useState<[string, string, string, string, string]>(EMPTY_YUBIKEY_KEYS);
+  const [yubiKeyStoredKeys, setYubiKeyStoredKeys] = useState<[string, string, string, string, string]>(EMPTY_YUBIKEY_KEYS);
+  const [yubiKeyNfc, setYubiKeyNfc] = useState(false);
+  const [yubiKeyYubicoConfigured, setYubiKeyYubicoConfigured] = useState(false);
+  const [yubiKeyYubicoClientId, setYubiKeyYubicoClientId] = useState('');
+  const [yubiKeyYubicoSecretKey, setYubiKeyYubicoSecretKey] = useState('');
+  const [yubiKeyBootstrapOtp, setYubiKeyBootstrapOtp] = useState('');
+  const [yubiKeyConfigOpen, setYubiKeyConfigOpen] = useState(false);
+  const [yubiKeySubmitting, setYubiKeySubmitting] = useState(false);
+  const [twoFactorStatusRefreshing, setTwoFactorStatusRefreshing] = useState(false);
   const [recoveryCodeDialogOpen, setRecoveryCodeDialogOpen] = useState(false);
   const [totpManagePassword, setTotpManagePassword] = useState('');
   const [masterPasswordPrompt, setMasterPasswordPrompt] = useState<MasterPasswordPromptAction | null>(null);
@@ -134,6 +167,10 @@ export default function SettingsPage(props: SettingsPageProps) {
   useEffect(() => {
     setPasswordHint(props.profile.masterPasswordHint || '');
   }, [props.profile.masterPasswordHint]);
+
+  useEffect(() => {
+    setYubiKeyEnabled(props.yubikeyEnabled || !!props.profile.yubikeyEnabled);
+  }, [props.yubikeyEnabled, props.profile.yubikeyEnabled]);
 
   useEffect(() => {
     void refreshAccountPasskeys();
@@ -207,6 +244,12 @@ export default function SettingsPage(props: SettingsPageProps) {
         await props.onVerifyMasterPassword(props.profile.email, masterPassword);
         setTotpManagePassword(masterPassword);
         setTotpManageDialogOpen(true);
+      } else if (masterPasswordPrompt === 'manageYubiKey') {
+        const settings = await props.onGetYubiKeySettings(masterPassword);
+        setYubiKeyMasterPassword(masterPassword);
+        applyYubiKeySettings(settings);
+        setYubiKeyConfigOpen(false);
+        setYubiKeyDialogOpen(true);
       } else if (masterPasswordPrompt === 'createPasskey') {
         await props.onVerifyMasterPassword(props.profile.email, masterPassword);
         setCreatePasskeyMasterPassword(masterPassword);
@@ -239,7 +282,9 @@ export default function SettingsPage(props: SettingsPageProps) {
         ? t('txt_rotate_api_key')
         : masterPasswordPrompt === 'manageTotp'
           ? t('txt_totp')
-          : masterPasswordPrompt === 'createPasskey'
+          : masterPasswordPrompt === 'manageYubiKey'
+            ? 'YubiKey'
+            : masterPasswordPrompt === 'createPasskey'
             ? t('txt_add_account_passkey')
             : masterPasswordPrompt === 'enablePasskeyDirectUnlock'
               ? t('txt_enable_passkey_direct_unlock')
@@ -263,6 +308,110 @@ export default function SettingsPage(props: SettingsPageProps) {
   function closeTotpManageDialog(): void {
     setTotpManageDialogOpen(false);
     setTotpManagePassword('');
+  }
+
+  function applyYubiKeySettings(settings: YubiKeyOtpSettings): void {
+    setYubiKeyEnabled(settings.enabled);
+    setYubiKeyKeys(settings.keys);
+    setYubiKeyStoredKeys(settings.keys);
+    setYubiKeyNfc(settings.nfc);
+    setYubiKeyYubicoConfigured(settings.yubicoConfigured);
+    setYubiKeyYubicoClientId(settings.yubicoClientId);
+    setYubiKeyYubicoSecretKey(settings.yubicoSecretKey);
+  }
+
+  function closeYubiKeyDialog(): void {
+    if (yubiKeySubmitting) return;
+    setYubiKeyDialogOpen(false);
+    setYubiKeyMasterPassword('');
+    setYubiKeyKeys(EMPTY_YUBIKEY_KEYS);
+    setYubiKeyStoredKeys(EMPTY_YUBIKEY_KEYS);
+    setYubiKeyNfc(false);
+    setYubiKeyEnabled(false);
+    setYubiKeyYubicoConfigured(false);
+    setYubiKeyYubicoClientId('');
+    setYubiKeyYubicoSecretKey('');
+    setYubiKeyBootstrapOtp('');
+    setYubiKeyConfigOpen(false);
+  }
+
+  function updateYubiKey(index: number, value: string): void {
+    setYubiKeyKeys((current) => {
+      const next = [...current] as [string, string, string, string, string];
+      next[index] = value;
+      return next;
+    });
+  }
+
+  async function saveYubiKeyDialog(): Promise<void> {
+    if (yubiKeySubmitting) return;
+    setYubiKeySubmitting(true);
+    try {
+      const settings = await props.onSaveYubiKeySettings(yubiKeyKeys.map((value) => value.trim()), yubiKeyNfc, yubiKeyMasterPassword);
+      applyYubiKeySettings(settings);
+    } catch (error) {
+      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_yubikey_update_failed'));
+    } finally {
+      setYubiKeySubmitting(false);
+    }
+  }
+
+  async function bootstrapYubiKeyConfigDialog(): Promise<void> {
+    if (yubiKeySubmitting || !yubiKeyBootstrapOtp.trim()) return;
+    const bootstrapOtp = yubiKeyBootstrapOtp.trim().toLowerCase();
+    setYubiKeySubmitting(true);
+    try {
+      const settings = await props.onBootstrapYubiKeyApiCredentials(bootstrapOtp, yubiKeyMasterPassword);
+      applyYubiKeySettings(settings);
+      setYubiKeyKeys(settings.keys);
+      setYubiKeyBootstrapOtp('');
+      setYubiKeyConfigOpen(false);
+    } catch (error) {
+      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_yubikey_auto_config_failed'));
+    } finally {
+      setYubiKeySubmitting(false);
+    }
+  }
+
+  async function saveYubiKeyConfigDialog(): Promise<void> {
+    if (yubiKeySubmitting || !yubiKeyYubicoClientId.trim()) return;
+    setYubiKeySubmitting(true);
+    try {
+      const settings = await props.onSaveYubiKeyApiCredentials(yubiKeyYubicoClientId.trim(), yubiKeyYubicoSecretKey.trim(), yubiKeyMasterPassword);
+      applyYubiKeySettings(settings);
+    } catch (error) {
+      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_yubikey_config_update_failed'));
+    } finally {
+      setYubiKeySubmitting(false);
+    }
+  }
+
+  async function disableYubiKeyDialog(): Promise<void> {
+    if (yubiKeySubmitting || !yubiKeyMasterPassword) return;
+    setYubiKeySubmitting(true);
+    try {
+      await props.onDisableYubiKey(yubiKeyMasterPassword);
+      setYubiKeyEnabled(false);
+      setYubiKeyKeys(EMPTY_YUBIKEY_KEYS);
+      setYubiKeyStoredKeys(EMPTY_YUBIKEY_KEYS);
+      setYubiKeyNfc(false);
+    } catch (error) {
+      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_disable_yubikey_failed'));
+    } finally {
+      setYubiKeySubmitting(false);
+    }
+  }
+
+  async function refreshTwoFactorStatus(): Promise<void> {
+    if (twoFactorStatusRefreshing) return;
+    setTwoFactorStatusRefreshing(true);
+    try {
+      await props.onRefreshTwoFactorStatus();
+    } catch (error) {
+      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_load_failed'));
+    } finally {
+      setTwoFactorStatusRefreshing(false);
+    }
   }
 
   async function enableTotpFromManageDialog(): Promise<void> {
@@ -543,7 +692,18 @@ export default function SettingsPage(props: SettingsPageProps) {
               </section>
 
               <section className="settings-submodule two-step-providers-module">
-                <h3>{t('txt_providers')}</h3>
+                <div className="settings-module-head">
+                  <h3>{t('txt_providers')}</h3>
+                  <button
+                    type="button"
+                    className="btn btn-secondary small"
+                    disabled={twoFactorStatusRefreshing}
+                    onClick={() => void refreshTwoFactorStatus()}
+                  >
+                    <RefreshCw size={14} className="btn-icon" />
+                    {t('txt_refresh_status')}
+                  </button>
+                </div>
                 <div className="two-step-provider-list">
                   <div className="two-step-provider-row">
                     <div className="two-step-provider-icon">
@@ -577,10 +737,13 @@ export default function SettingsPage(props: SettingsPageProps) {
                   <div className="two-step-provider-row">
                     <div className="two-step-provider-icon two-step-provider-yubico">yubico</div>
                     <div className="two-step-provider-copy">
-                      <strong>{t('txt_yubico_otp_security_key')}</strong>
+                      <div className="two-step-provider-title">
+                        <strong>{t('txt_yubico_otp_security_key')}</strong>
+                        {yubiKeyEnabled && <span className="two-step-enabled-badge">{t('txt_enabled')}</span>}
+                      </div>
                       <span>{t('txt_yubico_otp_security_key_help')}</span>
                     </div>
-                    <button type="button" className="btn btn-secondary" disabled>
+                    <button type="button" className="btn btn-secondary" onClick={() => openMasterPasswordPrompt('manageYubiKey')}>
                       {t('txt_manage')}
                     </button>
                   </div>
@@ -709,6 +872,160 @@ export default function SettingsPage(props: SettingsPageProps) {
               </div>
             </div>
           </div>
+        </div>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={yubiKeyDialogOpen}
+        title={`${t('txt_two_step_login')} YubiKey`}
+        message={!yubiKeyYubicoConfigured ? '' : yubiKeyEnabled ? t('txt_yubikey_enabled') : t('txt_disabled')}
+        hideConfirm
+        hideCancel
+        closeButton
+        onConfirm={() => {
+          if (yubiKeySubmitting) return;
+          if (yubiKeyYubicoConfigured) {
+            void saveYubiKeyDialog();
+          } else {
+            void bootstrapYubiKeyConfigDialog();
+          }
+        }}
+        onCancel={closeYubiKeyDialog}
+        afterActions={(
+          <>
+            {yubiKeyYubicoConfigured && (
+              <button type="button" className="btn btn-primary dialog-btn" disabled={yubiKeySubmitting} onClick={() => void saveYubiKeyDialog()}>
+                {t('txt_save')}
+              </button>
+            )}
+            {yubiKeyEnabled && (
+              <button type="button" className="btn btn-secondary dialog-btn" disabled={yubiKeySubmitting} onClick={() => void disableYubiKeyDialog()}>
+                {t('txt_disable_all_keys')}
+              </button>
+            )}
+          </>
+        )}
+      >
+        <div className="yubikey-manage-dialog-body">
+          {!yubiKeyYubicoConfigured && (
+            <section className="settings-submodule yubikey-config-panel">
+              <h3>{t('txt_yubikey_config_required')}</h3>
+              <p className="muted-inline settings-field-note">{t('txt_yubikey_config_required_help')}</p>
+              <label className="field">
+                <span>{t('txt_otp_from_yubikey')}</span>
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  inputMode="verbatim"
+                  spellcheck={false}
+                  value={yubiKeyBootstrapOtp}
+                  onInput={(e) => setYubiKeyBootstrapOtp(normalizeYubiKeyFieldValue((e.currentTarget as HTMLInputElement).value))}
+                />
+              </label>
+              <button type="button" className="btn btn-primary" disabled={yubiKeySubmitting || !yubiKeyBootstrapOtp.trim()} onClick={() => void bootstrapYubiKeyConfigDialog()}>
+                {t('txt_yubikey_auto_configure')}
+              </button>
+            </section>
+          )}
+
+          {yubiKeyYubicoConfigured && (
+            <>
+              <section className="settings-submodule yubikey-config-panel">
+                <div className="settings-module-head">
+                  <h3>{t('txt_yubikey_validation_credentials')}</h3>
+                  <button type="button" className="btn btn-secondary small" onClick={() => setYubiKeyConfigOpen((open) => !open)}>
+                    {yubiKeyConfigOpen ? t('txt_hide') : t('txt_view')}
+                  </button>
+                </div>
+                {yubiKeyConfigOpen && (
+                  <div className="settings-vertical-fields">
+                    <label className="field">
+                      <span>Client ID</span>
+                      <input className="input" value={yubiKeyYubicoClientId} onInput={(e) => setYubiKeyYubicoClientId((e.currentTarget as HTMLInputElement).value)} />
+                    </label>
+                    <label className="field">
+                      <span>Secret key</span>
+                      <input className="input" value={yubiKeyYubicoSecretKey} onInput={(e) => setYubiKeyYubicoSecretKey((e.currentTarget as HTMLInputElement).value)} />
+                    </label>
+                    <label className="field">
+                      <span>{t('txt_otp_from_yubikey')}</span>
+                      <input
+                        className="input"
+                        type="password"
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        inputMode="verbatim"
+                        spellcheck={false}
+                        value={yubiKeyBootstrapOtp}
+                        onInput={(e) => setYubiKeyBootstrapOtp(normalizeYubiKeyFieldValue((e.currentTarget as HTMLInputElement).value))}
+                      />
+                      <div className="field-help">{t('txt_yubikey_reconfigure_help')}</div>
+                    </label>
+                    <div className="actions">
+                      <button type="button" className="btn btn-secondary" disabled={yubiKeySubmitting || !yubiKeyYubicoClientId.trim()} onClick={() => void saveYubiKeyConfigDialog()}>
+                        {t('txt_save')}
+                      </button>
+                      <button type="button" className="btn btn-secondary" disabled={yubiKeySubmitting || !yubiKeyBootstrapOtp.trim()} onClick={() => void bootstrapYubiKeyConfigDialog()}>
+                        {t('txt_yubikey_auto_configure_again')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <ol className="settings-plain-steps">
+                <li>{t('txt_yubikey_plug_in')}</li>
+                <li>{t('txt_yubikey_select_empty_field')}</li>
+                <li>{t('txt_yubikey_touch_button')}</li>
+              </ol>
+              <div className="settings-vertical-fields">
+                {yubiKeyKeys.map((keyValue, index) => (
+                  <label className="field" key={index}>
+                    <span>{t('txt_yubikey_x').replace('{index}', String(index + 1))}</span>
+                    <div className="yubikey-input-row">
+                      {yubiKeyStoredKeys[index] && keyValue === yubiKeyStoredKeys[index] ? (
+                        <span className="yubikey-stored-key">{formatStoredYubiKey(keyValue)}</span>
+                      ) : (
+                        <input
+                          className="input"
+                          type="password"
+                          autoComplete="off"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          inputMode="verbatim"
+                          spellcheck={false}
+                          value={keyValue}
+                          onInput={(e) => updateYubiKey(index, normalizeYubiKeyFieldValue((e.currentTarget as HTMLInputElement).value))}
+                        />
+                      )}
+                      {keyValue && (
+                        <button
+                          type="button"
+                          className="btn btn-danger small yubikey-remove-btn"
+                          title={t('txt_remove')}
+                          aria-label={t('txt_remove')}
+                          onClick={() => updateYubiKey(index, '')}
+                        >
+                          <Trash2 size={14} className="btn-icon" />
+                        </button>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div className="settings-checkbox-block">
+                <strong>{t('txt_nfc_support')}</strong>
+                <label className="checkbox-inline">
+                  <input type="checkbox" checked={yubiKeyNfc} onInput={(e) => setYubiKeyNfc((e.currentTarget as HTMLInputElement).checked)} />
+                  <span>{t('txt_yubikey_supports_nfc')}</span>
+                </label>
+                {t('txt_yubikey_supports_nfc_desc') && <div className="field-help">{t('txt_yubikey_supports_nfc_desc')}</div>}
+              </div>
+            </>
+          )}
         </div>
       </ConfirmDialog>
       <ConfirmDialog

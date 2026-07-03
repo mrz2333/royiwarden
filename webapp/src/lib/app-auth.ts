@@ -34,6 +34,7 @@ export interface PendingTotp {
   passwordHash: string;
   masterKey: Uint8Array;
   kdfIterations: number;
+  providerType: number;
 }
 
 export interface PendingPasskeyPassword {
@@ -70,8 +71,29 @@ export interface CompletedLogin {
   freshUserVerificationToken?: string | null;
 }
 
+const TWO_FACTOR_PROVIDER_AUTHENTICATOR = 0;
+const TWO_FACTOR_PROVIDER_YUBIKEY = 3;
+
 function readTokenUserVerificationToken(token: TokenSuccess): string | null {
   return String(token.UserVerificationToken || token.userVerificationToken || '').trim() || null;
+}
+
+function resolvePendingTwoFactorProvider(providers: unknown): number {
+  if (Array.isArray(providers)) {
+    if (providers.some((provider: any) => Number(
+      provider && typeof provider === 'object' ? provider.Type ?? provider.type : provider
+    ) === TWO_FACTOR_PROVIDER_YUBIKEY)) {
+      return TWO_FACTOR_PROVIDER_YUBIKEY;
+    }
+    return TWO_FACTOR_PROVIDER_AUTHENTICATOR;
+  }
+  if (providers && typeof providers === 'object') {
+    const record = providers as Record<string, unknown>;
+    if (record[String(TWO_FACTOR_PROVIDER_YUBIKEY)] || record.YubiKey || record.Yubikey) {
+      return TWO_FACTOR_PROVIDER_YUBIKEY;
+    }
+  }
+  return TWO_FACTOR_PROVIDER_AUTHENTICATOR;
 }
 
 export type PasswordLoginResult =
@@ -425,6 +447,7 @@ export async function performPasswordLogin(
         passwordHash: derived.hash,
         masterKey: derived.masterKey,
         kdfIterations: derived.kdfIterations,
+        providerType: resolvePendingTwoFactorProvider(tokenError.TwoFactorProviders),
       },
     };
   }
@@ -498,6 +521,7 @@ export async function performTotpLogin(
 ): Promise<CompletedLogin> {
   const token = await loginWithPassword(pendingTotp.email, pendingTotp.passwordHash, {
     totpCode: totpCode.trim(),
+    twoFactorProvider: pendingTotp.providerType,
     rememberDevice,
   });
   if ('access_token' in token && token.access_token) {
@@ -615,6 +639,7 @@ export async function performUnlock(
         passwordHash: derived.hash,
         masterKey: derived.masterKey,
         kdfIterations: derived.kdfIterations,
+        providerType: resolvePendingTwoFactorProvider(tokenError.TwoFactorProviders),
       },
     };
   }

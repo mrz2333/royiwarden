@@ -7,7 +7,7 @@ import { t } from '@/lib/i18n';
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
-  message: string;
+  message?: string;
   variant?: 'default' | 'warning';
   showIcon?: boolean;
   confirmText?: string;
@@ -90,6 +90,7 @@ export default function ConfirmDialog(props: ConfirmDialogProps) {
   const dialogId = useMemo(() => `confirm-dialog-${++dialogIdCounter}`, []);
   const titleId = `${dialogId}-title`;
   const messageId = `${dialogId}-message`;
+  const hasMessage = !!props.message;
   const canDismiss = !props.cancelDisabled && !closing;
 
   useEffect(() => {
@@ -193,7 +194,7 @@ export default function ConfirmDialog(props: ConfirmDialogProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-describedby={messageId}
+        aria-describedby={hasMessage ? messageId : undefined}
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
         onSubmit={(e) => {
@@ -228,7 +229,7 @@ export default function ConfirmDialog(props: ConfirmDialogProps) {
           </button>
         )}
         <h3 id={titleId} className="dialog-title">{props.title}</h3>
-        <div id={messageId} className={`dialog-message ${props.variant === 'warning' ? 'warning' : ''}`}>{props.message}</div>
+        {hasMessage && <div id={messageId} className={`dialog-message ${props.variant === 'warning' ? 'warning' : ''}`}>{props.message}</div>}
         {props.children}
         {!props.hideConfirm && (
           <button

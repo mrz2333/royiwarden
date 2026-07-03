@@ -21,6 +21,7 @@ interface AppGlobalOverlaysProps {
   confirm: AppConfirmState | null;
   onCancelConfirm: () => void;
   pendingTotpOpen: boolean;
+  pendingTotpProviderType?: number;
   totpCode: string;
   rememberDevice: boolean;
   onTotpCodeChange: (value: string) => void;
@@ -38,6 +39,7 @@ interface AppGlobalOverlaysProps {
 }
 
 export default function AppGlobalOverlays(props: AppGlobalOverlaysProps) {
+  const isYubiKeyOtp = props.pendingTotpProviderType === 3;
   return (
     <>
       <ConfirmDialog
@@ -55,8 +57,8 @@ export default function AppGlobalOverlays(props: AppGlobalOverlaysProps) {
 
       <ConfirmDialog
         open={props.pendingTotpOpen}
-        title={t('txt_two_step_verification')}
-        message={t('txt_password_is_already_verified')}
+        title={isYubiKeyOtp ? `${t('txt_two_step_verification')} YubiKey` : t('txt_two_step_verification')}
+        message={isYubiKeyOtp ? t('txt_press_yubikey_to_authenticate') : t('txt_password_is_already_verified')}
         confirmText={t('txt_verify')}
         cancelText={t('txt_cancel')}
         showIcon={false}
@@ -74,8 +76,8 @@ export default function AppGlobalOverlays(props: AppGlobalOverlaysProps) {
         )}
       >
         <label className="field">
-          <span>{t('txt_totp_code')}</span>
-          <input className="input" value={props.totpCode} autoComplete="one-time-code" onInput={(e) => props.onTotpCodeChange((e.currentTarget as HTMLInputElement).value)} />
+          <span>{isYubiKeyOtp ? t('txt_otp_from_yubikey') : t('txt_totp_code')}</span>
+          <input className="input" type={isYubiKeyOtp ? 'password' : 'text'} value={props.totpCode} autoComplete="one-time-code" onInput={(e) => props.onTotpCodeChange((e.currentTarget as HTMLInputElement).value)} />
         </label>
         <label className="check-line check-line-compact">
           <input type="checkbox" checked={props.rememberDevice} onChange={(e) => props.onRememberDeviceChange((e.currentTarget as HTMLInputElement).checked)} />

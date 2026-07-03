@@ -15,6 +15,7 @@ export interface Profile {
   name: string;
   key: string;
   masterPasswordHint?: string | null;
+  yubikeyEnabled?: boolean;
   privateKey?: string | null;
   publicKey?: string | null;
   role: 'admin' | 'user';
@@ -293,6 +294,15 @@ export interface WebBootstrapResponse {
   jwtUnsafeReason?: 'missing' | 'too_short' | null;
   jwtSecretMinLength?: number;
   registrationInviteRequired?: boolean;
+}
+
+export interface YubiKeyOtpSettings {
+  enabled: boolean;
+  keys: [string, string, string, string, string];
+  nfc: boolean;
+  yubicoConfigured: boolean;
+  yubicoClientId: string;
+  yubicoSecretKey: string;
 }
 
 export interface TokenSuccess {

@@ -8,7 +8,7 @@ import type { AdminBackupImportResponse, AdminBackupRunResponse, AdminBackupSett
 import type { AuditLogFilters } from '@/lib/api/admin';
 import type { CiphersImportPayload } from '@/lib/api/vault';
 import { t } from '@/lib/i18n';
-import type { AccountPasskeyCredential, AdminInvite, AdminUser, AuditLogListResult, AuditLogSettings, AuthRequest, AuthorizedDevice, Cipher, CustomEquivalentDomain, DomainRules, Folder as VaultFolder, Profile, Send, SendDraft, SessionState, VaultDraft } from '@/lib/types';
+import type { AccountPasskeyCredential, AdminInvite, AdminUser, AuditLogListResult, AuditLogSettings, AuthRequest, AuthorizedDevice, Cipher, CustomEquivalentDomain, DomainRules, Folder as VaultFolder, Profile, Send, SendDraft, SessionState, VaultDraft, YubiKeyOtpSettings } from '@/lib/types';
 import type { ExportRequest } from '@/lib/export-formats';
 
 const VaultPage = lazy(() => import('@/components/VaultPage'));
@@ -55,6 +55,7 @@ export interface AppMainRoutesProps {
   adminLoading: boolean;
   adminError: string;
   totpEnabled: boolean;
+  yubikeyEnabled: boolean;
   lockTimeoutMinutes: 0 | 1 | 5 | 15 | 30;
   sessionTimeoutAction: 'lock' | 'logout';
   authorizedDevices: AuthorizedDevice[];
@@ -112,6 +113,11 @@ export interface AppMainRoutesProps {
   onSavePasswordHint: (masterPasswordHint: string) => Promise<void>;
   onEnableTotp: (secret: string, token: string, masterPassword: string) => Promise<void>;
   onOpenDisableTotp: () => void;
+  onGetYubiKeySettings: (masterPassword: string) => Promise<YubiKeyOtpSettings>;
+  onSaveYubiKeySettings: (keys: string[], nfc: boolean, masterPassword: string) => Promise<YubiKeyOtpSettings>;
+  onSaveYubiKeyApiCredentials: (clientId: string, secretKey: string, masterPassword: string) => Promise<YubiKeyOtpSettings>;
+  onBootstrapYubiKeyApiCredentials: (otp: string, masterPassword: string) => Promise<YubiKeyOtpSettings>;
+  onDisableYubiKey: (masterPassword: string) => Promise<void>;
   onGetRecoveryCode: (masterPassword: string) => Promise<string>;
   onGetApiKey: (masterPassword: string) => Promise<string>;
   onRotateApiKey: (masterPassword: string) => Promise<string>;
@@ -119,6 +125,7 @@ export interface AppMainRoutesProps {
   onCreateAccountPasskey: (name: string, masterPassword: string, directUnlock: boolean) => Promise<AccountPasskeyCredential | null>;
   onEnableAccountPasskeyDirectUnlock: (id: string, masterPassword: string) => Promise<void>;
   onDeleteAccountPasskey: (id: string, masterPassword: string) => Promise<void>;
+  onRefreshTwoFactorStatus: () => Promise<void>;
   pendingAuthRequests: AuthRequest[];
   pendingAuthRequestsLoading: boolean;
   pendingAuthRequestsRefreshing: boolean;
@@ -268,6 +275,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
               <SettingsPage
                 profile={props.profile}
                 totpEnabled={props.totpEnabled}
+                yubikeyEnabled={props.yubikeyEnabled}
                 themePreference={props.themePreference}
                 lockTimeoutMinutes={props.lockTimeoutMinutes}
                 sessionTimeoutAction={props.sessionTimeoutAction}
@@ -277,6 +285,11 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
                 onSavePasswordHint={props.onSavePasswordHint}
                 onEnableTotp={props.onEnableTotp}
                 onOpenDisableTotp={props.onOpenDisableTotp}
+                onGetYubiKeySettings={props.onGetYubiKeySettings}
+                onSaveYubiKeySettings={props.onSaveYubiKeySettings}
+                onSaveYubiKeyApiCredentials={props.onSaveYubiKeyApiCredentials}
+                onBootstrapYubiKeyApiCredentials={props.onBootstrapYubiKeyApiCredentials}
+                onDisableYubiKey={props.onDisableYubiKey}
                 onGetRecoveryCode={props.onGetRecoveryCode}
                 onGetApiKey={props.onGetApiKey}
                 onRotateApiKey={props.onRotateApiKey}
@@ -284,6 +297,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
                 onCreateAccountPasskey={props.onCreateAccountPasskey}
                 onEnableAccountPasskeyDirectUnlock={props.onEnableAccountPasskeyDirectUnlock}
                 onDeleteAccountPasskey={props.onDeleteAccountPasskey}
+                onRefreshTwoFactorStatus={props.onRefreshTwoFactorStatus}
                 onLockTimeoutChange={props.onLockTimeoutChange}
                 onSessionTimeoutActionChange={props.onSessionTimeoutActionChange}
                 onNotify={props.onNotify}

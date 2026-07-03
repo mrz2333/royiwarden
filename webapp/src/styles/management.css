@@ -745,6 +745,42 @@
   font-size: 13px;
 }
 
+.yubikey-manage-dialog-body {
+  @apply mt-3 space-y-4;
+}
+
+.settings-plain-steps {
+  @apply m-0 space-y-1 border-b pb-3 pl-5;
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.yubikey-input-row {
+  @apply grid items-center gap-2;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.yubikey-stored-key {
+  @apply block min-h-9 rounded-md border border-transparent px-0 py-2 text-sm text-slate-800 dark:text-slate-100;
+  overflow-wrap: anywhere;
+}
+
+.yubikey-remove-btn {
+  @apply h-9 w-9 p-0;
+}
+
+.settings-checkbox-block {
+  @apply space-y-2;
+}
+
+.checkbox-inline {
+  @apply flex items-center gap-2 text-sm;
+}
+
+.checkbox-inline input {
+  @apply h-4 w-4;
+}
+
 .dialog-close-btn {
   @apply absolute right-3 top-3 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-0 p-0;
   background: transparent;

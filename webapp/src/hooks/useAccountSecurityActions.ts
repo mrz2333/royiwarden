@@ -1,22 +1,27 @@
 import { useMemo } from 'preact/hooks';
 import {
   changeMasterPassword,
+  bootstrapYubiKeyOtpApiCredentials,
   deleteAllAuthorizedDevices,
   deleteAuthorizedDevice,
   deleteAuthorizedDevices,
   deriveLoginHash,
   deleteAccountPasskey as deleteAccountPasskeyApi,
   enableAccountPasskeyDirectUnlock as enableAccountPasskeyDirectUnlockApi,
+  disableYubiKeyOtp,
   getCurrentDeviceIdentifier,
   getApiKey,
   getAccountPasskeyAttestationOptions,
   getAccountPasskeyUpdateAssertionOptions,
   getTotpRecoveryCode,
+  getYubiKeyOtpSettings,
   listAccountPasskeys,
   rotateApiKey,
   revokeAuthorizedDeviceTrust,
   revokeAllAuthorizedDeviceTrust,
   saveAccountPasskey,
+  saveYubiKeyOtpApiCredentials,
+  saveYubiKeyOtpSettings,
   setTotp,
   trustAuthorizedDevicePermanently,
   updateAuthorizedDeviceName,
@@ -32,7 +37,7 @@ import {
 import { t } from '@/lib/i18n';
 import type { AppConfirmState } from '@/components/AppGlobalOverlays';
 import type { AuthedFetch } from '@/lib/api/shared';
-import type { AccountPasskeyCredential, AuthorizedDevice, Profile, SessionState } from '@/lib/types';
+import type { AccountPasskeyCredential, AuthorizedDevice, Profile, SessionState, YubiKeyOtpSettings } from '@/lib/types';
 
 type Notify = (type: 'success' | 'error' | 'warning', text: string) => void;
 
@@ -47,7 +52,7 @@ interface UseAccountSecurityActionsOptions {
   onNotify: Notify;
   onProfileUpdated: (profile: Profile) => void;
   onSetConfirm: (next: AppConfirmState | null) => void;
-  refetchTotpStatus: () => Promise<unknown>;
+  refetchTwoFactorStatus: () => Promise<unknown>;
   refetchAuthorizedDevices: () => Promise<unknown>;
 }
 
@@ -63,7 +68,7 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
     onNotify,
     onProfileUpdated,
     onSetConfirm,
-    refetchTotpStatus,
+    refetchTwoFactorStatus,
     refetchAuthorizedDevices,
   } = options;
 
@@ -187,11 +192,69 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
           const derived = await deriveLoginHash(profile.email, disableTotpPassword, defaultKdfIterations);
           await setTotp(authedFetch, { enabled: false, masterPasswordHash: derived.hash });
           clearDisableTotpDialog();
-          await refetchTotpStatus();
+          await refetchTwoFactorStatus();
           onNotify('success', t('txt_totp_disabled'));
         } catch (error) {
           onNotify('error', error instanceof Error ? error.message : t('txt_disable_totp_failed'));
         }
+      },
+
+      async getYubiKeySettings(masterPassword: string): Promise<YubiKeyOtpSettings> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalized = String(masterPassword || '');
+        if (!normalized) throw new Error(t('txt_master_password_is_required'));
+        const derived = await deriveLoginHash(profile.email, normalized, defaultKdfIterations);
+        return getYubiKeyOtpSettings(authedFetch, derived.hash);
+      },
+
+      async saveYubiKeySettings(keys: string[], nfc: boolean, masterPassword: string): Promise<YubiKeyOtpSettings> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalized = String(masterPassword || '');
+        if (!normalized) throw new Error(t('txt_master_password_is_required'));
+        const derived = await deriveLoginHash(profile.email, normalized, defaultKdfIterations);
+        const settings = await saveYubiKeyOtpSettings(authedFetch, { keys, nfc, masterPasswordHash: derived.hash });
+        await refetchTwoFactorStatus();
+        onNotify('success', t('txt_yubikeys_updated'));
+        return settings;
+      },
+
+      async saveYubiKeyApiCredentials(clientId: string, secretKey: string, masterPassword: string): Promise<YubiKeyOtpSettings> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalized = String(masterPassword || '');
+        if (!normalized) throw new Error(t('txt_master_password_is_required'));
+        const derived = await deriveLoginHash(profile.email, normalized, defaultKdfIterations);
+        const settings = await saveYubiKeyOtpApiCredentials(authedFetch, {
+          masterPasswordHash: derived.hash,
+          yubicoClientId: clientId,
+          yubicoSecretKey: secretKey,
+        });
+        await refetchTwoFactorStatus();
+        onNotify('success', t('txt_yubikey_config_updated'));
+        return settings;
+      },
+
+      async bootstrapYubiKeyApiCredentials(otp: string, masterPassword: string): Promise<YubiKeyOtpSettings> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalized = String(masterPassword || '');
+        if (!normalized) throw new Error(t('txt_master_password_is_required'));
+        const derived = await deriveLoginHash(profile.email, normalized, defaultKdfIterations);
+        const settings = await bootstrapYubiKeyOtpApiCredentials(authedFetch, {
+          masterPasswordHash: derived.hash,
+          otp,
+        });
+        await refetchTwoFactorStatus();
+        onNotify('success', t('txt_yubikey_config_updated'));
+        return settings;
+      },
+
+      async disableYubiKey(masterPassword: string): Promise<void> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalized = String(masterPassword || '');
+        if (!normalized) throw new Error(t('txt_master_password_is_required'));
+        const derived = await deriveLoginHash(profile.email, normalized, defaultKdfIterations);
+        await disableYubiKeyOtp(authedFetch, derived.hash);
+        await refetchTwoFactorStatus();
+        onNotify('success', t('txt_yubikey_disabled'));
       },
 
       async getRecoveryCode(masterPassword: string): Promise<string> {
@@ -476,7 +539,7 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
       session?.symEncKey,
       session?.symMacKey,
       refetchAuthorizedDevices,
-      refetchTotpStatus,
+      refetchTwoFactorStatus,
     ]
   );
 }

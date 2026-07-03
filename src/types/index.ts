@@ -14,6 +14,12 @@ export interface Env {
   WEBAUTHN_RP_ID?: string;
   WEBAUTHN_RP_NAME?: string;
   WEBAUTHN_ALLOWED_ORIGINS?: string;
+  YUBICO_CLIENT_ID?: string;
+  YUBICO_SECRET_KEY?: string;
+  YUBICO_VALIDATION_URLS?: string;
+  'globalSettings__yubico__clientId'?: string;
+  'globalSettings__yubico__key'?: string;
+  'globalSettings__yubico__validationUrls'?: string;
 }
 
 export type UserRole = 'admin' | 'user';
@@ -49,6 +55,12 @@ export interface User {
   verifyDevices?: boolean;
   totpSecret: string | null;
   totpRecoveryCode: string | null;
+  yubikeyKey1: string | null;
+  yubikeyKey2: string | null;
+  yubikeyKey3: string | null;
+  yubikeyKey4: string | null;
+  yubikeyKey5: string | null;
+  yubikeyNfc: boolean;
   apiKey: string | null;
   createdAt: string;
   updatedAt: string;
@@ -498,6 +510,7 @@ export interface ProfileResponse {
   masterPasswordHint: string | null;
   culture: string;
   twoFactorEnabled: boolean;
+  yubikeyEnabled?: boolean;
   key: string;
   privateKey: string | null;
   accountKeys: any | null;
