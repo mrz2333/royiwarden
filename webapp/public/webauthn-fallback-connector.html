@@ -227,6 +227,50 @@
           return out;
         }
 
+        function trustedParentOrigin() {
+          var parent = decodeRepeated(params.get("parent"));
+          if (!parent) return "";
+          try {
+            var parentUrl = new URL(parent);
+            if (
+              parentUrl.protocol === "chrome-extension:" ||
+              parentUrl.protocol === "moz-extension:" ||
+              parentUrl.protocol === "safari-web-extension:"
+            ) {
+              return parentUrl.protocol + "//" + parentUrl.host;
+            }
+            if (parentUrl.origin === window.location.origin) {
+              return parentUrl.origin;
+            }
+          } catch (_error) {
+            return "";
+          }
+          return "";
+        }
+
+        function safeShallowCopy(source) {
+          var copy = {};
+          if (!source || typeof source !== "object") return copy;
+          Object.keys(source).forEach(function (key) {
+            if (key === "__proto__" || key === "prototype" || key === "constructor") return;
+            copy[key] = source[key];
+          });
+          return copy;
+        }
+
+        function postResult(message) {
+          var parentOrigin = trustedParentOrigin();
+          if (parentOrigin) {
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage(message, parentOrigin);
+            }
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage(message, parentOrigin);
+            }
+          }
+          window.postMessage(message, window.location.origin);
+        }
+
         function showMessage(kind, message) {
           msgEl.textContent = String(message || "");
           msgEl.className = "msg show " + kind;
@@ -279,13 +323,13 @@
 
         function normalizeOptions(options) {
           if (!options || typeof options !== "object") throw new Error("Cannot parse data.");
-          var copy = Object.assign({}, options);
+          var copy = safeShallowCopy(options);
           copy.challenge = bytesFromBase64Url(copy.challenge);
           if (Array.isArray(copy.allowCredentials)) {
             copy.allowCredentials = copy.allowCredentials.map(function (credential) {
-              return Object.assign({}, credential, {
-                id: bytesFromBase64Url(credential.id),
-              });
+              var next = safeShallowCopy(credential);
+              next.id = bytesFromBase64Url(credential && credential.id);
+              return next;
             });
           }
           return copy;
@@ -327,11 +371,11 @@
             if (!(credential instanceof PublicKeyCredential)) {
               throw new Error("No security key was selected.");
             }
-            window.postMessage({
+            postResult({
               command: "webAuthnResult",
               data: credentialToDataString(credential),
               remember: rememberEl.checked,
-            }, "*");
+            });
             sentSuccess = true;
             showMessage("success", text.success);
           } catch (error) {

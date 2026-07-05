@@ -5,6 +5,8 @@ import { readAuthRequestDeviceInfo, readActingDeviceIdentifier } from '../utils/
 import { errorResponse, jsonResponse } from '../utils/response';
 import { isAuthRequestExpired } from '../services/storage-auth-request-repo';
 import { notifyAuthRequestResponse, notifyUserAuthRequest } from '../durable/notifications-hub';
+import { RateLimitService, getClientIdentifier } from '../services/ratelimit';
+import { LIMITS } from '../config/limits';
 
 const AUTH_REQUEST_TYPE_AUTHENTICATE_AND_UNLOCK = 0;
 const AUTH_REQUEST_TYPE_UNLOCK = 1;
@@ -131,6 +133,30 @@ async function readJsonBody(request: Request): Promise<Record<string, any> | nul
   }
 }
 
+async function enforceAuthRequestCreateRateLimit(
+  request: Request,
+  env: Env,
+  email: string,
+  deviceIdentifier: string
+): Promise<Response | null> {
+  const clientIdentifier = getClientIdentifier(request);
+  if (!clientIdentifier) return errorResponse('Client IP is required', 403);
+
+  const rateLimit = new RateLimitService(env.DB);
+  const limit = LIMITS.rateLimit.authRequestRequestsPerMinute;
+  const encodedEmail = encodeURIComponent(email || 'missing');
+  const encodedDevice = encodeURIComponent(deviceIdentifier || 'missing');
+  const budgets = await Promise.all([
+    rateLimit.consumeStrictBudget(`auth-request:ip:${clientIdentifier}`, limit),
+    rateLimit.consumeStrictBudget(`auth-request:email:${encodedEmail}`, limit),
+    rateLimit.consumeStrictBudget(`auth-request:device:${encodedDevice}`, limit),
+  ]);
+  const blocked = budgets.find((budget) => !budget.allowed);
+  if (!blocked) return null;
+
+  return errorResponse('Too many authentication requests. Try again later.', 429);
+}
+
 function readBodyValue(body: Record<string, any>, names: string[]): unknown {
   for (const name of names) {
     if (body[name] !== undefined) return body[name];
@@ -164,6 +190,8 @@ export async function handleCreateAuthRequest(request: Request, env: Env): Promi
   if (!email || !publicKey || !accessCode || !deviceInfo.deviceIdentifier) {
     return errorResponse('Email, public key, device identifier, and access code are required.', 400);
   }
+  const rateLimitResponse = await enforceAuthRequestCreateRateLimit(request, env, email, deviceInfo.deviceIdentifier);
+  if (rateLimitResponse) return rateLimitResponse;
   if (!isSupportedAuthRequestType(type) || type === AUTH_REQUEST_TYPE_ADMIN_APPROVAL) {
     return errorResponse('Invalid auth request type.', 400);
   }

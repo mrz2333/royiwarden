@@ -42,6 +42,9 @@ function looksLikeEncString(value: string): boolean {
  */
 function validateKdfParams(kdfType: number | undefined, kdfIterations: number | undefined, kdfMemory?: number | undefined, kdfParallelism?: number | undefined): string | null {
   const type = kdfType ?? 0;
+  if (type !== 0 && type !== 1) {
+    return 'KDF type must be PBKDF2-SHA256 or Argon2id';
+  }
   if (type === 0) {
     // PBKDF2-SHA256: minimum 100 000 iterations
     if (typeof kdfIterations === 'number' && kdfIterations < 100_000) {
@@ -448,7 +451,7 @@ export async function handleGetPasswordHint(request: Request, env: Env): Promise
   }
 
   const rateLimit = new RateLimitService(env.DB);
-  const minuteBudget = await rateLimit.consumeBudgetWithWindow(
+  const minuteBudget = await rateLimit.consumeStrictBudgetWithWindow(
     `${clientIdentifier}:password-hint`,
     LIMITS.rateLimit.passwordHintRequestsPerMinute,
     60
@@ -470,7 +473,7 @@ export async function handleGetPasswordHint(request: Request, env: Env): Promise
     );
   }
 
-  const hourlyBudget = await rateLimit.consumeBudgetWithWindow(
+  const hourlyBudget = await rateLimit.consumeStrictBudgetWithWindow(
     `${clientIdentifier}:password-hint-hour`,
     LIMITS.rateLimit.passwordHintRequestsPerHour,
     60 * 60
@@ -734,6 +737,11 @@ export async function handleChangePassword(request: Request, env: Env, userId: s
   const nextKdfParallelism = body.kdfParallelism ?? readNestedNumber(body, ['unlockData', 'kdf', 'parallelism']);
   const kdfErr = validateKdfParams(nextKdf, nextKdfIterations, nextKdfMemory, nextKdfParallelism);
   if (kdfErr) return errorResponse(kdfErr, 400);
+  const shouldUpdateHint = typeof body.masterPasswordHint === 'string' || body.masterPasswordHint === null;
+  const nextMasterPasswordHint = shouldUpdateHint ? normalizeMasterPasswordHint(body.masterPasswordHint) : undefined;
+  if (nextMasterPasswordHint && nextMasterPasswordHint.length > 120) {
+    return errorResponse('masterPasswordHint must be 120 characters or fewer', 400);
+  }
 
   user.masterPasswordHash = await auth.hashPasswordServer(newMasterPasswordHash, user.email);
   if (nextKey) user.key = nextKey;
@@ -743,8 +751,8 @@ export async function handleChangePassword(request: Request, env: Env, userId: s
   if (typeof nextKdfIterations === 'number') user.kdfIterations = nextKdfIterations;
   if (typeof nextKdfMemory === 'number') user.kdfMemory = nextKdfMemory;
   if (typeof nextKdfParallelism === 'number') user.kdfParallelism = nextKdfParallelism;
-  if (typeof body.masterPasswordHint === 'string' || body.masterPasswordHint === null) {
-    user.masterPasswordHint = body.masterPasswordHint;
+  if (shouldUpdateHint) {
+    user.masterPasswordHint = nextMasterPasswordHint ?? null;
   }
   user.securityStamp = generateUUID();
   user.updatedAt = new Date().toISOString();

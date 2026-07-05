@@ -465,6 +465,8 @@ export async function handlePublicRoute(
   }
 
   if ((path === '/identity/accounts/recover-2fa' || path === '/api/accounts/recover-2fa') && method === 'POST') {
+    const blocked = await enforcePublicRateLimit('public-sensitive', LIMITS.rateLimit.sensitivePublicRequestsPerMinute);
+    if (blocked) return blocked;
     return handleRecoverTwoFactor(request, env);
   }
 

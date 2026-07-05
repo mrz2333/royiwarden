@@ -124,6 +124,10 @@ async function processAttachmentUpload(
   }
 
   const path = getAttachmentObjectKey(cipherId, attachment.id);
+  if (await getBlobObject(env, path)) {
+    return errorResponse('Attachment file has already been uploaded', 409);
+  }
+
   try {
     await putBlobObject(env, path, upload.body, {
       size: upload.size,

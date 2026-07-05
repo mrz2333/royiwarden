@@ -94,6 +94,14 @@ export function loadSession(): SessionState | null {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SessionState> & Partial<PersistedSessionState>;
+    if (parsed.email && (parsed.accessToken || parsed.refreshToken)) {
+      const authMode = parsed.authMode === 'web-cookie' ? 'web-cookie' : 'token';
+      saveSession({ email: parsed.email, authMode });
+      return {
+        email: parsed.email,
+        authMode,
+      };
+    }
     if (parsed.authMode === 'web-cookie' && parsed.email) {
       return {
         email: parsed.email,
@@ -106,13 +114,7 @@ export function loadSession(): SessionState | null {
         authMode: 'token',
       };
     }
-    if (!parsed.accessToken || !parsed.refreshToken || !parsed.email) return null;
-    return {
-      accessToken: parsed.accessToken,
-      refreshToken: parsed.refreshToken,
-      email: parsed.email,
-      authMode: 'token',
-    };
+    return null;
   } catch {
     return null;
   }
