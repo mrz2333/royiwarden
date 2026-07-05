@@ -350,6 +350,17 @@ export interface AccountPasskeyCredential {
   revisionDate?: string;
 }
 
+export interface TwoFactorPasskeyCredential {
+  id: number;
+  name: string;
+  migrated?: boolean;
+}
+
+export interface TwoFactorPasskeySettings {
+  enabled: boolean;
+  keys: TwoFactorPasskeyCredential[];
+}
+
 export interface AuthRequest {
   id: string;
   publicKey: string;

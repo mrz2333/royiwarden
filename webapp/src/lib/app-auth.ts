@@ -35,6 +35,9 @@ export interface PendingTotp {
   masterKey: Uint8Array;
   kdfIterations: number;
   providerType: number;
+  providerData?: unknown;
+  availableProviders: number[];
+  providerDataByType: Record<number, unknown>;
 }
 
 export interface PendingPasskeyPassword {
@@ -73,27 +76,94 @@ export interface CompletedLogin {
 
 const TWO_FACTOR_PROVIDER_AUTHENTICATOR = 0;
 const TWO_FACTOR_PROVIDER_YUBIKEY = 3;
+const TWO_FACTOR_PROVIDER_WEBAUTHN = 7;
+const SUPPORTED_TWO_FACTOR_PROVIDERS = [
+  TWO_FACTOR_PROVIDER_WEBAUTHN,
+  TWO_FACTOR_PROVIDER_YUBIKEY,
+  TWO_FACTOR_PROVIDER_AUTHENTICATOR,
+] as const;
 
 function readTokenUserVerificationToken(token: TokenSuccess): string | null {
   return String(token.UserVerificationToken || token.userVerificationToken || '').trim() || null;
 }
 
-function resolvePendingTwoFactorProvider(providers: unknown): number {
+type TwoFactorTokenError = {
+  TwoFactorProviders?: unknown;
+  TwoFactorProviders2?: unknown;
+  CustomResponse?: {
+    TwoFactorProviders?: unknown;
+    TwoFactorProviders2?: unknown;
+  };
+  error_description?: string;
+  error?: string;
+};
+
+function readTwoFactorProviders(error: TwoFactorTokenError): unknown {
+  return error.TwoFactorProviders ?? error.CustomResponse?.TwoFactorProviders ?? error.TwoFactorProviders2 ?? error.CustomResponse?.TwoFactorProviders2;
+}
+
+function readTwoFactorProviderData(error: TwoFactorTokenError, providerType: number): unknown {
+  const providers2 = error.TwoFactorProviders2 ?? error.CustomResponse?.TwoFactorProviders2;
+  if (!providers2 || typeof providers2 !== 'object') return undefined;
+  const record = providers2 as Record<string, unknown>;
+  return record[String(providerType)] ?? (providerType === TWO_FACTOR_PROVIDER_WEBAUTHN ? record.WebAuthn : undefined);
+}
+
+function twoFactorProviderTypeFromValue(value: unknown): number | null {
+  const raw = value && typeof value === 'object'
+    ? (value as Record<string, unknown>).Type ?? (value as Record<string, unknown>).type
+    : value;
+  const text = String(raw ?? '').trim();
+  if (!text) return null;
+  const normalized = text.toLowerCase();
+  const numeric = Number(text);
+  const provider = Number.isFinite(numeric)
+    ? numeric
+    : normalized === 'webauthn'
+      ? TWO_FACTOR_PROVIDER_WEBAUTHN
+      : normalized === 'yubikey' || normalized === 'yubikeyotp'
+        ? TWO_FACTOR_PROVIDER_YUBIKEY
+        : normalized === 'authenticator' || normalized === 'totp'
+          ? TWO_FACTOR_PROVIDER_AUTHENTICATOR
+          : Number.NaN;
+  return SUPPORTED_TWO_FACTOR_PROVIDERS.includes(provider as any) ? provider : null;
+}
+
+function sortTwoFactorProviders(providerTypes: number[]): number[] {
+  const unique = new Set(providerTypes);
+  return SUPPORTED_TWO_FACTOR_PROVIDERS.filter((provider) => unique.has(provider));
+}
+
+function readTwoFactorProviderTypes(providers: unknown): number[] {
+  const providerTypes: number[] = [];
   if (Array.isArray(providers)) {
-    if (providers.some((provider: any) => Number(
-      provider && typeof provider === 'object' ? provider.Type ?? provider.type : provider
-    ) === TWO_FACTOR_PROVIDER_YUBIKEY)) {
-      return TWO_FACTOR_PROVIDER_YUBIKEY;
+    for (const provider of providers) {
+      const providerType = twoFactorProviderTypeFromValue(provider);
+      if (providerType != null) providerTypes.push(providerType);
     }
-    return TWO_FACTOR_PROVIDER_AUTHENTICATOR;
-  }
-  if (providers && typeof providers === 'object') {
-    const record = providers as Record<string, unknown>;
-    if (record[String(TWO_FACTOR_PROVIDER_YUBIKEY)] || record.YubiKey || record.Yubikey) {
-      return TWO_FACTOR_PROVIDER_YUBIKEY;
+  } else if (providers && typeof providers === 'object') {
+    for (const [key, value] of Object.entries(providers as Record<string, unknown>)) {
+      if (!value) continue;
+      const providerType = twoFactorProviderTypeFromValue(key);
+      if (providerType != null) providerTypes.push(providerType);
     }
   }
-  return TWO_FACTOR_PROVIDER_AUTHENTICATOR;
+  return sortTwoFactorProviders(providerTypes);
+}
+
+function readTwoFactorProviderDataMap(error: TwoFactorTokenError): Record<number, unknown> {
+  const providers2 = error.TwoFactorProviders2 ?? error.CustomResponse?.TwoFactorProviders2;
+  if (!providers2 || typeof providers2 !== 'object') return {};
+  const out: Record<number, unknown> = {};
+  for (const [key, value] of Object.entries(providers2 as Record<string, unknown>)) {
+    const providerType = twoFactorProviderTypeFromValue(key);
+    if (providerType != null) out[providerType] = value;
+  }
+  return out;
+}
+
+function resolvePendingTwoFactorProvider(providers: unknown): number {
+  return readTwoFactorProviderTypes(providers)[0] ?? TWO_FACTOR_PROVIDER_AUTHENTICATOR;
 }
 
 export type PasswordLoginResult =
@@ -438,8 +508,12 @@ export async function performPasswordLogin(
     };
   }
 
-  const tokenError = token as { TwoFactorProviders?: unknown; error_description?: string; error?: string };
-  if (tokenError.TwoFactorProviders) {
+  const tokenError = token as TwoFactorTokenError;
+  const providers = readTwoFactorProviders(tokenError);
+  if (providers) {
+    const providerType = resolvePendingTwoFactorProvider(providers);
+    const availableProviders = readTwoFactorProviderTypes(providers);
+    const providerDataByType = readTwoFactorProviderDataMap(tokenError);
     return {
       kind: 'totp',
       pendingTotp: {
@@ -447,7 +521,10 @@ export async function performPasswordLogin(
         passwordHash: derived.hash,
         masterKey: derived.masterKey,
         kdfIterations: derived.kdfIterations,
-        providerType: resolvePendingTwoFactorProvider(tokenError.TwoFactorProviders),
+        providerType,
+        providerData: providerDataByType[providerType] ?? readTwoFactorProviderData(tokenError, providerType),
+        availableProviders: availableProviders.length ? availableProviders : [providerType],
+        providerDataByType,
       },
     };
   }
@@ -528,7 +605,10 @@ export async function performTotpLogin(
     return completeLogin(token, pendingTotp.email, pendingTotp.masterKey, pendingTotp.kdfIterations, pendingTotp.passwordHash);
   }
   const tokenError = token as { error_description?: string; error?: string };
-  throw new Error(translateServerError(tokenError.error_description || tokenError.error, t('txt_totp_verify_failed')));
+  const fallback = pendingTotp.providerType === TWO_FACTOR_PROVIDER_WEBAUTHN
+    ? t('txt_passkey_verification_failed')
+    : t('txt_totp_verify_failed');
+  throw new Error(translateServerError(tokenError.error_description || tokenError.error, fallback));
 }
 
 export async function performRecoverTwoFactorLogin(
@@ -608,7 +688,7 @@ export async function performUnlock(
     return unlockOffline();
   }
 
-  let token: TokenSuccess | { TwoFactorProviders?: unknown; error_description?: string; error?: string };
+  let token: TokenSuccess | TwoFactorTokenError;
   try {
     token = await loginWithPassword(normalizedEmail, derived.hash, {
       useRememberToken: true,
@@ -630,8 +710,12 @@ export async function performUnlock(
     };
   }
 
-  const tokenError = token as { TwoFactorProviders?: unknown; error_description?: string; error?: string };
-  if (tokenError.TwoFactorProviders) {
+  const tokenError = token as TwoFactorTokenError;
+  const providers = readTwoFactorProviders(tokenError);
+  if (providers) {
+    const providerType = resolvePendingTwoFactorProvider(providers);
+    const availableProviders = readTwoFactorProviderTypes(providers);
+    const providerDataByType = readTwoFactorProviderDataMap(tokenError);
     return {
       kind: 'totp',
       pendingTotp: {
@@ -639,7 +723,10 @@ export async function performUnlock(
         passwordHash: derived.hash,
         masterKey: derived.masterKey,
         kdfIterations: derived.kdfIterations,
-        providerType: resolvePendingTwoFactorProvider(tokenError.TwoFactorProviders),
+        providerType,
+        providerData: providerDataByType[providerType] ?? readTwoFactorProviderData(tokenError, providerType),
+        availableProviders: availableProviders.length ? availableProviders : [providerType],
+        providerDataByType,
       },
     };
   }

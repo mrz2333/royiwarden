@@ -15,6 +15,7 @@ import { isYubiKeyEnabled, isYubiKeyPublicId, requestYubicoApiCredentials, verif
 
 const TWO_FACTOR_PROVIDER_AUTHENTICATOR = 0;
 const TWO_FACTOR_PROVIDER_YUBIKEY = 3;
+const TWO_FACTOR_PROVIDER_WEBAUTHN = 7;
 const TOTP_USER_VERIFICATION_TOKEN_TTL_MS = 10 * 60 * 1000;
 const TOTP_BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const YUBICO_CLIENT_ID_CONFIG_KEY = 'globalSettings__yubico__clientId';
@@ -830,6 +831,8 @@ export async function handleGetTwoFactorProviders(request: Request, env: Env, us
   const data = [];
   if (user.totpSecret) data.push(twoFactorProviderResponse(TWO_FACTOR_PROVIDER_AUTHENTICATOR, true));
   if (isYubiKeyEnabled(user)) data.push(twoFactorProviderResponse(TWO_FACTOR_PROVIDER_YUBIKEY, true));
+  const webAuthnCredentials = await storage.getAccountPasskeyCredentialsByUserId(user.id, 'twoFactor');
+  if (webAuthnCredentials.length > 0) data.push(twoFactorProviderResponse(TWO_FACTOR_PROVIDER_WEBAUTHN, true));
 
   return jsonResponse({
     Data: data,
@@ -1089,7 +1092,7 @@ export async function handleDisableTwoFactorProvider(request: Request, env: Env,
 
   const typeRaw = body.type ?? body.Type ?? TWO_FACTOR_PROVIDER_AUTHENTICATOR;
   const type = typeof typeRaw === 'number' ? typeRaw : Number.parseInt(String(typeRaw), 10);
-  if (![TWO_FACTOR_PROVIDER_AUTHENTICATOR, TWO_FACTOR_PROVIDER_YUBIKEY].includes(type)) {
+  if (![TWO_FACTOR_PROVIDER_AUTHENTICATOR, TWO_FACTOR_PROVIDER_YUBIKEY, TWO_FACTOR_PROVIDER_WEBAUTHN].includes(type)) {
     return errorResponse('Two-factor provider is not supported by this server.', 400);
   }
 
@@ -1107,13 +1110,18 @@ export async function handleDisableTwoFactorProvider(request: Request, env: Env,
 
   if (type === TWO_FACTOR_PROVIDER_AUTHENTICATOR) {
     user.totpSecret = null;
-  } else {
+  } else if (type === TWO_FACTOR_PROVIDER_YUBIKEY) {
     user.yubikeyKey1 = null;
     user.yubikeyKey2 = null;
     user.yubikeyKey3 = null;
     user.yubikeyKey4 = null;
     user.yubikeyKey5 = null;
     user.yubikeyNfc = false;
+  } else {
+    const credentials = await storage.getAccountPasskeyCredentialsByUserId(user.id, 'twoFactor');
+    for (const credential of credentials) {
+      await storage.deleteAccountPasskeyCredential(user.id, credential.id, 'twoFactor');
+    }
   }
   user.updatedAt = new Date().toISOString();
   await storage.saveUser(user);
@@ -1121,7 +1129,11 @@ export async function handleDisableTwoFactorProvider(request: Request, env: Env,
   AuthService.invalidateUserCache(user.id);
   await writeAuditEvent(storage, {
     actorUserId: user.id,
-    action: type === TWO_FACTOR_PROVIDER_AUTHENTICATOR ? 'account.totp.disable' : 'account.yubikey.disable',
+    action: type === TWO_FACTOR_PROVIDER_AUTHENTICATOR
+      ? 'account.totp.disable'
+      : type === TWO_FACTOR_PROVIDER_YUBIKEY
+        ? 'account.yubikey.disable'
+        : 'account.webauthn_2fa.disable',
     category: 'security',
     level: 'security',
     targetType: 'user',
@@ -1329,6 +1341,10 @@ export async function handleRecoverTwoFactor(request: Request, env: Env): Promis
   user.yubikeyKey4 = null;
   user.yubikeyKey5 = null;
   user.yubikeyNfc = false;
+  const webAuthnCredentials = await storage.getAccountPasskeyCredentialsByUserId(user.id, 'twoFactor');
+  for (const credential of webAuthnCredentials) {
+    await storage.deleteAccountPasskeyCredential(user.id, credential.id, 'twoFactor');
+  }
   user.totpRecoveryCode = createRecoveryCode();
   user.securityStamp = generateUUID();
   user.updatedAt = new Date().toISOString();

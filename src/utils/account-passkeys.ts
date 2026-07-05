@@ -59,7 +59,9 @@ export async function sha256Base64Url(value: string): Promise<string> {
 }
 
 export function accountPasskeyTokenTtlMs(scope: AccountPasskeyChallengeScope): number {
-  return scope === 'CreateCredential' ? ACCOUNT_PASSKEY_CREATE_TOKEN_TTL_MS : ACCOUNT_PASSKEY_TOKEN_TTL_MS;
+  return scope === 'CreateCredential' || scope === 'TwoFactorCreate'
+    ? ACCOUNT_PASSKEY_CREATE_TOKEN_TTL_MS
+    : ACCOUNT_PASSKEY_TOKEN_TTL_MS;
 }
 
 export async function createAccountPasskeyToken(

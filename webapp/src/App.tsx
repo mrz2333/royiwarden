@@ -58,6 +58,7 @@ import {
   type PendingPasskeyPassword,
   type PendingTotp,
 } from '@/lib/app-auth';
+import { assertTwoFactorPasskey } from '@/lib/account-passkeys';
 import useAccountSecurityActions from '@/hooks/useAccountSecurityActions';
 import useAdminActions from '@/hooks/useAdminActions';
 import useBackupActions from '@/hooks/useBackupActions';
@@ -152,6 +153,8 @@ const SIGNALR_UPDATE_TYPE_AUTH_REQUEST = 15;
 const SIGNALR_UPDATE_TYPE_AUTH_REQUEST_RESPONSE = 16;
 const SIGNALR_UPDATE_TYPE_DEVICE_STATUS = 101;
 const SIGNALR_UPDATE_TYPE_BACKUP_RESTORE_PROGRESS = 102;
+const TWO_FACTOR_PROVIDER_YUBIKEY = 3;
+const TWO_FACTOR_PROVIDER_WEBAUTHN = 7;
 
 type ThemePreference = 'system' | 'light' | 'dark';
 type LockTimeoutMinutes = 0 | 1 | 5 | 15 | 30;
@@ -654,19 +657,38 @@ export default function App() {
     }
   }
 
+  function handleSelectTotpProvider(providerType: number) {
+    if (totpSubmitting) return;
+    setPendingTotp((current) => {
+      if (!current || current.providerType === providerType) return current;
+      const canUseProvider = current.availableProviders.includes(providerType);
+      if (!canUseProvider) return current;
+      return {
+        ...current,
+        providerType,
+        providerData: current.providerDataByType[providerType],
+      };
+    });
+    setTotpCode('');
+  }
+
   async function handleTotpVerify() {
     if (totpSubmitting) return;
     if (!pendingTotp) return;
-    if (!totpCode.trim()) {
-      pushToast('error', pendingTotp.providerType === 3 ? t('txt_please_input_yubikey_otp') : t('txt_please_input_totp_code'));
+    const isPasskeyTwoFactor = pendingTotp.providerType === TWO_FACTOR_PROVIDER_WEBAUTHN;
+    if (!isPasskeyTwoFactor && !totpCode.trim()) {
+      pushToast('error', pendingTotp.providerType === TWO_FACTOR_PROVIDER_YUBIKEY ? t('txt_please_input_yubikey_otp') : t('txt_please_input_totp_code'));
       return;
     }
     setTotpSubmitting(true);
     try {
-      const login = await performTotpLogin(pendingTotp, totpCode, rememberDevice);
+      const token = isPasskeyTwoFactor
+        ? await assertTwoFactorPasskey(pendingTotp.providerData)
+        : totpCode;
+      const login = await performTotpLogin(pendingTotp, token, rememberDevice);
       await finalizeLogin(login);
     } catch (error) {
-      pushToast('error', error instanceof Error ? error.message : pendingTotp.providerType === 3 ? t('txt_yubikey_verify_failed') : t('txt_totp_verify_failed'));
+      pushToast('error', error instanceof Error ? error.message : pendingTotp.providerType === 3 ? t('txt_yubikey_verify_failed') : isPasskeyTwoFactor ? t('txt_passkey_verification_failed') : t('txt_totp_verify_failed'));
     } finally {
       setTotpSubmitting(false);
     }
@@ -952,11 +974,13 @@ export default function App() {
         onCancelConfirm={() => {}}
         pendingTotpOpen={false}
         pendingTotpProviderType={0}
+        pendingTotpAvailableProviders={[]}
         totpCode=""
         rememberDevice={false}
         onTotpCodeChange={() => {}}
         onRememberDeviceChange={() => {}}
         onConfirmTotp={() => {}}
+        onSelectTotpProvider={() => {}}
         onCancelTotp={() => {}}
         onUseRecoveryCode={() => {}}
         totpSubmitting={false}
@@ -1957,6 +1981,7 @@ export default function App() {
     adminError: usersQuery.isError || invitesQuery.isError ? t('txt_load_admin_data_failed') : '',
     totpEnabled: !!twoFactorStatusQuery.data?.totpEnabled,
     yubikeyEnabled: !!twoFactorStatusQuery.data?.yubikeyEnabled,
+    passkey2faEnabled: !!twoFactorStatusQuery.data?.passkeyEnabled,
     lockTimeoutMinutes,
     sessionTimeoutAction,
     authorizedDevices: authorizedDevicesQuery.data || [],
@@ -2014,6 +2039,10 @@ export default function App() {
     onSaveYubiKeyApiCredentials: accountSecurityActions.saveYubiKeyApiCredentials,
     onBootstrapYubiKeyApiCredentials: accountSecurityActions.bootstrapYubiKeyApiCredentials,
     onDisableYubiKey: accountSecurityActions.disableYubiKey,
+    onGetTwoFactorPasskeySettings: accountSecurityActions.getTwoFactorPasskeySettings,
+    onCreateTwoFactorPasskey: accountSecurityActions.createTwoFactorPasskey,
+    onDeleteTwoFactorPasskey: accountSecurityActions.deleteTwoFactorPasskey,
+    onDisableTwoFactorPasskeys: accountSecurityActions.disableTwoFactorPasskeys,
     onGetRecoveryCode: accountSecurityActions.getRecoveryCode,
     onGetApiKey: accountSecurityActions.getApiKey,
     onRotateApiKey: accountSecurityActions.rotateApiKey,
@@ -2219,11 +2248,13 @@ export default function App() {
           onCancelConfirm={() => setConfirm(null)}
           pendingTotpOpen={!!pendingTotp}
           pendingTotpProviderType={pendingTotp?.providerType ?? 0}
+          pendingTotpAvailableProviders={pendingTotp?.availableProviders ?? []}
           totpCode={totpCode}
           rememberDevice={rememberDevice}
           onTotpCodeChange={setTotpCode}
           onRememberDeviceChange={setRememberDevice}
           onConfirmTotp={() => void handleTotpVerify()}
+          onSelectTotpProvider={handleSelectTotpProvider}
           onCancelTotp={() => {
             if (totpSubmitting) return;
             setPendingTotp(null);
@@ -2279,11 +2310,13 @@ export default function App() {
         onCancelConfirm={() => setConfirm(null)}
         pendingTotpOpen={false}
         pendingTotpProviderType={0}
+        pendingTotpAvailableProviders={[]}
         totpCode=""
         rememberDevice={false}
         onTotpCodeChange={() => {}}
         onRememberDeviceChange={() => {}}
         onConfirmTotp={() => {}}
+        onSelectTotpProvider={() => {}}
         onCancelTotp={() => {}}
         onUseRecoveryCode={() => {}}
         totpSubmitting={false}

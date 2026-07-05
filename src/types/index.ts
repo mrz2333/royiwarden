@@ -252,6 +252,7 @@ export type AccountPasskeyPrfStatus = 0 | 1 | 2;
 export interface AccountPasskeyCredential {
   id: string;
   userId: string;
+  purpose: 'login' | 'twoFactor';
   name: string;
   publicKey: string;
   credentialId: string;
@@ -267,7 +268,12 @@ export interface AccountPasskeyCredential {
   updatedAt: string;
 }
 
-export type AccountPasskeyChallengeScope = 'Authentication' | 'CreateCredential' | 'UpdateKeySet';
+export type AccountPasskeyChallengeScope =
+  | 'Authentication'
+  | 'CreateCredential'
+  | 'UpdateKeySet'
+  | 'TwoFactorAuthentication'
+  | 'TwoFactorCreate';
 
 export interface AccountPasskeyChallenge {
   challengeHash: string;

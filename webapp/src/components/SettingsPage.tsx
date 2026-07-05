@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Clipboard, KeyRound, RefreshCw, ShieldCheck, ShieldOff, Trash2 } from 'lucide-preact';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import qrcode from 'qrcode-generator';
-import type { AccountPasskeyCredential, Profile, YubiKeyOtpSettings } from '@/lib/types';
+import type { AccountPasskeyCredential, Profile, TwoFactorPasskeyCredential, TwoFactorPasskeySettings, YubiKeyOtpSettings } from '@/lib/types';
 import { AVAILABLE_LOCALES, getLocale, setLocale, t, type Locale } from '@/lib/i18n';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
@@ -10,6 +10,7 @@ interface SettingsPageProps {
   profile: Profile;
   totpEnabled: boolean;
   yubikeyEnabled: boolean;
+  passkey2faEnabled: boolean;
   themePreference: ThemePreference;
   lockTimeoutMinutes: 0 | 1 | 5 | 15 | 30;
   sessionTimeoutAction: 'lock' | 'logout';
@@ -24,6 +25,10 @@ interface SettingsPageProps {
   onSaveYubiKeyApiCredentials: (clientId: string, secretKey: string, masterPassword: string) => Promise<YubiKeyOtpSettings>;
   onBootstrapYubiKeyApiCredentials: (otp: string, masterPassword: string) => Promise<YubiKeyOtpSettings>;
   onDisableYubiKey: (masterPassword: string) => Promise<void>;
+  onGetTwoFactorPasskeySettings: (masterPassword: string) => Promise<TwoFactorPasskeySettings>;
+  onCreateTwoFactorPasskey: (name: string, masterPassword: string) => Promise<TwoFactorPasskeySettings>;
+  onDeleteTwoFactorPasskey: (id: number, masterPassword: string) => Promise<TwoFactorPasskeySettings>;
+  onDisableTwoFactorPasskeys: (masterPassword: string) => Promise<void>;
   onGetRecoveryCode: (masterPassword: string) => Promise<string>;
   onGetApiKey: (masterPassword: string) => Promise<string>;
   onRotateApiKey: (masterPassword: string) => Promise<string>;
@@ -47,6 +52,7 @@ type MasterPasswordPromptAction =
   | 'rotateApiKey'
   | 'manageTotp'
   | 'manageYubiKey'
+  | 'managePasskey2fa'
   | 'createPasskey'
   | 'enablePasskeyDirectUnlock'
   | 'deletePasskey';
@@ -143,6 +149,12 @@ export default function SettingsPage(props: SettingsPageProps) {
   const [yubiKeyBootstrapOtp, setYubiKeyBootstrapOtp] = useState('');
   const [yubiKeyConfigOpen, setYubiKeyConfigOpen] = useState(false);
   const [yubiKeySubmitting, setYubiKeySubmitting] = useState(false);
+  const [twoFactorPasskeyEnabled, setTwoFactorPasskeyEnabled] = useState(props.passkey2faEnabled);
+  const [twoFactorPasskeys, setTwoFactorPasskeys] = useState<TwoFactorPasskeyCredential[]>([]);
+  const [twoFactorPasskeyDialogOpen, setTwoFactorPasskeyDialogOpen] = useState(false);
+  const [twoFactorPasskeyMasterPassword, setTwoFactorPasskeyMasterPassword] = useState('');
+  const [twoFactorPasskeyName, setTwoFactorPasskeyName] = useState(t('txt_passkey'));
+  const [twoFactorPasskeySubmitting, setTwoFactorPasskeySubmitting] = useState(false);
   const [twoFactorStatusRefreshing, setTwoFactorStatusRefreshing] = useState(false);
   const [recoveryCodeDialogOpen, setRecoveryCodeDialogOpen] = useState(false);
   const [totpManagePassword, setTotpManagePassword] = useState('');
@@ -171,6 +183,10 @@ export default function SettingsPage(props: SettingsPageProps) {
   useEffect(() => {
     setYubiKeyEnabled(props.yubikeyEnabled || !!props.profile.yubikeyEnabled);
   }, [props.yubikeyEnabled, props.profile.yubikeyEnabled]);
+
+  useEffect(() => {
+    setTwoFactorPasskeyEnabled(props.passkey2faEnabled);
+  }, [props.passkey2faEnabled]);
 
   useEffect(() => {
     void refreshAccountPasskeys();
@@ -250,6 +266,12 @@ export default function SettingsPage(props: SettingsPageProps) {
         applyYubiKeySettings(settings);
         setYubiKeyConfigOpen(false);
         setYubiKeyDialogOpen(true);
+      } else if (masterPasswordPrompt === 'managePasskey2fa') {
+        const settings = await props.onGetTwoFactorPasskeySettings(masterPassword);
+        setTwoFactorPasskeyMasterPassword(masterPassword);
+        applyTwoFactorPasskeySettings(settings);
+        setTwoFactorPasskeyName(t('txt_passkey'));
+        setTwoFactorPasskeyDialogOpen(true);
       } else if (masterPasswordPrompt === 'createPasskey') {
         await props.onVerifyMasterPassword(props.profile.email, masterPassword);
         setCreatePasskeyMasterPassword(masterPassword);
@@ -284,6 +306,8 @@ export default function SettingsPage(props: SettingsPageProps) {
           ? t('txt_totp')
           : masterPasswordPrompt === 'manageYubiKey'
             ? 'YubiKey'
+            : masterPasswordPrompt === 'managePasskey2fa'
+              ? t('txt_two_step_passkeys')
             : masterPasswordPrompt === 'createPasskey'
             ? t('txt_add_account_passkey')
             : masterPasswordPrompt === 'enablePasskeyDirectUnlock'
@@ -327,7 +351,6 @@ export default function SettingsPage(props: SettingsPageProps) {
     setYubiKeyKeys(EMPTY_YUBIKEY_KEYS);
     setYubiKeyStoredKeys(EMPTY_YUBIKEY_KEYS);
     setYubiKeyNfc(false);
-    setYubiKeyEnabled(false);
     setYubiKeyYubicoConfigured(false);
     setYubiKeyYubicoClientId('');
     setYubiKeyYubicoSecretKey('');
@@ -399,6 +422,60 @@ export default function SettingsPage(props: SettingsPageProps) {
       props.onNotify?.('error', error instanceof Error ? error.message : t('txt_disable_yubikey_failed'));
     } finally {
       setYubiKeySubmitting(false);
+    }
+  }
+
+  function applyTwoFactorPasskeySettings(settings: TwoFactorPasskeySettings): void {
+    setTwoFactorPasskeyEnabled(settings.enabled);
+    setTwoFactorPasskeys(settings.keys);
+  }
+
+  function closeTwoFactorPasskeyDialog(): void {
+    if (twoFactorPasskeySubmitting) return;
+    setTwoFactorPasskeyDialogOpen(false);
+    setTwoFactorPasskeyMasterPassword('');
+    setTwoFactorPasskeyName(t('txt_passkey'));
+  }
+
+  async function createTwoFactorPasskeyDialog(): Promise<void> {
+    if (twoFactorPasskeySubmitting || !twoFactorPasskeyMasterPassword) return;
+    setTwoFactorPasskeySubmitting(true);
+    try {
+      const settings = await props.onCreateTwoFactorPasskey(twoFactorPasskeyName, twoFactorPasskeyMasterPassword);
+      applyTwoFactorPasskeySettings(settings);
+      setTwoFactorPasskeyName(t('txt_passkey'));
+    } catch (error) {
+      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_passkey_setup_failed'));
+    } finally {
+      setTwoFactorPasskeySubmitting(false);
+    }
+  }
+
+  async function deleteTwoFactorPasskeyDialog(id: number): Promise<void> {
+    if (twoFactorPasskeySubmitting || !twoFactorPasskeyMasterPassword || twoFactorPasskeys.length < 2) return;
+    setTwoFactorPasskeySubmitting(true);
+    try {
+      applyTwoFactorPasskeySettings(await props.onDeleteTwoFactorPasskey(id, twoFactorPasskeyMasterPassword));
+    } catch (error) {
+      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_delete_item_failed'));
+    } finally {
+      setTwoFactorPasskeySubmitting(false);
+    }
+  }
+
+  async function disableTwoFactorPasskeysDialog(): Promise<void> {
+    if (twoFactorPasskeySubmitting || !twoFactorPasskeyMasterPassword || !twoFactorPasskeyEnabled) return;
+    setTwoFactorPasskeySubmitting(true);
+    try {
+      await props.onDisableTwoFactorPasskeys(twoFactorPasskeyMasterPassword);
+      applyTwoFactorPasskeySettings({ enabled: false, keys: [] });
+      setTwoFactorPasskeyDialogOpen(false);
+      setTwoFactorPasskeyMasterPassword('');
+      setTwoFactorPasskeyName(t('txt_passkey'));
+    } catch (error) {
+      props.onNotify?.('error', error instanceof Error ? error.message : t('txt_disable_passkey_two_step_failed'));
+    } finally {
+      setTwoFactorPasskeySubmitting(false);
     }
   }
 
@@ -726,10 +803,13 @@ export default function SettingsPage(props: SettingsPageProps) {
                       <KeyRound size={28} />
                     </div>
                     <div className="two-step-provider-copy">
-                      <strong>{t('txt_passkeys')}</strong>
+                      <div className="two-step-provider-title">
+                        <strong>{t('txt_passkeys')}</strong>
+                        {twoFactorPasskeyEnabled && <span className="two-step-enabled-badge">{t('txt_enabled')}</span>}
+                      </div>
                       <span>{t('txt_passkey_provider_help')}</span>
                     </div>
-                    <button type="button" className="btn btn-secondary" disabled>
+                    <button type="button" className="btn btn-secondary" onClick={() => openMasterPasswordPrompt('managePasskey2fa')}>
                       {t('txt_manage')}
                     </button>
                   </div>
@@ -1029,12 +1109,89 @@ export default function SettingsPage(props: SettingsPageProps) {
         </div>
       </ConfirmDialog>
       <ConfirmDialog
+        open={twoFactorPasskeyDialogOpen}
+        title={t('txt_two_step_passkeys')}
+        message={t('txt_two_step_passkeys_help')}
+        hideConfirm
+        hideCancel
+        closeButton
+        cancelDisabled={twoFactorPasskeySubmitting}
+        onConfirm={() => {}}
+        onCancel={closeTwoFactorPasskeyDialog}
+      >
+        <div className="settings-vertical-fields">
+          <div className="field">
+            <label htmlFor="two-factor-passkey-name">{t('txt_passkey_name')}</label>
+            <div className="two-factor-passkey-register-row">
+              <input
+                id="two-factor-passkey-name"
+                className="input"
+                maxLength={128}
+                value={twoFactorPasskeyName}
+                placeholder={t('txt_two_step_passkey_name_placeholder')}
+                onInput={(e) => setTwoFactorPasskeyName((e.currentTarget as HTMLInputElement).value)}
+              />
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={twoFactorPasskeySubmitting}
+                onClick={() => void createTwoFactorPasskeyDialog()}
+              >
+                <KeyRound size={14} className="btn-icon" />
+                {t('txt_register')}
+              </button>
+            </div>
+          </div>
+
+          <div className="two-factor-passkey-list-block">
+            <div className="settings-list-label">{t('txt_key_list')}</div>
+            {twoFactorPasskeys.length > 0 ? (
+              <div className="account-passkey-list">
+                {twoFactorPasskeys.map((credential, index) => (
+                  <div key={credential.id} className="account-passkey-row two-factor-passkey-row">
+                    <span className="account-passkey-index">{index + 1}</span>
+                    <div className="account-passkey-main">
+                      <strong>{credential.name || t('txt_dash')}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-danger small"
+                      disabled={twoFactorPasskeySubmitting || twoFactorPasskeys.length < 2}
+                      title={twoFactorPasskeys.length < 2 ? t('txt_remove_last_passkey_hint') : t('txt_delete')}
+                      onClick={() => void deleteTwoFactorPasskeyDialog(credential.id)}
+                    >
+                      <Trash2 size={14} className="btn-icon" />
+                      {t('txt_delete')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="muted-inline settings-field-note">{t('txt_no_two_step_passkeys')}</p>
+            )}
+          </div>
+
+          <div className="actions two-factor-passkey-danger-actions">
+            {twoFactorPasskeyEnabled && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={twoFactorPasskeySubmitting}
+                onClick={() => void disableTwoFactorPasskeysDialog()}
+              >
+                {t('txt_disable_all_keys')}
+              </button>
+            )}
+          </div>
+        </div>
+      </ConfirmDialog>
+      <ConfirmDialog
         open={recoveryCodeDialogOpen}
         title={`${t('txt_two_step_login')} ${t('txt_recovery_code')}`}
         message={t('txt_your_two_step_recovery_code')}
         hideConfirm
+        hideCancel
         closeButton
-        cancelText={t('txt_close')}
         onConfirm={() => {}}
         onCancel={() => setRecoveryCodeDialogOpen(false)}
         afterActions={(

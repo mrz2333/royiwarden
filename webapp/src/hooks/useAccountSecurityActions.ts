@@ -7,19 +7,24 @@ import {
   deleteAuthorizedDevices,
   deriveLoginHash,
   deleteAccountPasskey as deleteAccountPasskeyApi,
+  deleteTwoFactorPasskey as deleteTwoFactorPasskeyApi,
   enableAccountPasskeyDirectUnlock as enableAccountPasskeyDirectUnlockApi,
+  disableTwoFactorPasskeys as disableTwoFactorPasskeysApi,
   disableYubiKeyOtp,
   getCurrentDeviceIdentifier,
   getApiKey,
   getAccountPasskeyAttestationOptions,
   getAccountPasskeyUpdateAssertionOptions,
   getTotpRecoveryCode,
+  getTwoFactorPasskeyChallenge,
+  getTwoFactorPasskeySettings as getTwoFactorPasskeySettingsApi,
   getYubiKeyOtpSettings,
   listAccountPasskeys,
   rotateApiKey,
   revokeAuthorizedDeviceTrust,
   revokeAllAuthorizedDeviceTrust,
   saveAccountPasskey,
+  saveTwoFactorPasskey,
   saveYubiKeyOtpApiCredentials,
   saveYubiKeyOtpSettings,
   setTotp,
@@ -33,11 +38,12 @@ import {
   buildAccountPasskeyPrfKeySet,
   buildAccountPasskeyPrfKeySetFromPrfKey,
   createAccountPasskeyCredential,
+  createTwoFactorPasskeyCredential,
 } from '@/lib/account-passkeys';
 import { t } from '@/lib/i18n';
 import type { AppConfirmState } from '@/components/AppGlobalOverlays';
 import type { AuthedFetch } from '@/lib/api/shared';
-import type { AccountPasskeyCredential, AuthorizedDevice, Profile, SessionState, YubiKeyOtpSettings } from '@/lib/types';
+import type { AccountPasskeyCredential, AuthorizedDevice, Profile, SessionState, TwoFactorPasskeySettings, YubiKeyOtpSettings } from '@/lib/types';
 
 type Notify = (type: 'success' | 'error' | 'warning', text: string) => void;
 
@@ -255,6 +261,53 @@ export default function useAccountSecurityActions(options: UseAccountSecurityAct
         await disableYubiKeyOtp(authedFetch, derived.hash);
         await refetchTwoFactorStatus();
         onNotify('success', t('txt_yubikey_disabled'));
+      },
+
+      async getTwoFactorPasskeySettings(masterPassword: string): Promise<TwoFactorPasskeySettings> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalized = String(masterPassword || '');
+        if (!normalized) throw new Error(t('txt_master_password_is_required'));
+        const derived = await deriveLoginHash(profile.email, normalized, defaultKdfIterations);
+        return getTwoFactorPasskeySettingsApi(authedFetch, derived.hash);
+      },
+
+      async createTwoFactorPasskey(name: string, masterPassword: string): Promise<TwoFactorPasskeySettings> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalized = String(masterPassword || '');
+        if (!normalized) throw new Error(t('txt_master_password_is_required'));
+        const normalizedName = String(name || '').trim() || t('txt_passkey');
+        const derived = await deriveLoginHash(profile.email, normalized, defaultKdfIterations);
+        const challenge = await getTwoFactorPasskeyChallenge(authedFetch, derived.hash);
+        const deviceResponse = await createTwoFactorPasskeyCredential(challenge);
+        const settings = await saveTwoFactorPasskey(authedFetch, {
+          name: normalizedName,
+          masterPasswordHash: derived.hash,
+          deviceResponse,
+        });
+        await refetchTwoFactorStatus();
+        onNotify('success', t('txt_two_step_passkey_added'));
+        return settings;
+      },
+
+      async deleteTwoFactorPasskey(id: number, masterPassword: string): Promise<TwoFactorPasskeySettings> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalized = String(masterPassword || '');
+        if (!normalized) throw new Error(t('txt_master_password_is_required'));
+        const derived = await deriveLoginHash(profile.email, normalized, defaultKdfIterations);
+        const settings = await deleteTwoFactorPasskeyApi(authedFetch, { id, masterPasswordHash: derived.hash });
+        await refetchTwoFactorStatus();
+        onNotify('success', t('txt_two_step_passkey_removed'));
+        return settings;
+      },
+
+      async disableTwoFactorPasskeys(masterPassword: string): Promise<void> {
+        if (!profile) throw new Error(t('txt_profile_unavailable'));
+        const normalized = String(masterPassword || '');
+        if (!normalized) throw new Error(t('txt_master_password_is_required'));
+        const derived = await deriveLoginHash(profile.email, normalized, defaultKdfIterations);
+        await disableTwoFactorPasskeysApi(authedFetch, derived.hash);
+        await refetchTwoFactorStatus();
+        onNotify('success', t('txt_two_step_passkeys_disabled'));
       },
 
       async getRecoveryCode(masterPassword: string): Promise<string> {

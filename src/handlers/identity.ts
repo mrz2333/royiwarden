@@ -18,7 +18,9 @@ import {
 import { auditRequestMetadata, safeWriteAuditEvent } from '../services/audit-events';
 import {
   assertAccountPasskeyCredential,
+  assertTwoFactorPasskeyCredential,
   buildAccountPasskeyTokenUserDecryptionOption,
+  buildTwoFactorPasskeyAssertionOptions,
 } from './account-passkeys';
 import { isAuthRequestExpired } from '../services/storage-auth-request-repo';
 import { createPasskeyUserVerificationToken } from '../utils/user-verification-token';
@@ -29,6 +31,7 @@ const TWO_FACTOR_REMEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const TWO_FACTOR_PROVIDER_AUTHENTICATOR = 0;
 const TWO_FACTOR_PROVIDER_YUBIKEY = 3;
 const TWO_FACTOR_PROVIDER_REMEMBER = 5;
+const TWO_FACTOR_PROVIDER_WEBAUTHN = 7;
 const TWO_FACTOR_PROVIDER_RECOVERY_CODE = 8;
 const WEB_REFRESH_COOKIE = 'nodewarden_web_refresh';
 const YUBICO_CLIENT_ID_CONFIG_KEY = 'globalSettings__yubico__clientId';
@@ -196,18 +199,31 @@ function masterPasswordPolicyResponse(): TokenResponse['MasterPasswordPolicy'] {
   };
 }
 
-function twoFactorRequiredResponse(user?: User, message: string = 'Two factor required.'): Response {
+async function twoFactorRequiredResponse(
+  request: Request,
+  env: Env,
+  storage: StorageService,
+  user?: User,
+  message: string = 'Two factor required.'
+): Promise<Response> {
   // Match Bitwarden Identity: TwoFactorProviders2 lists enabled 2FA providers only.
   // Clients expose recovery-code entry points themselves; Android 2026.4 fails to
   // parse the challenge if an unknown recovery provider key such as "8" is included.
   const providers: string[] = [];
+  let webAuthnOptions: Record<string, unknown> | null = null;
   if (!user || resolveTotpSecret(user.totpSecret)) providers.push(String(TWO_FACTOR_PROVIDER_AUTHENTICATOR));
   if (user && isYubiKeyEnabled(user)) providers.push(String(TWO_FACTOR_PROVIDER_YUBIKEY));
+  if (user) {
+    webAuthnOptions = await buildTwoFactorPasskeyAssertionOptions(request, env, storage, user) as Record<string, unknown> | null;
+    if (webAuthnOptions) providers.push(String(TWO_FACTOR_PROVIDER_WEBAUTHN));
+  }
   const providers2: Record<string, Record<string, unknown>> = {};
   for (const provider of providers) {
     providers2[provider] = provider === String(TWO_FACTOR_PROVIDER_YUBIKEY)
       ? { Nfc: user?.yubikeyNfc ?? false }
-      : { Email: null };
+      : provider === String(TWO_FACTOR_PROVIDER_WEBAUTHN) && webAuthnOptions
+        ? webAuthnOptions
+        : { Email: null };
   }
   const customResponse = {
     TwoFactorProviders: providers,
@@ -393,7 +409,8 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
     let trustedTwoFactorTokenToReturn: string | undefined;
     const effectiveTotpSecret = resolveTotpSecret(user.totpSecret);
     const effectiveYubiKeyPublicIds = userYubiKeyPublicIds(user);
-    if (effectiveTotpSecret || effectiveYubiKeyPublicIds.length > 0) {
+    const effectiveWebAuthnCredentials = await storage.getAccountPasskeyCredentialsByUserId(user.id, 'twoFactor');
+    if (effectiveTotpSecret || effectiveYubiKeyPublicIds.length > 0 || effectiveWebAuthnCredentials.length > 0) {
       const normalizedTwoFactorProvider = String(twoFactorProvider ?? '').trim();
       const normalizedTwoFactorToken = String(twoFactorToken ?? '').trim();
       let rememberRequested = ['1', 'true', 'True', 'TRUE', 'on', 'yes', 'Yes', 'YES'].includes(String(twoFactorRemember || '').trim());
@@ -403,7 +420,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
       // Upstream-compatible behavior: if 2FA is required and either provider or token is missing,
       // respond with a 2FA challenge payload.
       if (!hasProvider || !hasToken) {
-        return twoFactorRequiredResponse(user, 'Two factor required.');
+        return await twoFactorRequiredResponse(request, env, storage, user, 'Two factor required.');
       }
 
       let passedByRememberToken = false;
@@ -418,7 +435,7 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
 
         // Remember token missing/invalid/expired should re-enter the 2FA challenge flow.
         if (!passedByRememberToken) {
-          return twoFactorRequiredResponse(user, 'Two factor required.');
+          return await twoFactorRequiredResponse(request, env, storage, user, 'Two factor required.');
         }
       } else if (normalizedTwoFactorProvider === String(TWO_FACTOR_PROVIDER_AUTHENTICATOR)) {
         if (!effectiveTotpSecret) {
@@ -441,6 +458,21 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
         if (!credentials || !await verifyYubicoOtp(env, normalizedTwoFactorToken, credentials)) {
           return recordFailedTwoFactorAndBuildResponse(rateLimit, loginIdentifier);
         }
+      } else if (normalizedTwoFactorProvider === String(TWO_FACTOR_PROVIDER_WEBAUTHN)) {
+        if (!effectiveWebAuthnCredentials.length) {
+          return recordFailedTwoFactorAndBuildResponse(rateLimit, loginIdentifier);
+        }
+        let deviceResponse: unknown;
+        try {
+          deviceResponse = JSON.parse(normalizedTwoFactorToken);
+        } catch {
+          return recordFailedTwoFactorAndBuildResponse(rateLimit, loginIdentifier);
+        }
+        try {
+          await assertTwoFactorPasskeyCredential(request, env, storage, user, deviceResponse);
+        } catch {
+          return recordFailedTwoFactorAndBuildResponse(rateLimit, loginIdentifier);
+        }
       } else if (
         normalizedTwoFactorProvider === TWO_FACTOR_PROVIDER_RECOVERY_CODE_RESPONSE ||
         normalizedTwoFactorProvider === String(TWO_FACTOR_PROVIDER_RECOVERY_CODE) ||
@@ -456,6 +488,9 @@ export async function handleToken(request: Request, env: Env): Promise<Response>
         user.yubikeyKey4 = null;
         user.yubikeyKey5 = null;
         user.yubikeyNfc = false;
+        for (const credential of effectiveWebAuthnCredentials) {
+          await storage.deleteAccountPasskeyCredential(user.id, credential.id, 'twoFactor');
+        }
         user.totpRecoveryCode = createRecoveryCode();
         user.securityStamp = generateUUID();
         user.updatedAt = new Date().toISOString();

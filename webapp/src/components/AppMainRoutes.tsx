@@ -8,7 +8,7 @@ import type { AdminBackupImportResponse, AdminBackupRunResponse, AdminBackupSett
 import type { AuditLogFilters } from '@/lib/api/admin';
 import type { CiphersImportPayload } from '@/lib/api/vault';
 import { t } from '@/lib/i18n';
-import type { AccountPasskeyCredential, AdminInvite, AdminUser, AuditLogListResult, AuditLogSettings, AuthRequest, AuthorizedDevice, Cipher, CustomEquivalentDomain, DomainRules, Folder as VaultFolder, Profile, Send, SendDraft, SessionState, VaultDraft, YubiKeyOtpSettings } from '@/lib/types';
+import type { AccountPasskeyCredential, AdminInvite, AdminUser, AuditLogListResult, AuditLogSettings, AuthRequest, AuthorizedDevice, Cipher, CustomEquivalentDomain, DomainRules, Folder as VaultFolder, Profile, Send, SendDraft, SessionState, TwoFactorPasskeySettings, VaultDraft, YubiKeyOtpSettings } from '@/lib/types';
 import type { ExportRequest } from '@/lib/export-formats';
 
 const VaultPage = lazy(() => import('@/components/VaultPage'));
@@ -56,6 +56,7 @@ export interface AppMainRoutesProps {
   adminError: string;
   totpEnabled: boolean;
   yubikeyEnabled: boolean;
+  passkey2faEnabled: boolean;
   lockTimeoutMinutes: 0 | 1 | 5 | 15 | 30;
   sessionTimeoutAction: 'lock' | 'logout';
   authorizedDevices: AuthorizedDevice[];
@@ -118,6 +119,10 @@ export interface AppMainRoutesProps {
   onSaveYubiKeyApiCredentials: (clientId: string, secretKey: string, masterPassword: string) => Promise<YubiKeyOtpSettings>;
   onBootstrapYubiKeyApiCredentials: (otp: string, masterPassword: string) => Promise<YubiKeyOtpSettings>;
   onDisableYubiKey: (masterPassword: string) => Promise<void>;
+  onGetTwoFactorPasskeySettings: (masterPassword: string) => Promise<TwoFactorPasskeySettings>;
+  onCreateTwoFactorPasskey: (name: string, masterPassword: string) => Promise<TwoFactorPasskeySettings>;
+  onDeleteTwoFactorPasskey: (id: number, masterPassword: string) => Promise<TwoFactorPasskeySettings>;
+  onDisableTwoFactorPasskeys: (masterPassword: string) => Promise<void>;
   onGetRecoveryCode: (masterPassword: string) => Promise<string>;
   onGetApiKey: (masterPassword: string) => Promise<string>;
   onRotateApiKey: (masterPassword: string) => Promise<string>;
@@ -276,6 +281,7 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
                 profile={props.profile}
                 totpEnabled={props.totpEnabled}
                 yubikeyEnabled={props.yubikeyEnabled}
+                passkey2faEnabled={props.passkey2faEnabled}
                 themePreference={props.themePreference}
                 lockTimeoutMinutes={props.lockTimeoutMinutes}
                 sessionTimeoutAction={props.sessionTimeoutAction}
@@ -290,6 +296,10 @@ export default function AppMainRoutes(props: AppMainRoutesProps) {
                 onSaveYubiKeyApiCredentials={props.onSaveYubiKeyApiCredentials}
                 onBootstrapYubiKeyApiCredentials={props.onBootstrapYubiKeyApiCredentials}
                 onDisableYubiKey={props.onDisableYubiKey}
+                onGetTwoFactorPasskeySettings={props.onGetTwoFactorPasskeySettings}
+                onCreateTwoFactorPasskey={props.onCreateTwoFactorPasskey}
+                onDeleteTwoFactorPasskey={props.onDeleteTwoFactorPasskey}
+                onDisableTwoFactorPasskeys={props.onDisableTwoFactorPasskeys}
                 onGetRecoveryCode={props.onGetRecoveryCode}
                 onGetApiKey={props.onGetApiKey}
                 onRotateApiKey={props.onRotateApiKey}

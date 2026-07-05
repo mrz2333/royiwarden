@@ -140,10 +140,11 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   'CREATE INDEX IF NOT EXISTS idx_totp_login_replays_consumed_at ON totp_login_replays(consumed_at)',
 
   'CREATE TABLE IF NOT EXISTS webauthn_credentials (' +
-  'id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, public_key TEXT NOT NULL, credential_id TEXT NOT NULL, counter INTEGER NOT NULL DEFAULT 0, ' +
+  'id TEXT PRIMARY KEY, user_id TEXT NOT NULL, purpose TEXT NOT NULL DEFAULT \'login\', name TEXT NOT NULL, public_key TEXT NOT NULL, credential_id TEXT NOT NULL, counter INTEGER NOT NULL DEFAULT 0, ' +
   'type TEXT, aa_guid TEXT, transports TEXT, encrypted_user_key TEXT, encrypted_public_key TEXT, encrypted_private_key TEXT, supports_prf INTEGER NOT NULL DEFAULT 0, ' +
   'created_at TEXT NOT NULL, updated_at TEXT NOT NULL, ' +
   'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)',
+  'ALTER TABLE webauthn_credentials ADD COLUMN purpose TEXT NOT NULL DEFAULT \'login\'',
   'CREATE UNIQUE INDEX IF NOT EXISTS idx_webauthn_credentials_credential_id ON webauthn_credentials(credential_id)',
   'CREATE INDEX IF NOT EXISTS idx_webauthn_credentials_user ON webauthn_credentials(user_id)',
   'CREATE INDEX IF NOT EXISTS idx_webauthn_credentials_user_updated ON webauthn_credentials(user_id, updated_at)',

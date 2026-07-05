@@ -1352,7 +1352,7 @@
 }
 
 .settings-module-head {
-  @apply mb-[5px] flex items-center justify-between gap-3;
+  @apply mb-[10px] flex items-center justify-between gap-3;
 }
 
 .settings-module-head h3 {
@@ -1382,8 +1382,35 @@
   accent-color: var(--primary);
 }
 
+.account-passkey-list,
 .account-passkeys-list {
   @apply mt-3 grid gap-2;
+}
+
+.two-factor-passkey-register-row {
+  @apply flex min-w-0 items-center gap-2;
+}
+
+.two-factor-passkey-register-row .input {
+  @apply min-w-0 flex-1;
+}
+
+.two-factor-passkey-register-row .btn {
+  @apply shrink-0;
+  min-width: 86px;
+}
+
+.two-factor-passkey-list-block {
+  @apply grid gap-2;
+}
+
+.settings-list-label {
+  @apply text-sm font-extrabold;
+  color: var(--muted);
+}
+
+.two-factor-passkey-danger-actions {
+  @apply justify-end pt-1;
 }
 
 .account-passkey-row {
@@ -1391,6 +1418,17 @@
   grid-template-columns: minmax(0, 1fr) auto auto;
   border-color: var(--line);
   background: var(--panel);
+}
+
+.two-factor-passkey-row {
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+}
+
+.account-passkey-index {
+  @apply inline-grid h-8 w-8 place-items-center rounded-lg text-sm font-extrabold;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 80%, var(--panel-2));
 }
 
 .account-passkey-main {

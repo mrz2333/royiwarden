@@ -1143,12 +1143,30 @@
     padding: 10px;
   }
 
+  .two-factor-passkey-row {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .two-factor-passkey-row .btn {
+    grid-column: 2;
+    justify-self: end;
+  }
+
   .account-passkey-status {
     justify-self: flex-start;
   }
 
   .account-passkey-actions,
   .account-passkey-actions .btn {
+    width: 100%;
+  }
+
+  .two-factor-passkey-register-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .two-factor-passkey-register-row .btn {
     width: 100%;
   }
 
