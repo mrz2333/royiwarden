@@ -1,9 +1,12 @@
 import { useMemo } from 'preact/hooks';
 import {
+  BookUser,
   CreditCard,
   FileKey2,
   Globe,
+  IdCard,
   KeyRound,
+  Landmark,
   ShieldUser,
   StickyNote,
 } from 'lucide-preact';
@@ -214,9 +217,9 @@ export function CreateTypeIcon({ type }: { type: number }) {
   if (type === 4) return <ShieldUser size={15} />;
   if (type === 2) return <StickyNote size={15} />;
   if (type === 5) return <KeyRound size={15} />;
-  if (type === 6) return <CreditCard size={15} />;
-  if (type === 7) return <ShieldUser size={15} />;
-  if (type === 8) return <FileKey2 size={15} />;
+  if (type === 6) return <Landmark size={15} />;
+  if (type === 7) return <IdCard size={15} />;
+  if (type === 8) return <BookUser size={15} />;
   return <FileKey2 size={15} />;
 }
 
@@ -278,9 +281,9 @@ export function TypeIcon({ type }: { type: number }) {
   if (type === 4) return <ShieldUser size={18} />;
   if (type === 2) return <StickyNote size={18} />;
   if (type === 5) return <KeyRound size={18} />;
-  if (type === 6) return <CreditCard size={18} />;
-  if (type === 7) return <ShieldUser size={18} />;
-  if (type === 8) return <FileKey2 size={18} />;
+  if (type === 6) return <Landmark size={18} />;
+  if (type === 7) return <IdCard size={18} />;
+  if (type === 8) return <BookUser size={18} />;
   return <FileKey2 size={18} />;
 }
 
