@@ -4,6 +4,7 @@ import {
   type BackupArchiveBundle,
   buildBackupArchive,
   inspectBackupArchiveFileNameChecksum,
+  isSafeBackupAttachmentBlobName,
   parseBackupArchive,
   verifyBackupArchiveFileNameChecksum,
 } from '../services/backup-archive';
@@ -129,11 +130,18 @@ function ensureBackupBlobName(value: string): string {
   if (!normalized) {
     throw new Error('Backup attachment blob is required');
   }
-  const parts = normalized.split('/').filter(Boolean);
-  if (!parts.length || parts.some((part) => part === '.' || part === '..')) {
+  if (!isSafeBackupAttachmentBlobName(normalized)) {
     throw new Error('Backup attachment blob is invalid');
   }
-  return parts.join('/');
+  return normalized;
+}
+
+function contentDispositionBackup(fileName: string | null | undefined): string {
+  const fallback = 'nodewarden_backup.zip';
+  const value = String(fileName || fallback)
+    .replace(/[\\/\r\n"]/g, '_')
+    .trim() || fallback;
+  return `attachment; filename="${value}"`;
 }
 
 const REMOTE_ATTACHMENT_INDEX_PATH = 'attachments/.nodewarden-attachment-index.v1.json';
@@ -654,6 +662,7 @@ function collectExternalRemoteAttachmentBlobNames(archiveBytes: Uint8Array): str
     if (parsed.files[inlinePath]) continue;
     const ref = refs.get(`${cipherId}/${attachmentId}`);
     const blobName = String(ref?.blobName || '').trim();
+    if (!isSafeBackupAttachmentBlobName(blobName)) continue;
     if (blobName && !seen.has(blobName)) {
       seen.add(blobName);
       names.push(blobName);
@@ -1028,8 +1037,9 @@ export async function handleDownloadAdminRemoteBackup(request: Request, env: Env
       status: 200,
       headers: {
         'Content-Type': remoteFile.contentType || 'application/zip',
-        'Content-Disposition': `attachment; filename="${remoteFile.fileName}"`,
+        'Content-Disposition': contentDispositionBackup(remoteFile.fileName),
         'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
   } catch (error) {
@@ -1063,12 +1073,21 @@ export async function handleInspectAdminRemoteBackup(request: Request, env: Env,
 export async function handleDeleteAdminRemoteBackup(request: Request, env: Env, actorUser: User): Promise<Response> {
   if (!isAdmin(actorUser)) return errorResponse('Forbidden', 403);
 
+  let body: { destinationId?: string; path?: string; masterPasswordHash?: string };
+  try {
+    body = await request.json<{ destinationId?: string; path?: string; masterPasswordHash?: string }>();
+  } catch {
+    return errorResponse('Remote backup delete payload is invalid', 400);
+  }
+
+  const verificationError = await requireBackupUserVerification(actorUser, String(body.masterPasswordHash || ''), env);
+  if (verificationError) return verificationError;
+
   const storage = new StorageService(env.DB);
   try {
     const settings = await loadBackupSettings(storage, env, 'UTC');
-    const url = new URL(request.url);
-    const path = ensureRemoteRestoreCandidate(url.searchParams.get('path') || '');
-    const destination = requireBackupDestination(settings, url.searchParams.get('destinationId') || null);
+    const path = ensureRemoteRestoreCandidate(String(body.path || ''));
+    const destination = requireBackupDestination(settings, body.destinationId || null);
     await deleteRemoteBackupFile(destination, path);
     await writeAuditLog(storage, actorUser.id, 'admin.backup.remote.delete', 'backup', null, {
       ...getBackupDestinationSummary(destination),
@@ -1196,8 +1215,9 @@ export async function handleAdminExportBackup(request: Request, env: Env, actorU
     status: 200,
     headers: {
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="${archive.fileName}"`,
+      'Content-Disposition': contentDispositionBackup(archive.fileName),
       'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
     },
   });
 }

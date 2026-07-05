@@ -403,13 +403,15 @@ export async function verifyBackupFileIntegrity(bytes: Uint8Array, fileName: str
 
 export async function deleteRemoteBackup(
   authedFetch: AuthedFetch,
+  masterPasswordHash: string,
   destinationId: string,
   path: string
 ): Promise<void> {
-  const params = new URLSearchParams();
-  params.set('destinationId', destinationId);
-  params.set('path', path);
-  const resp = await authedFetch(`/api/admin/backup/remote/file?${params.toString()}`, { method: 'DELETE' });
+  const resp = await authedFetch('/api/admin/backup/remote/file', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ destinationId, path, masterPasswordHash }),
+  });
   if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_remote_delete_failed')));
 }
 

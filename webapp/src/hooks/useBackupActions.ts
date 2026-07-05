@@ -86,8 +86,8 @@ export default function useBackupActions(options: UseBackupActionsOptions) {
         return inspectRemoteBackupIntegrity(authedFetch, destinationId, path);
       },
 
-      async deleteRemoteBackup(destinationId: string, path: string) {
-        await deleteRemoteBackup(authedFetch, destinationId, path);
+      async deleteRemoteBackup(masterPasswordHash: string, destinationId: string, path: string) {
+        await deleteRemoteBackup(authedFetch, masterPasswordHash, destinationId, path);
       },
 
       async restoreRemoteBackup(masterPasswordHash: string, destinationId: string, path: string, replaceExisting: boolean = false) {

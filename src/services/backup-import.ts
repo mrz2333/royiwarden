@@ -4,6 +4,7 @@ import { BACKUP_SETTINGS_CONFIG_KEY, normalizeImportedBackupSettingsValue } from
 import {
   type BackupManifestAttachmentBlob,
   type BackupPayload,
+  isSafeBackupAttachmentBlobName,
   parseBackupArchive,
   validateBackupPayloadContents,
 } from './backup-archive';
@@ -462,9 +463,20 @@ async function restoreBlobFiles(env: Env, db: BackupPayload['db'], files: Record
 }
 
 function buildAttachmentBlobLookup(manifest: BackupPayload['manifest']): Map<string, BackupManifestAttachmentBlob> {
-  return new Map(
-    (manifest.attachmentBlobs || []).map((item) => [`${item.cipherId}/${item.attachmentId}`, item])
-  );
+  const lookup = new Map<string, BackupManifestAttachmentBlob>();
+  for (const item of manifest.attachmentBlobs || []) {
+    const cipherId = String(item.cipherId || '').trim();
+    const attachmentId = String(item.attachmentId || '').trim();
+    const blobName = String(item.blobName || '').trim();
+    if (!cipherId || !attachmentId || !isSafeBackupAttachmentBlobName(blobName)) continue;
+    lookup.set(`${cipherId}/${attachmentId}`, {
+      ...item,
+      cipherId,
+      attachmentId,
+      blobName,
+    });
+  }
+  return lookup;
 }
 
 async function prepareRemoteAttachmentPayload(
