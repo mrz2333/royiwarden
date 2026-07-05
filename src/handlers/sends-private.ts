@@ -8,6 +8,7 @@ import { LIMITS } from '../config/limits';
 import {
   getBlobStorageMaxBytes,
   getSendFileObjectKey,
+  getBlobObject,
   putBlobObject,
   deleteBlobObject,
 } from '../services/blob-store';
@@ -82,8 +83,13 @@ async function processSendFileUpload(
     return upload;
   }
 
+  const path = getSendFileObjectKey(send.id, fileId);
+  if (await getBlobObject(env, path)) {
+    return errorResponse('Send file has already been uploaded', 409);
+  }
+
   try {
-    await putBlobObject(env, getSendFileObjectKey(send.id, fileId), upload.body, {
+    await putBlobObject(env, path, upload.body, {
       size: upload.size,
       contentType: upload.contentType,
       customMetadata: {

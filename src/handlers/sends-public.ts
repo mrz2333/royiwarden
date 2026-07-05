@@ -290,12 +290,20 @@ export async function handleDownloadSendFile(
   }
 
   const storage = new StorageService(env.DB);
+  const send = await storage.getSend(sendId);
+  if (!send || !isSendAvailable(send) || send.type !== SendType.File) {
+    return errorResponse(SEND_INACCESSIBLE_MSG, 404);
+  }
+  const data = parseStoredSendData(send);
+  const expectedFileId = typeof data.id === 'string' ? data.id : null;
+  if (!expectedFileId || expectedFileId !== fileId) {
+    return errorResponse(SEND_INACCESSIBLE_MSG, 404);
+  }
+
   const object = await getBlobObject(env, getSendFileObjectKey(sendId, fileId));
   if (!object) {
     return errorResponse('Send file not found', 404);
   }
-  const send = await storage.getSend(sendId);
-  const data = send ? parseStoredSendData(send) : {};
   const fileName = typeof data.fileName === 'string' ? data.fileName : fileId;
 
   const firstUse = await storage.consumeAttachmentDownloadToken(`send:${claims.jti}`, claims.exp);
