@@ -650,6 +650,12 @@
   border-top: 0;
 }
 
+.two-step-providers-module .settings-module-head {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
 .two-step-warning-head {
   @apply mb-2 flex items-center gap-2 text-sm font-extrabold;
   color: #c2410c;

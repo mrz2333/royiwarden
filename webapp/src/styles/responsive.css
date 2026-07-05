@@ -1144,12 +1144,14 @@
   }
 
   .two-factor-passkey-row {
-    grid-template-columns: 2rem minmax(0, 1fr);
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    gap: 8px;
   }
 
   .two-factor-passkey-row .btn {
-    grid-column: 2;
+    grid-column: 3;
     justify-self: end;
+    white-space: nowrap;
   }
 
   .account-passkey-status {
