@@ -28,7 +28,7 @@ import {
 } from './handlers/notifications';
 import { handlePublicUploadSendFile } from './handlers/sends';
 import { isSafeWebsiteIconContentType } from './utils/content-type';
-import { jsonResponse } from './utils/response';
+import { jsonResponse, unsupportedResponse } from './utils/response';
 import { StorageService } from './services/storage';
 import type { Env } from './types';
 
@@ -468,6 +468,29 @@ export async function handlePublicRoute(
     const blocked = await enforcePublicRateLimit('public-sensitive', LIMITS.rateLimit.sensitivePublicRequestsPerMinute);
     if (blocked) return blocked;
     return handleRecoverTwoFactor(request, env);
+  }
+
+  const publicMailBackedPaths = new Set([
+    '/api/accounts/resend-new-device-otp',
+    '/accounts/resend-new-device-otp',
+    '/api/accounts/register/send-verification-email',
+    '/accounts/register/send-verification-email',
+    '/identity/accounts/register/send-verification-email',
+    '/api/accounts/register/verification-email-clicked',
+    '/accounts/register/verification-email-clicked',
+    '/identity/accounts/register/verification-email-clicked',
+    '/api/accounts/register/finish',
+    '/accounts/register/finish',
+    '/identity/accounts/register/finish',
+    '/api/accounts/verify-email-token',
+    '/accounts/verify-email-token',
+    '/api/two-factor/send-email-login',
+    '/two-factor/send-email-login',
+  ]);
+  if (publicMailBackedPaths.has(path) && method === 'POST') {
+    const blocked = await enforcePublicRateLimit('public-sensitive', LIMITS.rateLimit.sensitivePublicRequestsPerMinute);
+    if (blocked) return blocked;
+    return unsupportedResponse('Email delivery is not supported by this server.');
   }
 
   if (path === '/api/accounts/password-hint' && method === 'POST') {

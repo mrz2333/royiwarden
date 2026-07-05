@@ -1,5 +1,5 @@
 import type { Env, User } from './types';
-import { errorResponse, jsonResponse } from './utils/response';
+import { errorResponse, jsonResponse, unsupportedResponse } from './utils/response';
 import {
   handleGetProfile,
   handleUpdateProfile,
@@ -114,6 +114,40 @@ export async function handleAuthenticatedRoute(
     if (blockedAccountPaths.has(path)) {
       return errorResponse('Not implemented', 501);
     }
+  }
+
+  if ((path === '/api/accounts/kdf' || path === '/accounts/kdf') && (method === 'POST' || method === 'PUT')) {
+    return unsupportedResponse('KDF changes are not supported by this server.');
+  }
+
+  const mailBackedAccountPaths = new Set([
+    '/api/accounts/email-token',
+    '/accounts/email-token',
+    '/api/accounts/verify-email',
+    '/accounts/verify-email',
+    '/api/accounts/verify-email-token',
+    '/accounts/verify-email-token',
+    '/api/accounts/request-otp',
+    '/accounts/request-otp',
+    '/api/accounts/verify-otp',
+    '/accounts/verify-otp',
+  ]);
+  if (mailBackedAccountPaths.has(path) && (method === 'POST' || method === 'PUT')) {
+    return unsupportedResponse('Email delivery is not supported by this server.');
+  }
+
+  const emailTwoFactorPaths = new Set([
+    '/api/two-factor/get-email',
+    '/two-factor/get-email',
+    '/api/two-factor/send-email',
+    '/two-factor/send-email',
+    '/api/two-factor/send-email-login',
+    '/two-factor/send-email-login',
+    '/api/two-factor/email',
+    '/two-factor/email',
+  ]);
+  if (emailTwoFactorPaths.has(path) && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
+    return unsupportedResponse('Email two-step login is not supported by this server.');
   }
 
   if (path === '/api/accounts/profile') {

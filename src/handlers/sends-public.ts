@@ -368,7 +368,7 @@ export async function issueSendAccessToken(
             Object: 'error',
           },
         },
-        400
+        501
       ),
     };
   }

@@ -464,7 +464,11 @@ export function sendPasswordLockedOAuthResponse(retryAfterSeconds: number): Resp
 
 export async function validatePublicSendAccess(send: Send, body: unknown): Promise<PublicSendAccessValidationResult> {
   if (hasEmailAuth(send)) {
-    return { ok: false, response: errorResponse(SEND_INACCESSIBLE_MSG, 404), reason: 'email_auth_unsupported' };
+    return {
+      ok: false,
+      response: errorResponse('Send email verification is not supported by this server.', 501),
+      reason: 'email_auth_unsupported',
+    };
   }
 
   if (!send.passwordHash) return { ok: true };

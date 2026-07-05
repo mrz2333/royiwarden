@@ -136,6 +136,10 @@ export function errorResponse(message: string, status: number = 400): Response {
   );
 }
 
+export function unsupportedResponse(message: string = 'This feature is not supported by this server.'): Response {
+  return errorResponse(message, 501);
+}
+
 // Identity endpoint error response (for /identity/connect/token)
 export function identityErrorResponse(message: string, error: string = 'invalid_grant', status: number = 400): Response {
   return jsonResponse(
