@@ -17,6 +17,9 @@ interface CiphersImportRequest {
     favorite?: boolean;
     reprompt?: number;
     sshKey?: any | null;
+    bankAccount?: any | null;
+    driversLicense?: any | null;
+    passport?: any | null;
     key?: string | null;
     login?: {
       uris?: Array<{ uri: string | null; uriChecksum?: string | null; match?: number | null }> | null;
@@ -185,6 +188,10 @@ export async function handleCiphersImport(request: Request, env: Env, userId: st
     const card = readAliasedImportProp<any | null>(c, ['card', 'Card']);
     const identity = readAliasedImportProp<any | null>(c, ['identity', 'Identity']);
     const secureNote = readAliasedImportProp<any | null>(c, ['secureNote', 'SecureNote']);
+    const sshKey = readAliasedImportProp<any | null>(c, ['sshKey', 'SshKey']);
+    const bankAccount = readAliasedImportProp<any | null>(c, ['bankAccount', 'BankAccount']);
+    const driversLicense = readAliasedImportProp<any | null>(c, ['driversLicense', 'DriversLicense']);
+    const passport = readAliasedImportProp<any | null>(c, ['passport', 'Passport']);
     const fields = readAliasedImportProp<any[] | null>(c, ['fields', 'Fields']);
     const passwordHistory = readAliasedImportProp<any[] | null>(c, ['passwordHistory', 'PasswordHistory']);
     const key = readAliasedImportProp<string | null>(c, ['key', 'Key']);
@@ -254,7 +261,10 @@ export async function handleCiphersImport(request: Request, env: Env, userId: st
       })) || null,
       passwordHistory: passwordHistory ?? null,
       reprompt: c.reprompt ?? 0,
-      sshKey: normalizeCipherSshKeyForCompatibility((c as any).sshKey ?? null),
+      sshKey: normalizeCipherSshKeyForCompatibility(sshKey ?? null),
+      bankAccount: bankAccount ?? null,
+      driversLicense: driversLicense ?? null,
+      passport: passport ?? null,
       key: key ?? null,
       createdAt: now,
       updatedAt: now,

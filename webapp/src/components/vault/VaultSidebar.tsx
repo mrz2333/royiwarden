@@ -117,8 +117,17 @@ export default function VaultSidebar(props: VaultSidebarProps) {
         <button type="button" className={`tree-btn ${props.sidebarFilter.kind === 'type' && props.sidebarFilter.value === 'card' ? 'active' : ''}`} onClick={() => props.onChangeFilter({ kind: 'type', value: 'card' })}>
           <CreditCard size={14} className="tree-icon" /> <span className="tree-label">{t('txt_card')}</span>
         </button>
+        <button type="button" className={`tree-btn ${props.sidebarFilter.kind === 'type' && props.sidebarFilter.value === 'bank' ? 'active' : ''}`} onClick={() => props.onChangeFilter({ kind: 'type', value: 'bank' })}>
+          <CreditCard size={14} className="tree-icon" /> <span className="tree-label">{t('txt_bank_account')}</span>
+        </button>
         <button type="button" className={`tree-btn ${props.sidebarFilter.kind === 'type' && props.sidebarFilter.value === 'identity' ? 'active' : ''}`} onClick={() => props.onChangeFilter({ kind: 'type', value: 'identity' })}>
           <ShieldUser size={14} className="tree-icon" /> <span className="tree-label">{t('txt_identity')}</span>
+        </button>
+        <button type="button" className={`tree-btn ${props.sidebarFilter.kind === 'type' && props.sidebarFilter.value === 'license' ? 'active' : ''}`} onClick={() => props.onChangeFilter({ kind: 'type', value: 'license' })}>
+          <ShieldUser size={14} className="tree-icon" /> <span className="tree-label">{t('txt_drivers_license')}</span>
+        </button>
+        <button type="button" className={`tree-btn ${props.sidebarFilter.kind === 'type' && props.sidebarFilter.value === 'passport' ? 'active' : ''}`} onClick={() => props.onChangeFilter({ kind: 'type', value: 'passport' })}>
+          <KeyRound size={14} className="tree-icon" /> <span className="tree-label">{t('txt_passport')}</span>
         </button>
         <button type="button" className={`tree-btn ${props.sidebarFilter.kind === 'type' && props.sidebarFilter.value === 'note' ? 'active' : ''}`} onClick={() => props.onChangeFilter({ kind: 'type', value: 'note' })}>
           <StickyNote size={14} className="tree-icon" /> <span className="tree-label">{t('txt_note')}</span>

@@ -12,17 +12,20 @@ import {
   cardListSubtitle,
   FOLDER_SORT_STORAGE_KEY,
   VAULT_SORT_STORAGE_KEY,
+  bankAccountListSubtitle,
   cipherTypeKey,
   cipherTypeLabel,
   createEmptyDraft,
   creationTimeValue,
   draftFromCipher,
+  driversLicenseListSubtitle,
   buildCipherDuplicateSignatures,
   firstCipherUri,
   firstPasskeyCreationTime,
   isCipherVisibleInArchive,
   isCipherVisibleInNormalVault,
   isCipherVisibleInTrash,
+  passportListSubtitle,
   sortTimeValue,
   type DuplicateDetectionMode,
   type SidebarFilter,
@@ -308,10 +311,21 @@ export default function VaultPage(props: VaultPageProps) {
       const name = String(cipher.decName || cipher.name || '');
       const username = String(cipher.login?.decUsername || '');
       const uri = firstCipherUri(cipher);
+      const typedText = [
+        cipher.bankAccount?.decBankName,
+        cipher.bankAccount?.decNameOnAccount,
+        cipher.bankAccount?.decAccountNumber,
+        cipher.driversLicense?.decLicenseNumber,
+        cipher.driversLicense?.decFirstName,
+        cipher.driversLicense?.decLastName,
+        cipher.passport?.decPassportNumber,
+        cipher.passport?.decGivenName,
+        cipher.passport?.decSurname,
+      ].filter(Boolean).join('\n');
       const cipherId = String(cipher.id || '').trim();
       meta.set(cipher.id, {
         name,
-        searchText: `${cipherId}\n${cipherId.replace(/-/g, '')}\n${name}\n${username}\n${uri}`.toLowerCase(),
+        searchText: `${cipherId}\n${cipherId.replace(/-/g, '')}\n${name}\n${username}\n${uri}\n${typedText}`.toLowerCase(),
         firstUri: uri,
         typeKey: cipherTypeKey(Number(cipher.type || 1)),
         sortTime: sortTimeValue(cipher),
@@ -542,6 +556,9 @@ const folderName = useCallback((id: string | null | undefined): string => {
     if (Number(cipher.type || 1) === 3) {
       return cardListSubtitle(cipher);
     }
+    if (Number(cipher.type || 1) === 6) return bankAccountListSubtitle(cipher);
+    if (Number(cipher.type || 1) === 7) return driversLicenseListSubtitle(cipher);
+    if (Number(cipher.type || 1) === 8) return passportListSubtitle(cipher);
     return cipherTypeLabel(Number(cipher.type || 1));
   }, [cipherMetaById]);
 

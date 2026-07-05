@@ -327,6 +327,55 @@ export default function VaultDetailView(props: VaultDetailViewProps) {
             </div>
           )}
 
+          {props.selectedCipher.bankAccount && (
+            <div className="card">
+              <h4>{t('txt_bank_account_details')}</h4>
+              <div className="kv-line"><span>{t('txt_bank_name')}</span><strong>{props.selectedCipher.bankAccount.decBankName || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_name_on_account')}</span><strong>{props.selectedCipher.bankAccount.decNameOnAccount || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_account_type')}</span><strong>{props.selectedCipher.bankAccount.decAccountType || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_account_number')}</span><strong>{props.selectedCipher.bankAccount.decAccountNumber || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_routing_number')}</span><strong>{props.selectedCipher.bankAccount.decRoutingNumber || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_branch_number')}</span><strong>{props.selectedCipher.bankAccount.decBranchNumber || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_pin')}</span><strong>{props.selectedCipher.bankAccount.decPin || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_swift_code')}</span><strong>{props.selectedCipher.bankAccount.decSwiftCode || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_iban')}</span><strong>{props.selectedCipher.bankAccount.decIban || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_bank_contact_phone')}</span><strong>{props.selectedCipher.bankAccount.decBankContactPhone || ''}</strong></div>
+            </div>
+          )}
+
+          {props.selectedCipher.driversLicense && (
+            <div className="card">
+              <h4>{t('txt_drivers_license_details')}</h4>
+              <div className="kv-line"><span>{t('txt_name')}</span><strong>{[props.selectedCipher.driversLicense.decFirstName, props.selectedCipher.driversLicense.decMiddleName, props.selectedCipher.driversLicense.decLastName].filter(Boolean).join(' ')}</strong></div>
+              <div className="kv-line"><span>{t('txt_date_of_birth')}</span><strong>{props.selectedCipher.driversLicense.decDateOfBirth || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_license_number')}</span><strong>{props.selectedCipher.driversLicense.decLicenseNumber || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_issuing_country')}</span><strong>{props.selectedCipher.driversLicense.decIssuingCountry || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_issuing_state')}</span><strong>{props.selectedCipher.driversLicense.decIssuingState || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_issue_date')}</span><strong>{props.selectedCipher.driversLicense.decIssueDate || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_expiration_date')}</span><strong>{props.selectedCipher.driversLicense.decExpirationDate || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_issuing_authority')}</span><strong>{props.selectedCipher.driversLicense.decIssuingAuthority || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_license_class')}</span><strong>{props.selectedCipher.driversLicense.decLicenseClass || ''}</strong></div>
+            </div>
+          )}
+
+          {props.selectedCipher.passport && (
+            <div className="card">
+              <h4>{t('txt_passport_details')}</h4>
+              <div className="kv-line"><span>{t('txt_name')}</span><strong>{[props.selectedCipher.passport.decGivenName, props.selectedCipher.passport.decSurname].filter(Boolean).join(' ')}</strong></div>
+              <div className="kv-line"><span>{t('txt_date_of_birth')}</span><strong>{props.selectedCipher.passport.decDateOfBirth || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_sex')}</span><strong>{props.selectedCipher.passport.decSex || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_birth_place')}</span><strong>{props.selectedCipher.passport.decBirthPlace || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_nationality')}</span><strong>{props.selectedCipher.passport.decNationality || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_issuing_country')}</span><strong>{props.selectedCipher.passport.decIssuingCountry || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_passport_number')}</span><strong>{props.selectedCipher.passport.decPassportNumber || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_passport_type')}</span><strong>{props.selectedCipher.passport.decPassportType || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_national_id_number')}</span><strong>{props.selectedCipher.passport.decNationalIdentificationNumber || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_issuing_authority')}</span><strong>{props.selectedCipher.passport.decIssuingAuthority || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_issue_date')}</span><strong>{props.selectedCipher.passport.decIssueDate || ''}</strong></div>
+              <div className="kv-line"><span>{t('txt_expiration_date')}</span><strong>{props.selectedCipher.passport.decExpirationDate || ''}</strong></div>
+            </div>
+          )}
+
           {!!(props.selectedCipher.decNotes || '').trim() && (
             <div className="card">
               <h4>{t('txt_notes')}</h4>
