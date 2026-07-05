@@ -93,6 +93,16 @@ async function hmacSha1Base64(base64Key: string, message: string): Promise<strin
   return bytesToBase64(new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message))));
 }
 
+function constantTimeStringEquals(a: string, b: string): boolean {
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  let diff = aBytes.length ^ bBytes.length;
+  for (let index = 0; index < aBytes.length && index < bBytes.length; index += 1) {
+    diff |= aBytes[index] ^ bBytes[index];
+  }
+  return diff === 0;
+}
+
 function canonicalQuery(params: URLSearchParams): string {
   return Array.from(params.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -149,7 +159,11 @@ export async function verifyYubicoOtp(
     otp,
   });
   if (secretKey) {
-    params.set('h', await hmacSha1Base64(secretKey, canonicalQuery(params)));
+    try {
+      params.set('h', await hmacSha1Base64(secretKey, canonicalQuery(params)));
+    } catch {
+      return false;
+    }
   }
 
   for (const baseUrl of validationUrls(env)) {
@@ -158,12 +172,13 @@ export async function verifyYubicoOtp(
       if (!response.ok) continue;
       const parsed = parseYubicoResponse(await response.text());
       if (parsed.otp !== otp || parsed.nonce !== nonce || parsed.status !== 'OK') continue;
-      if (secretKey && parsed.h) {
+      if (secretKey) {
+        if (!parsed.h) continue;
         const signedParams = new URLSearchParams();
         for (const [key, value] of Object.entries(parsed)) {
           if (key !== 'h') signedParams.set(key, value);
         }
-        if ((await hmacSha1Base64(secretKey, canonicalQuery(signedParams))) !== parsed.h) continue;
+        if (!constantTimeStringEquals(await hmacSha1Base64(secretKey, canonicalQuery(signedParams)), parsed.h)) continue;
       }
       return true;
     } catch {

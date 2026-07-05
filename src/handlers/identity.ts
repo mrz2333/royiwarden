@@ -217,13 +217,13 @@ async function twoFactorRequiredResponse(
     webAuthnOptions = await buildTwoFactorPasskeyAssertionOptions(request, env, storage, user) as Record<string, unknown> | null;
     if (webAuthnOptions) providers.push(String(TWO_FACTOR_PROVIDER_WEBAUTHN));
   }
-  const providers2: Record<string, Record<string, unknown>> = {};
+  const providers2: Record<string, Record<string, unknown> | null> = {};
   for (const provider of providers) {
     providers2[provider] = provider === String(TWO_FACTOR_PROVIDER_YUBIKEY)
       ? { Nfc: user?.yubikeyNfc ?? false }
       : provider === String(TWO_FACTOR_PROVIDER_WEBAUTHN) && webAuthnOptions
         ? webAuthnOptions
-        : { Email: null };
+        : null;
   }
   const customResponse = {
     TwoFactorProviders: providers,

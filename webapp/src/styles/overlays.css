@@ -68,6 +68,10 @@
   @apply my-1.5 text-3xl;
 }
 
+.dialog-title-stack {
+  @apply flex flex-col items-center gap-1;
+}
+
 .dialog-message {
   @apply mb-2.5;
   color: #475467;

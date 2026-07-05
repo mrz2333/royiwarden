@@ -143,7 +143,7 @@ function readTwoFactorProviderTypes(providers: unknown): number[] {
     }
   } else if (providers && typeof providers === 'object') {
     for (const [key, value] of Object.entries(providers as Record<string, unknown>)) {
-      if (!value) continue;
+      if (value === false) continue;
       const providerType = twoFactorProviderTypeFromValue(key);
       if (providerType != null) providerTypes.push(providerType);
     }

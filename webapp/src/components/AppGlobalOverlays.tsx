@@ -92,7 +92,12 @@ export default function AppGlobalOverlays(props: AppGlobalOverlaysProps) {
 
       <ConfirmDialog
         open={props.pendingTotpOpen}
-        title={isYubiKeyOtp ? `${t('txt_two_step_verification')} YubiKey` : isWebAuthn ? `${t('txt_two_step_verification')} ${t('txt_passkey')}` : t('txt_two_step_verification')}
+        title={isYubiKeyOtp ? `${t('txt_two_step_verification')} YubiKey` : isWebAuthn ? (
+          <span className="dialog-title-stack">
+            <span>{t('txt_two_step_verification')}</span>
+            <span>{t('txt_passkey')}</span>
+          </span>
+        ) : t('txt_two_step_verification')}
         message={isYubiKeyOtp ? t('txt_press_yubikey_to_authenticate') : isWebAuthn ? t('txt_use_passkey_to_complete_two_step_verification') : t('txt_password_is_already_verified')}
         confirmText={t('txt_verify')}
         hideCancel

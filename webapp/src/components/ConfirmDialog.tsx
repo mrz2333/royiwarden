@@ -6,7 +6,7 @@ import { t } from '@/lib/i18n';
 
 interface ConfirmDialogProps {
   open: boolean;
-  title: string;
+  title: ComponentChildren;
   message?: string;
   variant?: 'default' | 'warning';
   showIcon?: boolean;

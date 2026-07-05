@@ -7,7 +7,7 @@ import { jsonResponse, errorResponse } from '../utils/response';
 import { generateUUID } from '../utils/uuid';
 import { LIMITS } from '../config/limits';
 import { hashApiKey } from '../utils/api-key';
-import { isTotpEnabled, verifyTotpToken } from '../utils/totp';
+import { findMatchingTotpCounter, isTotpEnabled } from '../utils/totp';
 import { createRecoveryCode, recoveryCodeEquals } from '../utils/recovery-code';
 import { buildAccountKeys } from '../utils/user-decryption';
 import { buildProfileResponse } from '../utils/profile-response';
@@ -829,7 +829,7 @@ export async function handleGetTwoFactorProviders(request: Request, env: Env, us
   if (!user) return errorResponse('User not found', 404);
 
   const data = [];
-  if (user.totpSecret) data.push(twoFactorProviderResponse(TWO_FACTOR_PROVIDER_AUTHENTICATOR, true));
+  if (isTotpEnabled(user.totpSecret)) data.push(twoFactorProviderResponse(TWO_FACTOR_PROVIDER_AUTHENTICATOR, true));
   if (isYubiKeyEnabled(user)) data.push(twoFactorProviderResponse(TWO_FACTOR_PROVIDER_YUBIKEY, true));
   const webAuthnCredentials = await storage.getAccountPasskeyCredentialsByUserId(user.id, 'twoFactor');
   if (webAuthnCredentials.length > 0) data.push(twoFactorProviderResponse(TWO_FACTOR_PROVIDER_WEBAUTHN, true));
@@ -908,7 +908,10 @@ export async function handlePutTwoFactorAuthenticator(request: Request, env: Env
     return errorResponse('User verification failed.', 400);
   }
   if (!isTotpEnabled(key)) return errorResponse('Invalid TOTP secret', 400);
-  if (!await verifyTotpToken(key, token)) return errorResponse('Invalid token.', 400);
+  const matchedCounter = await findMatchingTotpCounter(key, token);
+  if (matchedCounter == null || !await storage.consumeTotpLoginCounter(user.id, matchedCounter)) {
+    return errorResponse('Invalid token.', 400);
+  }
 
   user.totpSecret = key;
   if (!user.totpRecoveryCode) {
@@ -959,14 +962,7 @@ export async function handlePutTwoFactorYubiKey(request: Request, env: Env, user
   const publicIds: Array<string | null> = [];
   let credentials = await getStoredYubicoCredentials(storage, env);
   let apiKeyBootstrapOtpIndex: number | null = null;
-  const existingPublicIds = [
-    user.yubikeyKey1,
-    user.yubikeyKey2,
-    user.yubikeyKey3,
-    user.yubikeyKey4,
-    user.yubikeyKey5,
-  ].map((value) => String(value || '').trim().toLowerCase());
-  for (const [index, key] of keys.entries()) {
+  for (const key of keys) {
     const trimmed = key.trim();
     if (!trimmed) {
       publicIds.push(null);
@@ -975,9 +971,6 @@ export async function handlePutTwoFactorYubiKey(request: Request, env: Env, user
     const publicId = yubiKeyPublicIdFromOtp(trimmed);
     if (!publicId) return errorResponse('Invalid YubiKey OTP.', 400);
     if (isYubiKeyPublicId(trimmed)) {
-      if (existingPublicIds[index] !== publicId) {
-        return errorResponse('A full YubiKey OTP is required to add or replace a key.', 400);
-      }
       publicIds.push(publicId);
       continue;
     }
@@ -1186,8 +1179,8 @@ export async function handleSetTotpStatus(request: Request, env: Env, userId: st
     if (!verifiedUser) {
       return errorResponse('User verification failed.', 400);
     }
-    const verified = await verifyTotpToken(normalizedSecret, body.token);
-    if (!verified) {
+    const matchedCounter = await findMatchingTotpCounter(normalizedSecret, body.token);
+    if (matchedCounter == null || !await storage.consumeTotpLoginCounter(user.id, matchedCounter)) {
       return errorResponse('Invalid TOTP token', 400);
     }
     user.totpSecret = normalizedSecret;
