@@ -354,6 +354,34 @@ export function validateCipherEncryptedFieldsForCompatibility(cipher: Cipher): s
         if (uri.uriChecksum != null && !optionalEncStringWithin(uri.uriChecksum, 10000)) return 'Login URI checksum must be an encrypted string up to 10000 characters.';
       }
     }
+
+    // Validate FIDO2 credentials — all encrypted-string fields, both required and optional, must be valid.
+    if (Array.isArray(login.fido2Credentials)) {
+      const fido2EncryptedKeys = ['credentialId', 'keyType', 'keyAlgorithm', 'keyCurve', 'keyValue', 'rpId', 'counter', 'discoverable', 'userHandle', 'userName', 'rpName', 'userDisplayName'];
+      for (const cred of login.fido2Credentials) {
+        if (!cred || typeof cred !== 'object') continue;
+        for (const key of fido2EncryptedKeys) {
+          if (cred[key] != null && !isValidEncString(cred[key])) return `FIDO2 credential ${key} must be an encrypted string.`;
+        }
+      }
+    }
+  }
+
+  // Validate SSH key fields — all three must be encrypted strings.
+  const sshKey = cipher.sshKey as any;
+  if (sshKey && typeof sshKey === 'object') {
+    if (sshKey.privateKey != null && !isValidEncString(sshKey.privateKey)) return 'SSH key private key must be an encrypted string.';
+    if (sshKey.publicKey != null && !isValidEncString(sshKey.publicKey)) return 'SSH key public key must be an encrypted string.';
+    const fingerprint = sshKey.keyFingerprint ?? sshKey.fingerprint;
+    if (fingerprint != null && !isValidEncString(fingerprint)) return 'SSH key fingerprint must be an encrypted string.';
+  }
+
+  // Validate password history — each password must be an encrypted string.
+  if (Array.isArray(cipher.passwordHistory)) {
+    for (const entry of cipher.passwordHistory) {
+      if (!entry || typeof entry !== 'object') continue;
+      if (entry.password != null && !isValidEncString(entry.password)) return 'Password history entry must be an encrypted string.';
+    }
   }
 
   return null;
