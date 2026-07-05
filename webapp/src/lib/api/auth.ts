@@ -89,6 +89,16 @@ function clearRememberTwoFactorToken(): void {
   localStorage.removeItem(TOTP_REMEMBER_TOKEN_KEY);
 }
 
+function hasTwoFactorChallenge(error: TokenError): boolean {
+  const providers = error.TwoFactorProviders ?? error.CustomResponse?.TwoFactorProviders;
+  const providers2 = error.TwoFactorProviders2 ?? error.CustomResponse?.TwoFactorProviders2;
+  if (Array.isArray(providers)) return providers.length > 0;
+  if (providers && typeof providers === 'object') return Object.keys(providers as Record<string, unknown>).length > 0;
+  if (Array.isArray(providers2)) return providers2.length > 0;
+  if (providers2 && typeof providers2 === 'object') return Object.keys(providers2 as Record<string, unknown>).length > 0;
+  return providers != null || providers2 != null;
+}
+
 export function loadSession(): SessionState | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
@@ -282,7 +292,7 @@ export async function loginWithPassword(
   const json = (await parseJson<TokenSuccess & TokenError>(resp)) || {};
   if (resp.ok) {
     saveRememberTwoFactorToken((json as TokenSuccess).TwoFactorToken);
-  } else if (rememberedToken) {
+  } else if (rememberedToken && hasTwoFactorChallenge(json)) {
     clearRememberTwoFactorToken();
   }
   if (!resp.ok) return json;

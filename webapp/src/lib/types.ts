@@ -455,6 +455,11 @@ export interface TokenError {
   error?: string;
   error_description?: string;
   TwoFactorProviders?: unknown;
+  TwoFactorProviders2?: unknown;
+  CustomResponse?: {
+    TwoFactorProviders?: unknown;
+    TwoFactorProviders2?: unknown;
+  };
 }
 
 export interface AccountPasskeyCredential {
