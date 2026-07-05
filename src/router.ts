@@ -20,6 +20,7 @@ function canServeWithUnsafeJwtSecret(path: string, method: string): boolean {
   if (method === 'GET' && path === '/.well-known/appspecific/com.chrome.devtools.json') return true;
   if (method === 'GET' && path === '/fill-assist/manifest.json') return true;
   if (method === 'GET' && /^\/fill-assist\/[^/]+$/i.test(path)) return true;
+  if (method === 'GET' && (path === '/v1/assetlinks:check' || path === '/api/v1/assetlinks:check')) return true;
   if (method === 'GET' && /^\/icons\/[^/]+\/icon\.png$/i.test(path)) return true;
   return false;
 }

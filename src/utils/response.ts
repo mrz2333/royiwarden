@@ -29,6 +29,9 @@ function isExtensionOrigin(origin: string): boolean {
 function isWildcardCorsPath(path: string): boolean {
   return (
     path.startsWith('/icons/')
+    || path.startsWith('/fill-assist/')
+    || path === '/v1/assetlinks:check'
+    || path === '/api/v1/assetlinks:check'
     || path === '/config'
     || path === '/api/config'
     || path === '/api/version'

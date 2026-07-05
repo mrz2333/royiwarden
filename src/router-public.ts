@@ -7,7 +7,11 @@ import {
   handleDownloadSendFile,
 } from './handlers/sends';
 import { handleKnownDevice } from './handlers/devices';
-import { handleFillAssistForms, handleFillAssistManifest } from './handlers/fill-assist';
+import {
+  handleDigitalAssetLinkCheck,
+  handleFillAssistForms,
+  handleFillAssistManifest,
+} from './handlers/fill-assist';
 import { handleToken, handlePrelogin, handleRevocation } from './handlers/identity';
 import { handleGetAccountPasskeyAssertionOptions } from './handlers/account-passkeys';
 import {
@@ -97,7 +101,7 @@ function buildIconServiceCsp(origin: string): string {
 }
 
 function buildConfigResponse(origin: string) {
-  const fillAssistBase = `${origin}/fill-assist`;
+  const fillAssistBase = `${origin}/fill-assist/`;
   return {
     version: LIMITS.compatibility.bitwardenServerVersion,
     gitHash: 'nodewarden',
@@ -348,6 +352,12 @@ export async function handlePublicRoute(
     const blocked = await enforcePublicRateLimit('public-read', LIMITS.rateLimit.publicReadRequestsPerMinute);
     if (blocked) return blocked;
     return handleFillAssistManifest();
+  }
+
+  if ((path === '/v1/assetlinks:check' || path === '/api/v1/assetlinks:check') && method === 'GET') {
+    const blocked = await enforcePublicRateLimit('public-read', LIMITS.rateLimit.publicReadRequestsPerMinute);
+    if (blocked) return blocked;
+    return handleDigitalAssetLinkCheck();
   }
 
   const fillAssistFormsMatch = path.match(/^\/fill-assist\/([^/]+)$/i);
