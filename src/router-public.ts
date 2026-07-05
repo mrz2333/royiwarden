@@ -412,13 +412,13 @@ export async function handlePublicRoute(
     return handleDownloadSendFile(request, env, sendDownloadMatch[1], sendDownloadMatch[2]);
   }
 
-  if ((path === '/api/auth-requests' || path === '/api/auth-requests/') && method === 'POST') {
+  if ((path === '/api/auth-requests' || path === '/api/auth-requests/' || path === '/auth-requests' || path === '/auth-requests/') && method === 'POST') {
     const blocked = await enforcePublicRateLimit('public-sensitive', LIMITS.rateLimit.sensitivePublicRequestsPerMinute);
     if (blocked) return blocked;
     return handleCreateAuthRequest(request, env);
   }
 
-  const authRequestResponseMatch = path.match(/^\/api\/auth-requests\/([a-f0-9-]+)\/response$/i);
+  const authRequestResponseMatch = path.match(/^\/(?:api\/)?auth-requests\/([a-f0-9-]+)\/response$/i);
   if (authRequestResponseMatch && method === 'GET') {
     const blocked = await enforcePublicRateLimit('public-sensitive', LIMITS.rateLimit.sensitivePublicRequestsPerMinute);
     if (blocked) return blocked;

@@ -90,6 +90,7 @@ import {
   handleUpdateAccountPasskeyEncryption,
 } from './handlers/account-passkeys';
 import {
+  handleCreateAdminAuthRequest,
   handleGetAuthRequest,
   handleListAuthRequests,
   handleListPendingAuthRequests,
@@ -379,17 +380,22 @@ export async function handleAuthenticatedRoute(
     if (method === 'DELETE') return handleDeleteFolder(request, env, userId, folderId);
   }
 
-  if (path === '/api/auth-requests' || path === '/api/auth-requests/') {
+  if (path === '/api/auth-requests' || path === '/api/auth-requests/' || path === '/auth-requests' || path === '/auth-requests/') {
     if (method === 'GET') return handleListAuthRequests(request, env, userId);
     return errorResponse('Method not allowed', 405);
   }
 
-  if (path === '/api/auth-requests/pending') {
+  if (path === '/api/auth-requests/pending' || path === '/auth-requests/pending') {
     if (method === 'GET') return handleListPendingAuthRequests(request, env, userId);
     return errorResponse('Method not allowed', 405);
   }
 
-  const authRequestMatch = path.match(/^\/api\/auth-requests\/([a-f0-9-]+)$/i);
+  if (path === '/api/auth-requests/admin-request' || path === '/auth-requests/admin-request') {
+    if (method === 'POST') return handleCreateAdminAuthRequest(request, env, userId, currentUser.email);
+    return errorResponse('Method not allowed', 405);
+  }
+
+  const authRequestMatch = path.match(/^\/(?:api\/)?auth-requests\/([a-f0-9-]+)$/i);
   if (authRequestMatch) {
     if (method === 'GET') return handleGetAuthRequest(request, env, userId, authRequestMatch[1]);
     if (method === 'PUT') return handleUpdateAuthRequest(request, env, userId, authRequestMatch[1]);

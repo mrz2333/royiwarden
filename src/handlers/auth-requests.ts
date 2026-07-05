@@ -227,6 +227,72 @@ export async function handleCreateAuthRequest(request: Request, env: Env): Promi
   return jsonResponse(toAuthRequestResponse(request, authRequest));
 }
 
+export async function handleCreateAdminAuthRequest(
+  request: Request,
+  env: Env,
+  userId: string,
+  userEmail: string
+): Promise<Response> {
+  const storage = new StorageService(env.DB);
+  const body = await readJsonBody(request);
+  if (!body) return errorResponse('Invalid request payload', 400);
+
+  const email = normalizeText(readBodyValue(body, ['email', 'Email']), 320).toLowerCase() || userEmail.toLowerCase();
+  const publicKey = normalizeText(readBodyValue(body, ['publicKey', 'PublicKey']), 8192);
+  const accessCode = normalizeText(readBodyValue(body, ['accessCode', 'AccessCode']), 25);
+  const requestedType = Number(readBodyValue(body, ['type', 'Type']));
+  const deviceInfo = readAuthRequestDeviceInfo(
+    {
+      deviceIdentifier: normalizeText(readBodyValue(body, ['deviceIdentifier', 'DeviceIdentifier']), 128),
+      deviceName: normalizeText(readBodyValue(body, ['deviceName', 'DeviceName']), 128),
+      deviceType: String(readBodyValue(body, ['deviceType', 'DeviceType']) ?? ''),
+    },
+    request
+  );
+
+  if (requestedType !== AUTH_REQUEST_TYPE_ADMIN_APPROVAL) {
+    return errorResponse('Invalid AuthRequestType. Expected AdminApproval.', 400);
+  }
+  if (email !== userEmail.toLowerCase()) {
+    return errorResponse('Email does not match authenticated user.', 400);
+  }
+  if (!publicKey || !accessCode || !deviceInfo.deviceIdentifier) {
+    return errorResponse('Public key, device identifier, and access code are required.', 400);
+  }
+  const rateLimitResponse = await enforceAuthRequestCreateRateLimit(request, env, email, deviceInfo.deviceIdentifier);
+  if (rateLimitResponse) return rateLimitResponse;
+
+  const user = await storage.getUserById(userId);
+  if (!user || user.status !== 'active') {
+    return errorResponse('User not found.', 404);
+  }
+
+  await storage.pruneExpiredAuthRequests();
+  const now = new Date().toISOString();
+  const authRequest: AuthRequestRecord = {
+    id: generateUUID(),
+    userId: user.id,
+    organizationId: null,
+    type: AUTH_REQUEST_TYPE_ADMIN_APPROVAL,
+    requestDeviceIdentifier: deviceInfo.deviceIdentifier,
+    requestDeviceType: deviceInfo.deviceType,
+    requestIpAddress: getClientIp(request),
+    requestCountryName: getCountryName(request),
+    responseDeviceIdentifier: null,
+    accessCode,
+    publicKey,
+    key: null,
+    masterPasswordHash: null,
+    approved: null,
+    creationDate: now,
+    responseDate: null,
+    authenticationDate: null,
+  };
+  await storage.createAuthRequest(authRequest);
+  notifyUserAuthRequest(env, user.id, authRequest.id, deviceInfo.deviceIdentifier);
+  return jsonResponse(toAuthRequestResponse(request, authRequest));
+}
+
 export async function handleGetAuthRequest(request: Request, env: Env, userId: string, id: string): Promise<Response> {
   const storage = new StorageService(env.DB);
   const authRequest = await storage.getAuthRequestByIdForUser(id, userId);
