@@ -67,6 +67,8 @@ interface WebsiteRowProps {
   onRemove: (index: number) => void;
 }
 
+const TOTP_QR_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+
 function WebsiteRow(props: WebsiteRowProps) {
   const websiteMatchOptions = getWebsiteMatchOptions();
 
@@ -208,6 +210,14 @@ export default function VaultEditor(props: VaultEditorProps) {
 
   const handleTotpQrFile = async (file: File | null) => {
     if (!file) return;
+    if (file.type && !file.type.startsWith('image/')) {
+      setTotpQrStatus(t('txt_totp_qr_invalid_image_type'));
+      return;
+    }
+    if (file.size > TOTP_QR_IMAGE_MAX_BYTES) {
+      setTotpQrStatus(t('txt_totp_qr_image_too_large'));
+      return;
+    }
     setTotpQrBusy(true);
     setTotpQrStatus(t('txt_totp_qr_scanning'));
     let bitmap: ImageBitmap | null = null;
