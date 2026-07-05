@@ -819,6 +819,18 @@ function yubiKeyResponse(user: User): Record<string, unknown> {
   };
 }
 
+function deviceVerificationSettingsResponse(user: User): Record<string, unknown> {
+  const enabled = user.verifyDevices !== false;
+  return {
+    Enabled: enabled,
+    enabled,
+    VerifyDevices: enabled,
+    verifyDevices: enabled,
+    Object: 'deviceVerificationSettings',
+    object: 'deviceVerificationSettings',
+  };
+}
+
 async function yubiKeySettingsResponse(storage: StorageService, env: Env, user: User): Promise<Record<string, unknown>> {
   const credentials = await getStoredYubicoCredentials(storage, env);
   return {
@@ -891,6 +903,58 @@ export async function handleGetTwoFactorYubiKey(request: Request, env: Env, user
   if (!verified) return errorResponse('User verification failed.', 400);
 
   return jsonResponse(await yubiKeySettingsResponse(storage, env, user));
+}
+
+// POST /api/two-factor/get-device-verification-settings
+export async function handleGetDeviceVerificationSettings(request: Request, env: Env, userId: string): Promise<Response> {
+  void request;
+  const storage = new StorageService(env.DB);
+  const user = await storage.getUserById(userId);
+  if (!user) return errorResponse('User not found', 404);
+  return jsonResponse(deviceVerificationSettingsResponse(user));
+}
+
+// PUT/POST /api/two-factor/device-verification-settings
+export async function handlePutDeviceVerificationSettings(request: Request, env: Env, userId: string): Promise<Response> {
+  const storage = new StorageService(env.DB);
+  const auth = new AuthService(env);
+  const user = await storage.getUserById(userId);
+  if (!user) return errorResponse('User not found', 404);
+
+  let body: Record<string, unknown>;
+  try {
+    body = await readRequestBody(request);
+  } catch {
+    return errorResponse('Invalid JSON', 400);
+  }
+
+  const rawEnabled = body.enabled ?? body.Enabled ?? body.verifyDevices ?? body.VerifyDevices;
+  if (typeof rawEnabled !== 'boolean') {
+    return errorResponse('enabled must be true or false', 400);
+  }
+
+  const secret = readBodyString(body, ['masterPasswordHash', 'MasterPasswordHash', 'secret', 'Secret']);
+  const verified = await verifyUserSecret(auth, user, secret);
+  if (!verified) return errorResponse('User verification failed.', 400);
+
+  user.verifyDevices = rawEnabled;
+  user.updatedAt = new Date().toISOString();
+  await storage.saveUser(user);
+  await writeAuditEvent(storage, {
+    actorUserId: user.id,
+    action: 'account.verify_devices.update',
+    category: 'security',
+    level: 'security',
+    targetType: 'user',
+    targetId: user.id,
+    metadata: {
+      verifyDevices: user.verifyDevices,
+      source: 'two-factor.device-verification-settings',
+      ...auditRequestMetadata(request),
+    },
+  });
+
+  return jsonResponse(deviceVerificationSettingsResponse(user));
 }
 
 // PUT/POST /api/two-factor/authenticator

@@ -19,6 +19,8 @@ import {
   handlePutTwoFactorYubiKey,
   handlePutTwoFactorYubiKeyConfig,
   handleBootstrapTwoFactorYubiKeyConfig,
+  handleGetDeviceVerificationSettings,
+  handlePutDeviceVerificationSettings,
   handleDisableTwoFactorProvider,
   handleGetApiKey,
   handleRotateApiKey,
@@ -151,6 +153,15 @@ export async function handleAuthenticatedRoute(
 
   if ((path === '/api/two-factor/get-yubikey' || path === '/api/two-factor/get-yubi-key') && method === 'POST') {
     return handleGetTwoFactorYubiKey(request, env, userId);
+  }
+
+  if (path === '/api/two-factor/get-device-verification-settings' && method === 'POST') {
+    return handleGetDeviceVerificationSettings(request, env, userId);
+  }
+
+  if (path === '/api/two-factor/device-verification-settings') {
+    if (method === 'PUT' || method === 'POST') return handlePutDeviceVerificationSettings(request, env, userId);
+    return errorResponse('Method not allowed', 405);
   }
 
   if (path === '/api/two-factor/get-webauthn' && method === 'POST') {
