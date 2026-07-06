@@ -20,7 +20,6 @@ export interface Env {
   'globalSettings__yubico__clientId'?: string;
   'globalSettings__yubico__key'?: string;
   'globalSettings__yubico__validationUrls'?: string;
-  WEBSITE_ICONS_ENABLED?: string;
 }
 
 export type UserRole = 'admin' | 'user';

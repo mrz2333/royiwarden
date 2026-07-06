@@ -39,9 +39,6 @@
       },
       "ATTACHMENTS_KV": {
         "description": "Optional KV namespace fallback for attachment/send-file storage"
-      },
-      "WEBSITE_ICONS_ENABLED": {
-        "description": "Optional: set to true to proxy website icons via third-party icon services. Defaults to disabled for vault-domain privacy."
       }
     }
   },

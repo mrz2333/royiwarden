@@ -790,7 +790,7 @@ export function createDemoInitialBootstrapState(): InitialAppBootstrapState {
   return {
     defaultKdfIterations: 600000,
     registrationInviteRequired: true,
-    websiteIconsEnabled: false,
+    websiteIconsEnabled: true,
     jwtWarning: null,
     session: null,
     phase: 'login',

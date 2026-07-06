@@ -50,7 +50,7 @@ export interface WebBootstrapResponse {
 }
 
 function isWebsiteIconProxyEnabled(env: Env): boolean {
-  return ['1', 'true', 'yes', 'on'].includes(String(env.WEBSITE_ICONS_ENABLED || '').trim().toLowerCase());
+  return true;
 }
 
 function isSameOriginWriteRequest(request: Request): boolean {

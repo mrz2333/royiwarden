@@ -236,7 +236,7 @@ function normalizeBootstrapResponse(boot: WebBootstrapResponse): Pick<InitialApp
   const defaultKdfIterations = Number(boot.defaultKdfIterations || 600000);
   const registrationInviteRequired =
     typeof boot.registrationInviteRequired === 'boolean' ? boot.registrationInviteRequired : undefined;
-  const websiteIconsEnabled = boot.websiteIconsEnabled === true;
+  const websiteIconsEnabled = boot.websiteIconsEnabled !== false;
   const jwtUnsafeReason = boot.jwtUnsafeReason || null;
   const jwtWarning = jwtUnsafeReason
     ? {
@@ -330,7 +330,7 @@ export async function bootstrapAppSession(initial: InitialAppBootstrapState = re
   const normalizedBoot = normalizeBootstrapResponse(remoteBoot);
   const defaultKdfIterations = normalizedBoot.defaultKdfIterations || initial.defaultKdfIterations;
   const registrationInviteRequired = normalizedBoot.registrationInviteRequired ?? initial.registrationInviteRequired;
-  const websiteIconsEnabled = normalizedBoot.websiteIconsEnabled;
+  const websiteIconsEnabled = normalizedBoot.websiteIconsEnabled !== false;
   setWebsiteIconsEnabled(websiteIconsEnabled);
   const jwtWarning = normalizedBoot.jwtWarning ?? initial.jwtWarning;
 
