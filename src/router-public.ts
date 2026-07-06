@@ -46,6 +46,11 @@ export interface WebBootstrapResponse {
   jwtSecretMinLength: number;
   registrationInviteRequired: boolean;
   webAuthnAllowedOrigins: string[];
+  websiteIconsEnabled: boolean;
+}
+
+function isWebsiteIconProxyEnabled(env: Env): boolean {
+  return ['1', 'true', 'yes', 'on'].includes(String(env.WEBSITE_ICONS_ENABLED || '').trim().toLowerCase());
 }
 
 function isSameOriginWriteRequest(request: Request): boolean {
@@ -257,7 +262,11 @@ function iconResponse(body: BodyInit | null, contentType: string | null): Respon
   });
 }
 
-async function handleWebsiteIcon(host: string, fallbackMode: 'default' | 'not-found' = 'default'): Promise<Response> {
+async function handleWebsiteIcon(env: Env, host: string, fallbackMode: 'default' | 'not-found' = 'default'): Promise<Response> {
+  if (!isWebsiteIconProxyEnabled(env)) {
+    return fallbackMode === 'not-found' ? handleMissingWebsiteIcon() : handleNwFavicon();
+  }
+
   const normalizedHost = normalizeIconHost(host);
   if (!normalizedHost) return fallbackMode === 'not-found' ? handleMissingWebsiteIcon() : handleNwFavicon();
 
@@ -325,6 +334,7 @@ export async function buildWebBootstrapResponse(env: Env): Promise<WebBootstrapR
     jwtSecretMinLength: LIMITS.auth.jwtSecretMinLength,
     registrationInviteRequired: userCount > 0,
     webAuthnAllowedOrigins: getConfiguredWebAuthnAllowedOrigins(env),
+    websiteIconsEnabled: isWebsiteIconProxyEnabled(env),
   };
 }
 
@@ -375,7 +385,7 @@ export async function handlePublicRoute(
     const blocked = await enforcePublicRateLimit('public-icon', LIMITS.rateLimit.publicIconRequestsPerMinute);
     if (blocked) return blocked;
     const fallbackMode = new URL(request.url).searchParams.get('fallback') === '404' ? 'not-found' : 'default';
-    return handleWebsiteIcon(iconMatch[1], fallbackMode);
+    return handleWebsiteIcon(env, iconMatch[1], fallbackMode);
   }
 
   const publicAttachmentMatch = path.match(/^\/api\/attachments\/([a-f0-9-]+)\/([a-f0-9-]+)$/i);

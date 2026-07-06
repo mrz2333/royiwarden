@@ -412,6 +412,7 @@ export interface WebBootstrapResponse {
   jwtSecretMinLength?: number;
   registrationInviteRequired?: boolean;
   webAuthnAllowedOrigins?: string[];
+  websiteIconsEnabled?: boolean;
 }
 
 export interface YubiKeyOtpSettings {

@@ -1161,16 +1161,8 @@ export async function handleDisableTwoFactorProvider(request: Request, env: Env,
     return errorResponse('Two-factor provider is not supported by this server.', 400);
   }
 
-  const key = normalizeTotpSecret(readBodyString(body, ['key', 'Key']));
-  const userVerificationToken = readBodyString(body, ['userVerificationToken', 'UserVerificationToken']);
   const secret = readBodyString(body, ['masterPasswordHash', 'MasterPasswordHash', 'otp', 'OTP', 'secret', 'Secret']);
-  let verified = false;
-  if (key && userVerificationToken) {
-    verified = await verifyTotpUserVerificationToken(env, user, key, userVerificationToken);
-  }
-  if (!verified) {
-    verified = await verifyUserSecret(auth, user, secret);
-  }
+  const verified = await verifyUserSecret(auth, user, secret);
   if (!verified) return errorResponse('User verification failed.', 400);
 
   if (type === TWO_FACTOR_PROVIDER_AUTHENTICATOR) {
