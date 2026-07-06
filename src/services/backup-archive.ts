@@ -28,7 +28,7 @@ const BACKUP_FILE_HASH_PREFIX_LENGTH = 5;
 // Prefer store-only ZIP entries over heavier compression to keep exports reliable.
 const BACKUP_TEXT_COMPRESSION_LEVEL = 0;
 const BACKUP_JSON_INDENT = 2;
-const MAX_BACKUP_ARCHIVE_BYTES = 64 * 1024 * 1024;
+export const MAX_BACKUP_ARCHIVE_BYTES = 64 * 1024 * 1024;
 const MAX_BACKUP_ARCHIVE_ENTRY_COUNT = 10_000;
 const MAX_BACKUP_EXTRACTED_BYTES = 64 * 1024 * 1024;
 const MAX_BACKUP_DB_JSON_BYTES = 32 * 1024 * 1024;

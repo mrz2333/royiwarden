@@ -2,6 +2,7 @@ import type { Env, User } from '../types';
 import { errorResponse, jsonResponse } from '../utils/response';
 import {
   type BackupArchiveBundle,
+  MAX_BACKUP_ARCHIVE_BYTES,
   buildBackupArchive,
   inspectBackupArchiveFileNameChecksum,
   isSafeBackupAttachmentBlobName,
@@ -47,11 +48,20 @@ import { AuthService } from '../services/auth';
 import { auditRequestMetadata, writeAuditEvent } from '../services/audit-events';
 import { getBlobObject } from '../services/blob-store';
 import { notifyUserBackupProgress, notifyUserBackupRestoreProgress } from '../durable/notifications-hub';
+import { getMultipartRequestMaxBytes } from '../utils/direct-upload';
 import { verifyPasskeyUserVerificationToken } from '../utils/user-verification-token';
 import { unzipSync } from 'fflate';
 
 function isAdmin(user: User): boolean {
   return user.role === 'admin' && user.status === 'active';
+}
+
+function parseRequestContentLength(request: Request): number | null {
+  const raw = request.headers.get('content-length');
+  if (!raw) return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) return null;
+  return Math.floor(value);
 }
 
 async function requireBackupUserVerification(actorUser: User, masterPasswordHash: string, env: Env): Promise<Response | null> {
@@ -1250,6 +1260,15 @@ export async function handleDownloadAdminBackupAttachment(request: Request, env:
 export async function handleAdminImportBackup(request: Request, env: Env, actorUser: User): Promise<Response> {
   if (!isAdmin(actorUser)) return errorResponse('Forbidden', 403);
 
+  const contentType = request.headers.get('Content-Type') || '';
+  if (!contentType.includes('multipart/form-data')) {
+    return errorResponse('Content-Type must be multipart/form-data', 400);
+  }
+  const declaredSize = parseRequestContentLength(request);
+  if (declaredSize !== null && declaredSize > getMultipartRequestMaxBytes(MAX_BACKUP_ARCHIVE_BYTES)) {
+    return errorResponse(`Backup file too large. Maximum size is ${Math.floor(MAX_BACKUP_ARCHIVE_BYTES / (1024 * 1024))}MB`, 413);
+  }
+
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -1260,6 +1279,9 @@ export async function handleAdminImportBackup(request: Request, env: Env, actorU
   const file = formData.get('file');
   if (!file || typeof file !== 'object' || !('arrayBuffer' in file)) {
     return errorResponse('Backup file is required', 400);
+  }
+  if ('size' in file && typeof (file as File).size === 'number' && (file as File).size > MAX_BACKUP_ARCHIVE_BYTES) {
+    return errorResponse(`Backup file too large. Maximum size is ${Math.floor(MAX_BACKUP_ARCHIVE_BYTES / (1024 * 1024))}MB`, 413);
   }
 
   const verificationError = await requireBackupUserVerification(actorUser, String(formData.get('masterPasswordHash') || ''), env);
