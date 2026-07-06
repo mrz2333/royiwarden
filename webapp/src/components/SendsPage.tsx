@@ -478,8 +478,8 @@ export default function SendsPage(props: SendsPageProps) {
                   <div className="password-wrap">
                     <input className="input" type="password" value="••••••••" disabled />
                     {!isCreating && (
-                      <button type="button" className="btn btn-secondary small" onClick={() => setDraft({ ...draft, hasPassword: false, password: '' })}>
-                        {t('txt_remove')}
+                      <button type="button" className="password-toggle text-red-600 hover:text-red-700" onClick={() => setDraft({ ...draft, hasPassword: false, password: '' })} title={t('txt_remove')}>
+                        <Trash2 size={16} />
                       </button>
                     )}
                   </div>
