@@ -2120,7 +2120,10 @@ export default function App() {
       const hash = await deriveCurrentMasterPasswordHash(masterPassword);
       return backupActions.downloadRemoteBackup(hash, destinationId, path, onProgress);
     },
-    onInspectRemoteBackup: backupActions.inspectRemoteBackup,
+    onInspectRemoteBackup: async (masterPassword: string, destinationId: string, path: string) => {
+      const hash = await deriveCurrentMasterPasswordHash(masterPassword);
+      return backupActions.inspectRemoteBackup(hash, destinationId, path);
+    },
     onDeleteRemoteBackup: async (masterPassword: string, destinationId: string, path: string) => {
       const hash = await deriveCurrentMasterPasswordHash(masterPassword);
       return backupActions.deleteRemoteBackup(hash, destinationId, path);

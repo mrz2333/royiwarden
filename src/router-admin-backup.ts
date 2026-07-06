@@ -54,7 +54,7 @@ export async function handleAdminBackupRoute(
     return handleDownloadAdminRemoteBackup(request, env, actorUser);
   }
 
-  if (path === '/api/admin/backup/remote/integrity' && method === 'GET') {
+  if (path === '/api/admin/backup/remote/integrity' && method === 'POST') {
     return handleInspectAdminRemoteBackup(request, env, actorUser);
   }
 

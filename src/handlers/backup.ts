@@ -1062,12 +1062,21 @@ export async function handleDownloadAdminRemoteBackup(request: Request, env: Env
 export async function handleInspectAdminRemoteBackup(request: Request, env: Env, actorUser: User): Promise<Response> {
   if (!isAdmin(actorUser)) return errorResponse('Forbidden', 403);
 
+  let body: { destinationId?: string; path?: string; masterPasswordHash?: string };
+  try {
+    body = await request.json<{ destinationId?: string; path?: string; masterPasswordHash?: string }>();
+  } catch {
+    return errorResponse('Remote backup integrity payload is invalid', 400);
+  }
+
+  const verificationError = await requireBackupUserVerification(actorUser, String(body.masterPasswordHash || ''), env);
+  if (verificationError) return verificationError;
+
   const storage = new StorageService(env.DB);
   try {
     const settings = await loadBackupSettings(storage, env, 'UTC');
-    const url = new URL(request.url);
-    const path = ensureRemoteRestoreCandidate(url.searchParams.get('path') || '');
-    const destination = requireBackupDestination(settings, url.searchParams.get('destinationId') || null);
+    const path = ensureRemoteRestoreCandidate(String(body.path || ''));
+    const destination = requireBackupDestination(settings, body.destinationId || null);
     const remoteFile = await downloadRemoteBackupFile(destination, path);
     const integrity = await inspectBackupArchiveFileNameChecksum(remoteFile.bytes, remoteFile.fileName || path);
     return jsonResponse({

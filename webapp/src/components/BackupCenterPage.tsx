@@ -42,7 +42,7 @@ interface BackupCenterPageProps {
   onRunRemoteBackup: (masterPassword: string, destinationId?: string | null) => Promise<AdminBackupRunResponse>;
   onListRemoteBackups: (destinationId: string, path: string) => Promise<RemoteBackupBrowserResponse>;
   onDownloadRemoteBackup: (masterPassword: string, destinationId: string, path: string, onProgress?: (percent: number | null) => void) => Promise<void>;
-  onInspectRemoteBackup: (destinationId: string, path: string) => Promise<{ object: 'backup-remote-integrity'; destinationId: string; path: string; fileName: string; integrity: BackupFileIntegrityCheckResult }>;
+  onInspectRemoteBackup: (masterPassword: string, destinationId: string, path: string) => Promise<{ object: 'backup-remote-integrity'; destinationId: string; path: string; fileName: string; integrity: BackupFileIntegrityCheckResult }>;
   onDeleteRemoteBackup: (masterPassword: string, destinationId: string, path: string) => Promise<void>;
   onRestoreRemoteBackup: (masterPassword: string, destinationId: string, path: string, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
   onRestoreRemoteBackupAllowingChecksumMismatch: (masterPassword: string, destinationId: string, path: string, replaceExisting?: boolean) => Promise<AdminBackupImportResponse>;
@@ -492,8 +492,8 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
     return verifyBackupFileIntegrity(bytes, file.name || '');
   }
 
-  async function inspectRemoteBackupFile(destinationId: string, path: string): Promise<PendingRestoreIntegrity> {
-    const payload = await props.onInspectRemoteBackup(destinationId, path);
+  async function inspectRemoteBackupFile(masterPassword: string, destinationId: string, path: string): Promise<PendingRestoreIntegrity> {
+    const payload = await props.onInspectRemoteBackup(masterPassword, destinationId, path);
     return {
       source: 'remote',
       path,
@@ -800,19 +800,7 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
     if (!savedSelectedDestination) return;
     setLocalError('');
     resetPendingIntegrityWarning();
-    try {
-      const integrity = await inspectRemoteBackupFile(savedSelectedDestination.id, path);
-      if (!integrity.result.matches) {
-        setPendingRestoreIntegrity(integrity);
-        setConfirmIntegrityWarningOpen(true);
-        return;
-      }
-      await runRemoteRestore(path, false, false, integrity.result);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t('txt_backup_integrity_check_failed');
-      setLocalError(message);
-      props.onNotify('error', message);
-    }
+    await runRemoteRestore(path, false);
   }
 
   async function runRemoteRestore(
@@ -846,7 +834,23 @@ export default function BackupCenterPage(props: BackupCenterPageProps) {
     setRestoringRemotePath(path);
     setLocalError('');
     try {
-      const integrity = knownIntegrity ? { result: knownIntegrity } : await inspectRemoteBackupFile(savedSelectedDestination.id, path);
+      const integrity = knownIntegrity
+        ? { result: knownIntegrity }
+        : await inspectRemoteBackupFile(masterPassword, savedSelectedDestination.id, path);
+      if (!allowChecksumMismatch && !integrity.result.matches) {
+        setPendingRestoreIntegrity(
+          'source' in integrity
+            ? integrity
+            : {
+              source: 'remote',
+              path,
+              fileName: path.split('/').pop() || path,
+              result: integrity.result,
+            }
+        );
+        setConfirmIntegrityWarningOpen(true);
+        return true;
+      }
       startRestoreProgress('backup-restore', path.split('/').pop() || path, {
         source: 'remote',
         delayMs: replaceExisting ? 480 : 1400,

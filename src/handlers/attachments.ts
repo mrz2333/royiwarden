@@ -439,15 +439,14 @@ export async function handlePublicDownloadAttachment(
   }
 
   const path = getAttachmentObjectKey(cipherId, attachmentId);
-  const object = await getBlobObject(env, path);
-
-  if (!object) {
-    return errorResponse('Attachment file not found', 404);
-  }
-
   const firstUse = await storage.consumeAttachmentDownloadToken(claims.jti, claims.exp);
   if (!firstUse) {
     return errorResponse('Invalid or expired token', 401);
+  }
+
+  const object = await getBlobObject(env, path);
+  if (!object) {
+    return errorResponse('Attachment file not found', 404);
   }
 
   return new Response(object.body, {

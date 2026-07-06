@@ -300,16 +300,16 @@ export async function handleDownloadSendFile(
     return errorResponse(SEND_INACCESSIBLE_MSG, 404);
   }
 
+  const firstUse = await storage.consumeAttachmentDownloadToken(`send:${claims.jti}`, claims.exp);
+  if (!firstUse) {
+    return errorResponse('Invalid or expired token', 401);
+  }
+
   const object = await getBlobObject(env, getSendFileObjectKey(sendId, fileId));
   if (!object) {
     return errorResponse('Send file not found', 404);
   }
   const fileName = typeof data.fileName === 'string' ? data.fileName : fileId;
-
-  const firstUse = await storage.consumeAttachmentDownloadToken(`send:${claims.jti}`, claims.exp);
-  if (!firstUse) {
-    return errorResponse('Invalid or expired token', 401);
-  }
 
   return new Response(object.body, {
     headers: {

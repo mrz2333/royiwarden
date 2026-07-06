@@ -82,8 +82,8 @@ export default function useBackupActions(options: UseBackupActionsOptions) {
         downloadBytesAsFile(payload.bytes, payload.fileName, payload.mimeType);
       },
 
-      async inspectRemoteBackup(destinationId: string, path: string) {
-        return inspectRemoteBackupIntegrity(authedFetch, destinationId, path);
+      async inspectRemoteBackup(masterPasswordHash: string, destinationId: string, path: string) {
+        return inspectRemoteBackupIntegrity(authedFetch, masterPasswordHash, destinationId, path);
       },
 
       async deleteRemoteBackup(masterPasswordHash: string, destinationId: string, path: string) {

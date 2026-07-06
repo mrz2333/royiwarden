@@ -420,13 +420,15 @@ export async function deleteRemoteBackup(
 
 export async function inspectRemoteBackupIntegrity(
   authedFetch: AuthedFetch,
+  masterPasswordHash: string,
   destinationId: string,
   path: string
 ): Promise<RemoteBackupIntegrityResponse> {
-  const params = new URLSearchParams();
-  params.set('destinationId', destinationId);
-  params.set('path', path);
-  const resp = await authedFetch(`/api/admin/backup/remote/integrity?${params.toString()}`, { method: 'GET' });
+  const resp = await authedFetch('/api/admin/backup/remote/integrity', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ destinationId, path, masterPasswordHash }),
+  });
   if (!resp.ok) throw new Error(await parseErrorMessage(resp, t('txt_backup_remote_download_failed')));
   const body = await parseJson<RemoteBackupIntegrityResponse>(resp);
   if (!body?.integrity || !body?.fileName) throw new Error(t('txt_backup_remote_invalid_response'));
