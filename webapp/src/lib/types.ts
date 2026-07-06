@@ -280,6 +280,8 @@ export interface Send {
   key?: string | null;
   maxAccessCount?: number | null;
   accessCount?: number;
+  password?: string | null;
+  authType?: number | null;
   disabled?: boolean;
   revisionDate?: string;
   expirationDate?: string | null;
@@ -308,6 +310,7 @@ export interface SendDraft {
   expirationDays: string;
   maxAccessCount: string;
   password: string;
+  hasPassword?: boolean;
   disabled: boolean;
 }
 
