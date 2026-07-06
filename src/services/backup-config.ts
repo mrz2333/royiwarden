@@ -28,6 +28,7 @@ import {
 export const BACKUP_SETTINGS_CONFIG_KEY = 'backup.settings.v1';
 const BACKUP_RUNTIME_CONFIG_KEY = 'backup.runtime.v1';
 export const BACKUP_SCHEDULER_WINDOW_MINUTES = 5;
+export const REDACTED_BACKUP_SECRET = '********';
 const MAX_BACKUP_DESTINATIONS = 24;
 
 export type {
@@ -180,6 +181,32 @@ function normalizeDestination(
   return normalizeWebDavDestination(destination, allowIncomplete);
 }
 
+function shouldPreserveBackupSecret(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  const raw = String(value);
+  return raw === '' || raw === REDACTED_BACKUP_SECRET;
+}
+
+function withPreservedDestinationSecret(
+  destinationType: BackupDestinationType,
+  inputDestination: unknown,
+  previous: BackupDestinationRecord | undefined
+): unknown {
+  const source = isPlainObject(inputDestination) ? { ...inputDestination } : {};
+  if (destinationType === 's3') {
+    const previousDestination = previous?.type === 's3' ? previous.destination as S3BackupDestination : null;
+    if (shouldPreserveBackupSecret(source.secretAccessKey)) {
+      source.secretAccessKey = previousDestination?.secretAccessKey || '';
+    }
+  } else {
+    const previousDestination = previous?.type === 'webdav' ? previous.destination as WebDavBackupDestination : null;
+    if (shouldPreserveBackupSecret(source.password)) {
+      source.password = previousDestination?.password || '';
+    }
+  }
+  return source;
+}
+
 function normalizeRuntime(value: unknown): BackupRuntimeState {
   const source = isPlainObject(value) ? value : {};
   const asIso = (input: unknown): string | null => {
@@ -250,7 +277,11 @@ function normalizeDestinationRecord(
     retentionCount: normalizeRetentionCount(retentionSource, previousSchedule.retentionCount),
   };
 
-  const destination = normalizeDestination(type, input.destination, !schedule.enabled);
+  const destination = normalizeDestination(
+    type,
+    withPreservedDestinationSecret(type, input.destination, previous),
+    !schedule.enabled
+  );
 
   return {
     id,
@@ -430,6 +461,31 @@ export function normalizeBackupSettingsInput(
 
 export function serializeBackupSettings(settings: BackupSettings): string {
   return JSON.stringify(stripRuntimeFromSettings(settings));
+}
+
+export function redactBackupSettingsSecrets(settings: BackupSettings): BackupSettings {
+  return {
+    destinations: settings.destinations.map((destination) => {
+      if (destination.type === 's3') {
+        const config = destination.destination as S3BackupDestination;
+        return {
+          ...destination,
+          destination: {
+            ...config,
+            secretAccessKey: config.secretAccessKey ? REDACTED_BACKUP_SECRET : '',
+          },
+        };
+      }
+      const config = destination.destination as WebDavBackupDestination;
+      return {
+        ...destination,
+        destination: {
+          ...config,
+          password: config.password ? REDACTED_BACKUP_SECRET : '',
+        },
+      };
+    }),
+  };
 }
 
 export async function loadBackupSettings(storage: StorageService, env: Env, fallbackTimezone: string = 'UTC'): Promise<BackupSettings> {

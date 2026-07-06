@@ -19,6 +19,7 @@ import {
   loadBackupSettings,
   normalizeBackupSettingsInput,
   normalizeImportedBackupSettings,
+  redactBackupSettingsSecrets,
   repairBackupSettings,
   requireBackupDestination,
   saveBackupSettings,
@@ -675,6 +676,7 @@ function collectExternalRemoteAttachmentBlobNames(archiveBytes: Uint8Array): str
 function toImportStatusCode(message: string): number {
   const lower = message.toLowerCase();
   if (lower.includes('checksum')) return 400;
+  if (lower.includes('invalid remote backup path') || lower.includes('please select a backup zip file')) return 409;
   if (lower.includes('invalid backup') || lower.includes('invalid json')) return 400;
   if (lower.includes('fresh instance')) return 409;
   if (lower.includes('not configured') || lower.includes('kv')) return 409;
@@ -858,7 +860,7 @@ export async function handleGetAdminBackupSettings(request: Request, env: Env, a
   const storage = new StorageService(env.DB);
   try {
     const settings = await loadBackupSettings(storage, env, 'UTC');
-    return jsonResponse(settings);
+    return jsonResponse(redactBackupSettingsSecrets(settings));
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Backup settings could not be loaded', 409);
   }
@@ -897,7 +899,7 @@ export async function handleUpdateAdminBackupSettings(request: Request, env: Env
     destinationCount: next.destinations.length,
     scheduledDestinationCount: next.destinations.filter((destination) => destination.schedule.enabled).length,
   }, request);
-  return jsonResponse(next);
+  return jsonResponse(redactBackupSettingsSecrets(next));
 }
 
 export async function handleGetAdminBackupSettingsRepairState(request: Request, env: Env, actorUser: User): Promise<Response> {
@@ -950,7 +952,7 @@ export async function handleRepairAdminBackupSettings(request: Request, env: Env
     destinationCount: next.destinations.length,
     scheduledDestinationCount: next.destinations.filter((destination) => destination.schedule.enabled).length,
   }, request);
-  return jsonResponse(next);
+  return jsonResponse(redactBackupSettingsSecrets(next));
 }
 
 export async function handleRunAdminConfiguredBackup(request: Request, env: Env, actorUser: User): Promise<Response> {
@@ -987,7 +989,7 @@ export async function handleRunAdminConfiguredBackup(request: Request, env: Env,
         provider: outcome.result.provider,
         remotePath: outcome.result.remotePath,
       },
-      settings: outcome.settings,
+      settings: redactBackupSettingsSecrets(outcome.settings),
     });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Backup run failed', 500);
