@@ -163,6 +163,30 @@ function withWebRefreshCookie(request: Request, response: Response, refreshToken
   });
 }
 
+async function revokePresentedAccessTokenSession(request: Request, env: Env, storage: StorageService): Promise<void> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader) return;
+
+  const auth = new AuthService(env);
+  const verified = await auth.verifyAccessTokenWithUser(authHeader);
+  if (!verified) return;
+
+  const deviceIdentifier = String(verified.payload.did || '').trim();
+  if (deviceIdentifier) {
+    const nextSessionStamp = generateUUID();
+    await storage.rotateDeviceSessionStamp(verified.user.id, deviceIdentifier, nextSessionStamp);
+    await storage.deleteRefreshTokensByDevice(verified.user.id, deviceIdentifier);
+    AuthService.invalidateDeviceCache(verified.user.id, deviceIdentifier);
+    return;
+  }
+
+  verified.user.securityStamp = generateUUID();
+  verified.user.updatedAt = new Date().toISOString();
+  await storage.saveUser(verified.user);
+  await storage.deleteRefreshTokensByUserId(verified.user.id);
+  AuthService.invalidateUserCache(verified.user.id);
+}
+
 function buildPreloginResponse(
   email: string,
   kdfType: number,
@@ -1010,6 +1034,11 @@ export async function handlePrelogin(request: Request, env: Env): Promise<Respon
 // RFC 7009 allows returning 200 even if token is unknown.
 export async function handleRevocation(request: Request, env: Env): Promise<Response> {
   const storage = new StorageService(env.DB);
+  try {
+    await revokePresentedAccessTokenSession(request, env, storage);
+  } catch {
+    // RFC 7009 revocation is best-effort and should not reveal token state.
+  }
 
   let body: Record<string, string>;
   const contentType = request.headers.get('content-type') || '';

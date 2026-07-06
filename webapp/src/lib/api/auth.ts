@@ -402,6 +402,7 @@ export async function revokeCurrentSession(session: SessionState | null): Promis
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
+      ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
       ...(session?.authMode === 'web-cookie' ? { [WEB_SESSION_HEADER]: '1' } : {}),
     },
     body: body.toString(),
