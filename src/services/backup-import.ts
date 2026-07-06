@@ -254,6 +254,10 @@ function cloneRows(rows: SqlRow[]): SqlRow[] {
   return rows.map((row) => ({ ...row }));
 }
 
+function normalizeAccountPasskeyPurpose(value: unknown): 'login' | 'twoFactor' {
+  return value == null ? 'login' : String(value).trim() === 'twoFactor' ? 'twoFactor' : 'login';
+}
+
 function upsertConfigRow(rows: SqlRow[], key: string, value: string): SqlRow[] {
   let replaced = false;
   const nextRows = rows.map((row) => {
@@ -303,7 +307,10 @@ async function importPreparedBackupRows(db: D1Database, payload: BackupPayload['
     domain_settings: cloneRows(payload.domain_settings || []),
     user_revisions: cloneRows(payload.user_revisions || []),
     trusted_two_factor_device_tokens: cloneRows(payload.trusted_two_factor_device_tokens || []),
-    webauthn_credentials: cloneRows(payload.webauthn_credentials || []),
+    webauthn_credentials: cloneRows(payload.webauthn_credentials || []).map((row) => ({
+      ...row,
+      purpose: normalizeAccountPasskeyPurpose(row.purpose),
+    })),
     folders: cloneRows(payload.folders || []),
     ciphers: cloneRows(payload.ciphers || []).map((row) => ({
       ...row,
@@ -668,7 +675,7 @@ async function importBackupRows(db: D1Database, payload: BackupPayload['db'], us
     buildInsertStatements(
       db,
       tableName('webauthn_credentials'),
-      ['id', 'user_id', 'name', 'public_key', 'credential_id', 'counter', 'type', 'aa_guid', 'transports', 'encrypted_user_key', 'encrypted_public_key', 'encrypted_private_key', 'supports_prf', 'created_at', 'updated_at'],
+      ['id', 'user_id', 'purpose', 'name', 'public_key', 'credential_id', 'counter', 'type', 'aa_guid', 'transports', 'encrypted_user_key', 'encrypted_public_key', 'encrypted_private_key', 'supports_prf', 'created_at', 'updated_at'],
       payload.webauthn_credentials || []
     )
   );

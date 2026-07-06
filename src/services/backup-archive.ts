@@ -442,9 +442,10 @@ export function validateBackupPayloadContents(
   for (const row of accountPasskeyRows) {
     const id = String(row.id || '').trim();
     const userId = String(row.user_id || '').trim();
+    const purpose = row.purpose == null ? 'login' : String(row.purpose || '').trim();
     const credentialId = String(row.credential_id || '').trim();
     const publicKey = String(row.public_key || '').trim();
-    if (!id || !userIds.has(userId) || !credentialId || !publicKey) {
+    if (!id || !userIds.has(userId) || !credentialId || !publicKey || (purpose !== 'login' && purpose !== 'twoFactor')) {
       throw new Error('Backup archive contains an invalid account passkey row');
     }
     if (accountPasskeyIds.has(id)) throw new Error(`Backup archive contains duplicate account passkey id: ${id}`);
@@ -493,7 +494,7 @@ export async function buildBackupArchive(
     queryRows(env.DB, 'SELECT id, user_id, name, created_at, updated_at FROM folders ORDER BY created_at ASC'),
     queryRows(env.DB, 'SELECT id, user_id, type, folder_id, name, notes, favorite, data, reprompt, key, created_at, updated_at, archived_at, deleted_at FROM ciphers ORDER BY created_at ASC'),
     queryRows(env.DB, 'SELECT id, cipher_id, file_name, size, size_name, key FROM attachments ORDER BY cipher_id ASC, id ASC'),
-    queryRows(env.DB, 'SELECT id, user_id, name, public_key, credential_id, counter, type, aa_guid, transports, encrypted_user_key, encrypted_public_key, encrypted_private_key, supports_prf, created_at, updated_at FROM webauthn_credentials ORDER BY created_at ASC'),
+    queryRows(env.DB, 'SELECT id, user_id, purpose, name, public_key, credential_id, counter, type, aa_guid, transports, encrypted_user_key, encrypted_public_key, encrypted_private_key, supports_prf, created_at, updated_at FROM webauthn_credentials ORDER BY created_at ASC'),
     queryRows(env.DB, 'SELECT token, user_id, device_identifier, expires_at FROM trusted_two_factor_device_tokens WHERE expires_at >= ? ORDER BY user_id ASC, device_identifier ASC, expires_at DESC', date.getTime()),
   ]);
   const exportedConfigRows = sanitizeConfigRowsForExport(configRows);
