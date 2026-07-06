@@ -35,6 +35,7 @@ import { isSafeWebsiteIconContentType } from './utils/content-type';
 import { jsonResponse, unsupportedResponse } from './utils/response';
 import { StorageService } from './services/storage';
 import type { Env } from './types';
+import { getConfiguredWebAuthnAllowedOrigins } from './utils/origins';
 
 type PublicRateLimiter = (category?: string, maxRequests?: number) => Promise<Response | null>;
 type JwtUnsafeReason = 'missing' | 'too_short' | null;
@@ -44,6 +45,7 @@ export interface WebBootstrapResponse {
   jwtUnsafeReason: JwtUnsafeReason;
   jwtSecretMinLength: number;
   registrationInviteRequired: boolean;
+  webAuthnAllowedOrigins: string[];
 }
 
 function isSameOriginWriteRequest(request: Request): boolean {
@@ -322,6 +324,7 @@ export async function buildWebBootstrapResponse(env: Env): Promise<WebBootstrapR
     jwtUnsafeReason,
     jwtSecretMinLength: LIMITS.auth.jwtSecretMinLength,
     registrationInviteRequired: userCount > 0,
+    webAuthnAllowedOrigins: getConfiguredWebAuthnAllowedOrigins(env),
   };
 }
 

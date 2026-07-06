@@ -148,7 +148,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
 
   if (method === 'OPTIONS') {
-    return handleCors(request);
+    return handleCors(request, env);
   }
 
   try {

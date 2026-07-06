@@ -411,6 +411,7 @@ export interface WebBootstrapResponse {
   jwtUnsafeReason?: 'missing' | 'too_short' | null;
   jwtSecretMinLength?: number;
   registrationInviteRequired?: boolean;
+  webAuthnAllowedOrigins?: string[];
 }
 
 export interface YubiKeyOtpSettings {

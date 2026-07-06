@@ -12,6 +12,7 @@ import type {
   WebAuthnPrfDecryptionOption,
 } from '../types';
 import { base64UrlToBytes, bytesToBase64Url } from './passkey';
+import { getConfiguredWebAuthnAllowedOrigins } from './origins';
 
 const ACCOUNT_PASSKEY_TOKEN_TYPE = 'nodewarden.account-passkey.challenge.v1';
 const ACCOUNT_PASSKEY_TOKEN_TTL_MS = 17 * 60 * 1000;
@@ -159,22 +160,8 @@ export function getAccountPasskeyRpConfig(request: Request, env: Env): { rpId: s
   const configuredRpId = String(env.WEBAUTHN_RP_ID || '').trim();
   const rpId = configuredRpId || url.hostname;
   const rpName = String(env.WEBAUTHN_RP_NAME || '').trim() || DEFAULT_RP_NAME;
-  const configuredOrigins = String(env.WEBAUTHN_ALLOWED_ORIGINS || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const configuredOrigins = getConfiguredWebAuthnAllowedOrigins(env);
   const origins = new Set<string>([url.origin, ...configuredOrigins]);
-  const requestOrigin = request.headers.get('Origin');
-  if (
-    requestOrigin
-    && (
-      requestOrigin.startsWith('chrome-extension://')
-      || requestOrigin.startsWith('moz-extension://')
-      || requestOrigin.startsWith('safari-web-extension://')
-    )
-  ) {
-    origins.add(requestOrigin);
-  }
   return { rpId, rpName, origins: Array.from(origins) };
 }
 
