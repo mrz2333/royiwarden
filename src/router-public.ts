@@ -549,6 +549,8 @@ export async function handlePublicRoute(
   }
 
   if (path === '/notifications/anonymous-hub' && method === 'GET') {
+    const blocked = await enforcePublicRateLimit('public-sensitive', LIMITS.rateLimit.sensitivePublicRequestsPerMinute);
+    if (blocked) return blocked;
     return handleAnonymousNotificationsHub(request, env);
   }
   return null;
