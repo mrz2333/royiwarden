@@ -124,11 +124,26 @@ function assertBackupEndpointHostAllowed(hostname: string, label: string): void 
   if (!normalized) throw new Error(`${label} host is required`);
   if (
     normalized === 'localhost' ||
+    normalized === 'localhost.localdomain' ||
+    normalized.endsWith('.localhost.localdomain') ||
     normalized.endsWith('.localhost') ||
     normalized.endsWith('.local') ||
+    normalized.endsWith('.home.arpa') ||
     normalized.endsWith('.internal') ||
     normalized.endsWith('.lan') ||
-    normalized === 'metadata.google.internal'
+    normalized === 'metadata.google.internal' ||
+    normalized === 'localtest.me' ||
+    normalized.endsWith('.localtest.me') ||
+    normalized === 'lvh.me' ||
+    normalized.endsWith('.lvh.me') ||
+    normalized === 'vcap.me' ||
+    normalized.endsWith('.vcap.me') ||
+    normalized === 'nip.io' ||
+    normalized.endsWith('.nip.io') ||
+    normalized === 'sslip.io' ||
+    normalized.endsWith('.sslip.io') ||
+    normalized === 'xip.io' ||
+    normalized.endsWith('.xip.io')
   ) {
     throw new Error(`${label} host is not allowed`);
   }

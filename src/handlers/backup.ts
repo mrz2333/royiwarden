@@ -1239,7 +1239,28 @@ export async function handleDownloadAdminBackupAttachment(request: Request, env:
 
   try {
     const url = new URL(request.url);
-    const blobName = ensureBackupBlobName(url.searchParams.get('blobName') || '');
+    let input: { blobName?: unknown; masterPasswordHash?: unknown } = {};
+    if (request.method === 'POST') {
+      try {
+        input = await request.json<{ blobName?: unknown; masterPasswordHash?: unknown }>();
+      } catch {
+        return errorResponse('Backup attachment download payload is invalid', 400);
+      }
+    } else {
+      input = {
+        blobName: url.searchParams.get('blobName') || '',
+        masterPasswordHash: url.searchParams.get('masterPasswordHash') || '',
+      };
+    }
+
+    const verificationError = await requireBackupUserVerification(
+      actorUser,
+      String(input.masterPasswordHash || ''),
+      env
+    );
+    if (verificationError) return verificationError;
+
+    const blobName = ensureBackupBlobName(String(input.blobName || ''));
     const object = await getBlobObject(env, blobName);
     if (!object) {
       return errorResponse('Backup attachment blob not found', 404);

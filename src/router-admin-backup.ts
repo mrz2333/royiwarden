@@ -26,7 +26,7 @@ export async function handleAdminBackupRoute(
     return handleAdminExportBackup(request, env, actorUser);
   }
 
-  if (path === '/api/admin/backup/blob' && method === 'GET') {
+  if (path === '/api/admin/backup/blob' && (method === 'GET' || method === 'POST')) {
     return handleDownloadAdminBackupAttachment(request, env, actorUser);
   }
 
