@@ -68,7 +68,7 @@ export async function handleAccessSend(request: Request, env: Env, accessId: str
     if (!clientIdentifier) {
       return errorResponse('Client IP is required', 403);
     }
-    sendPasswordLimitIpKey = sendPasswordLimitKey(clientIdentifier);
+    sendPasswordLimitIpKey = sendPasswordLimitKey(clientIdentifier, send.id);
     sendPasswordRateLimit = new RateLimitService(env.DB);
     const sendPasswordCheck = await sendPasswordRateLimit.checkLoginAttempt(sendPasswordLimitIpKey);
     if (!sendPasswordCheck.allowed) {
@@ -142,7 +142,7 @@ export async function handleAccessSendFile(
     if (!clientIdentifier) {
       return errorResponse('Client IP is required', 403);
     }
-    sendPasswordLimitIpKey = sendPasswordLimitKey(clientIdentifier);
+    sendPasswordLimitIpKey = sendPasswordLimitKey(clientIdentifier, send.id);
     sendPasswordRateLimit = new RateLimitService(env.DB);
     const sendPasswordCheck = await sendPasswordRateLimit.checkLoginAttempt(sendPasswordLimitIpKey);
     if (!sendPasswordCheck.allowed) {
@@ -328,7 +328,7 @@ export async function issueSendAccessToken(
   passwordHashB64?: string | null,
   password?: string | null,
   rateLimit?: RateLimitService,
-  sendPasswordLimitIpKey?: string
+  clientIdentifier?: string
 ): Promise<{ token: string } | { error: Response }> {
   const jwt = getSafeJwtSecret(env);
   if (!jwt.ok) {
@@ -372,6 +372,9 @@ export async function issueSendAccessToken(
       ),
     };
   }
+
+  const sendPasswordLimitIpKey =
+    rateLimit && clientIdentifier ? sendPasswordLimitKey(clientIdentifier, send.id) : null;
 
   if (send.passwordHash) {
     if (rateLimit && sendPasswordLimitIpKey) {

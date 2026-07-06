@@ -434,8 +434,8 @@ export type PublicSendAccessValidationResult =
   | { ok: true }
   | { ok: false; response: Response; reason: 'email_auth_unsupported' | 'password_missing' | 'invalid_password' };
 
-export function sendPasswordLimitKey(clientIdentifier: string): string {
-  return `${clientIdentifier}:${SEND_PASSWORD_LIMIT_SCOPE}`;
+export function sendPasswordLimitKey(clientIdentifier: string, sendId: string): string {
+  return `${clientIdentifier}:${SEND_PASSWORD_LIMIT_SCOPE}:${String(sendId || '').trim() || 'unknown-send'}`;
 }
 
 function sendPasswordLockMessage(retryAfterSeconds: number): string {
