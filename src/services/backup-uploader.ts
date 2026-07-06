@@ -3,6 +3,7 @@ import {
   BackupDestinationType,
   S3BackupDestination,
   WebDavBackupDestination,
+  normalizeBackupEndpointUrl,
 } from './backup-config';
 
 export interface BackupUploadResult {
@@ -215,7 +216,7 @@ function ensureDestinationConfigReady(destination: BackupDestinationRecord): voi
   if (destination.type === 'webdav') {
     const config = destination.destination as WebDavBackupDestination;
     if (!String(config.baseUrl || '').trim()) throw new Error('WebDAV server URL is required');
-    if (!/^https?:\/\//i.test(String(config.baseUrl || '').trim())) throw new Error('WebDAV server URL must start with http:// or https://');
+    normalizeBackupEndpointUrl(String(config.baseUrl || '').trim(), 'WebDAV server URL');
     if (!String(config.username || '').trim()) throw new Error('WebDAV username is required');
     if (!String(config.password || '')) throw new Error('WebDAV password is required');
     return;
@@ -223,7 +224,7 @@ function ensureDestinationConfigReady(destination: BackupDestinationRecord): voi
   if (destination.type === 's3') {
     const config = destination.destination as S3BackupDestination;
     if (!String(config.endpoint || '').trim()) throw new Error('S3 endpoint is required');
-    if (!/^https?:\/\//i.test(String(config.endpoint || '').trim())) throw new Error('S3 endpoint must start with http:// or https://');
+    normalizeBackupEndpointUrl(String(config.endpoint || '').trim(), 'S3 endpoint');
     if (!String(config.bucket || '').trim()) throw new Error('S3 bucket is required');
     if (!String(config.accessKeyId || '').trim()) throw new Error('S3 access key is required');
     if (!String(config.secretAccessKey || '')) throw new Error('S3 secret key is required');

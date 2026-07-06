@@ -96,8 +96,8 @@ function toAuthRequestResponse(request: Request, authRequest: AuthRequestRecord,
     RequestCountryName: authRequest.requestCountryName,
     key: authRequest.key,
     Key: authRequest.key,
-    masterPasswordHash: authRequest.masterPasswordHash,
-    MasterPasswordHash: authRequest.masterPasswordHash,
+    masterPasswordHash: null,
+    MasterPasswordHash: null,
     creationDate: authRequest.creationDate,
     CreationDate: authRequest.creationDate,
     responseDate: authRequest.responseDate,
@@ -349,7 +349,6 @@ export async function handleUpdateAuthRequest(request: Request, env: Env, userId
 
   const approved = Boolean(readBodyValue(body, ['requestApproved', 'RequestApproved']));
   const key = normalizeText(readBodyValue(body, ['key', 'Key']), 20000);
-  const masterPasswordHash = normalizeText(readBodyValue(body, ['masterPasswordHash', 'MasterPasswordHash']), 20000) || null;
   const responseDeviceIdentifier =
     normalizeText(readBodyValue(body, ['deviceIdentifier', 'DeviceIdentifier']), 128) ||
     readActingDeviceIdentifier(request) ||
@@ -366,7 +365,7 @@ export async function handleUpdateAuthRequest(request: Request, env: Env, userId
     approved,
     responseDeviceIdentifier,
     key,
-    masterPasswordHash,
+    masterPasswordHash: null,
   });
   if (!updated) return errorResponse('Auth request has already been answered.', 409);
   const updatedRequest = await storage.getAuthRequestByIdForUser(id, userId);

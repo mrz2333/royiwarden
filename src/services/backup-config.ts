@@ -68,6 +68,99 @@ function normalizePath(value: unknown): string {
   return asTrimmedString(value).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
 }
 
+function normalizeHostnameForPolicy(hostname: string): string {
+  return hostname.trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+}
+
+function parseIpv4Address(hostname: string): number[] | null {
+  const parts = hostname.split('.');
+  if (parts.length !== 4) return null;
+  const octets = parts.map((part) => {
+    if (!/^\d{1,3}$/.test(part)) return -1;
+    const value = Number(part);
+    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : -1;
+  });
+  return octets.every((value) => value >= 0) ? octets : null;
+}
+
+function isBlockedIpv4Address(octets: number[]): boolean {
+  const [a, b, c] = octets;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && (b === 0 || b === 168)) ||
+    (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
+    (a === 203 && b === 0 && c === 113) ||
+    a >= 224
+  );
+}
+
+function isBlockedIpv6Address(hostname: string): boolean {
+  if (!hostname.includes(':')) return false;
+  const normalized = hostname.toLowerCase();
+  const mappedIpv4 = normalized.match(/::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (mappedIpv4) {
+    const octets = parseIpv4Address(mappedIpv4[1]);
+    return !octets || isBlockedIpv4Address(octets);
+  }
+  const firstHextetText = normalized.split(':').find((part) => part.length > 0) || '0';
+  const firstHextet = Number.parseInt(firstHextetText, 16);
+  if (!Number.isFinite(firstHextet)) return true;
+  return (
+    firstHextet === 0 ||
+    (firstHextet & 0xfe00) === 0xfc00 ||
+    (firstHextet & 0xffc0) === 0xfe80 ||
+    (firstHextet & 0xff00) === 0xff00 ||
+    normalized.startsWith('2001:db8:')
+  );
+}
+
+function assertBackupEndpointHostAllowed(hostname: string, label: string): void {
+  const normalized = normalizeHostnameForPolicy(hostname);
+  if (!normalized) throw new Error(`${label} host is required`);
+  if (
+    normalized === 'localhost' ||
+    normalized.endsWith('.localhost') ||
+    normalized.endsWith('.local') ||
+    normalized.endsWith('.internal') ||
+    normalized.endsWith('.lan') ||
+    normalized === 'metadata.google.internal'
+  ) {
+    throw new Error(`${label} host is not allowed`);
+  }
+  const ipv4 = parseIpv4Address(normalized);
+  if (ipv4 && isBlockedIpv4Address(ipv4)) {
+    throw new Error(`${label} host is not allowed`);
+  }
+  if (isBlockedIpv6Address(normalized)) {
+    throw new Error(`${label} host is not allowed`);
+  }
+}
+
+export function normalizeBackupEndpointUrl(value: string, label: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${label} must be a valid URL`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`${label} must start with http:// or https://`);
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error(`${label} must not include credentials`);
+  }
+  if (parsed.search || parsed.hash) {
+    throw new Error(`${label} must not include query or fragment`);
+  }
+  assertBackupEndpointHostAllowed(parsed.hostname, label);
+  return parsed.toString().replace(/\/+$/, '');
+}
+
 function assertValidTimeZone(timezone: string): string {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
@@ -123,7 +216,7 @@ function normalizeS3Destination(value: unknown, allowIncomplete = false): S3Back
 
   if (!allowIncomplete || endpoint) {
     if (!endpoint) throw new Error('S3 endpoint is required');
-    if (!/^https?:\/\//i.test(endpoint)) throw new Error('S3 endpoint must start with http:// or https://');
+    normalizeBackupEndpointUrl(endpoint, 'S3 endpoint');
   }
   if (!allowIncomplete || bucket) {
     if (!bucket) throw new Error('S3 bucket is required');
@@ -136,7 +229,7 @@ function normalizeS3Destination(value: unknown, allowIncomplete = false): S3Back
   }
 
   return {
-    endpoint: endpoint ? endpoint.replace(/\/+$/, '') : '',
+    endpoint: endpoint ? normalizeBackupEndpointUrl(endpoint, 'S3 endpoint') : '',
     bucket,
     addressingStyle,
     region,
@@ -155,7 +248,7 @@ function normalizeWebDavDestination(value: unknown, allowIncomplete = false): We
 
   if (!allowIncomplete || baseUrl) {
     if (!baseUrl) throw new Error('WebDAV server URL is required');
-    if (!/^https?:\/\//i.test(baseUrl)) throw new Error('WebDAV server URL must start with http:// or https://');
+    normalizeBackupEndpointUrl(baseUrl, 'WebDAV server URL');
   }
   if (!allowIncomplete || username) {
     if (!username) throw new Error('WebDAV username is required');
@@ -165,7 +258,7 @@ function normalizeWebDavDestination(value: unknown, allowIncomplete = false): We
   }
 
   return {
-    baseUrl: baseUrl ? baseUrl.replace(/\/+$/, '') : '',
+    baseUrl: baseUrl ? normalizeBackupEndpointUrl(baseUrl, 'WebDAV server URL') : '',
     username,
     password,
     remotePath,

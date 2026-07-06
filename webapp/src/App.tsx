@@ -1167,7 +1167,6 @@ export default function App() {
       const key = await encryptSessionUserKeyForAuthRequest(session, authRequest);
       await respondToAuthRequest(authedFetch, authRequest.id, {
         key,
-        masterPasswordHash: null,
         deviceIdentifier: getCurrentDeviceIdentifier(),
         requestApproved: true,
       });
