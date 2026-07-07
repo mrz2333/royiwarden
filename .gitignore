@@ -56,9 +56,11 @@ NodeWarden-compat/
 .codex-upstream/bitwarden-browser/
 
 .reasonix/
+.upstream/
 
 # Compatibility analysis documents
 BITWARDEN_COMPATIBILITY_ANALYSIS.md
+security-audits/
 .mcp.json
 opencode.jsonc
 .cursor/

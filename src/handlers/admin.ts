@@ -69,18 +69,22 @@ export async function handleAdminListUsers(
 
   const storage = new StorageService(env.DB);
   const users = await storage.getAllUsers();
-  return jsonResponse({
-    data: users.map(user => ({
+  const data = await Promise.all(users.map(async user => {
+    const hasTwoFactorPasskey = await storage.countAccountPasskeyCredentialsByUserId(user.id, 'twoFactor') > 0;
+    return {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
       status: user.status,
-      twoFactorEnabled: !!user.totpSecret,
+      twoFactorEnabled: !!user.totpSecret || Boolean(user.yubikeyKey1 || user.yubikeyKey2 || user.yubikeyKey3 || user.yubikeyKey4 || user.yubikeyKey5) || hasTwoFactorPasskey,
       creationDate: user.createdAt,
       revisionDate: user.updatedAt,
       object: 'user',
-    })),
+    };
+  }));
+  return jsonResponse({
+    data,
     object: 'list',
     continuationToken: null,
   });
@@ -183,6 +187,9 @@ export async function handleAdminClearAuditLogs(
   }
   const storage = new StorageService(env.DB);
   const deleted = await storage.clearAuditLogs();
+  await writeAuditLog(storage, actorUser.id, 'admin.audit.clear', 'auditLog', null, {
+    deleted,
+  }, request);
   return jsonResponse({ object: 'auditLogClear', deleted });
 }
 
@@ -249,7 +256,7 @@ export async function handleAdminListInvites(
 }
 
 // DELETE /api/admin/invites/:code
-export async function handleAdminRevokeInvite(
+export async function handleAdminDeleteInvite(
   request: Request,
   env: Env,
   actorUser: User,
@@ -260,12 +267,14 @@ export async function handleAdminRevokeInvite(
   }
 
   const storage = new StorageService(env.DB);
-  const revoked = await storage.revokeInvite(code);
-  if (!revoked) {
-    return errorResponse('Invite not found or already inactive', 404);
+  const deleted = await storage.deleteInvite(code);
+  if (!deleted) {
+    return errorResponse('Invite not found', 404);
   }
 
-  await writeAuditLog(storage, actorUser.id, 'admin.invite.revoke', 'invite', null, null, request);
+  await writeAuditLog(storage, actorUser.id, 'admin.invite.delete', 'invite', null, {
+    code,
+  }, request);
   return new Response(null, { status: 204 });
 }
 
@@ -275,12 +284,21 @@ export async function handleAdminDeleteAllInvites(
   env: Env,
   actorUser: User
 ): Promise<Response> {
-  void request;
   if (!isAdmin(actorUser)) {
     return errorResponse('Forbidden', 403);
   }
 
   const storage = new StorageService(env.DB);
+  const url = new URL(request.url);
+  if (url.searchParams.get('scope') === 'invalid') {
+    const deleted = await storage.deleteInvalidInvites();
+    await writeAuditLog(storage, actorUser.id, 'admin.invite.delete_invalid', 'invite', null, {
+      deleted,
+    }, request);
+
+    return jsonResponse({ deleted }, 200);
+  }
+
   const deleted = await storage.deleteAllInvites();
   await writeAuditLog(storage, actorUser.id, 'admin.invite.delete_all', 'invite', null, {
     deleted,

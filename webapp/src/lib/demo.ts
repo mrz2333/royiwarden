@@ -790,6 +790,7 @@ export function createDemoInitialBootstrapState(): InitialAppBootstrapState {
   return {
     defaultKdfIterations: 600000,
     registrationInviteRequired: true,
+    websiteIconsEnabled: true,
     jwtWarning: null,
     session: null,
     phase: 'login',
@@ -907,6 +908,7 @@ export function createDemoMainRoutesProps(base: AppMainRoutesProps, notify: Noti
     adminLoading: false,
     adminError: '',
     totpEnabled: true,
+    passkey2faEnabled: false,
     authorizedDevices: state.authorizedDevices,
     authorizedDevicesLoading: false,
     authorizedDevicesError: '',
@@ -1060,6 +1062,16 @@ export function createDemoMainRoutesProps(base: AppMainRoutesProps, notify: Noti
     onSavePasswordHint: readonly,
     onEnableTotp: readonly,
     onOpenDisableTotp: readonlyVoid,
+    onGetTwoFactorPasskeySettings: async () => ({ enabled: false, keys: [] }),
+    onCreateTwoFactorPasskey: async () => {
+      await readonly();
+      return { enabled: false, keys: [] };
+    },
+    onDeleteTwoFactorPasskey: async () => {
+      await readonly();
+      return { enabled: false, keys: [] };
+    },
+    onDisableTwoFactorPasskeys: readonly,
     onGetRecoveryCode: readonlyString,
     onGetApiKey: readonlyString,
     onRotateApiKey: readonlyString,
@@ -1127,6 +1139,13 @@ export function createDemoMainRoutesProps(base: AppMainRoutesProps, notify: Noti
     onRefreshAdmin: () => {
       notify('success', t('txt_demo_admin_refreshed'));
     },
+    onDeleteInvalidInvites: async () => {
+      const now = Date.now();
+      state.setInvites((prev) => prev.filter((invite) => (
+        invite.status === 'active' && (!invite.expiresAt || new Date(invite.expiresAt).getTime() > now)
+      )));
+      notify('success', t('txt_invalid_invites_deleted'));
+    },
     onDeleteAllInvites: async () => {
       state.setInvites([]);
       notify('success', t('txt_all_invites_deleted'));
@@ -1141,11 +1160,9 @@ export function createDemoMainRoutesProps(base: AppMainRoutesProps, notify: Noti
       state.setUsers((prev) => prev.filter((user) => user.id !== userId));
       notify('success', t('txt_user_deleted'));
     },
-    onRevokeInvite: async (code) => {
-      state.setInvites((prev) => prev.map((invite) => (
-        invite.code === code ? { ...invite, status: 'inactive' } : invite
-      )));
-      notify('success', t('txt_invite_revoked'));
+    onDeleteInvite: async (code) => {
+      state.setInvites((prev) => prev.filter((invite) => invite.code !== code));
+      notify('success', t('txt_invite_deleted'));
     },
     onLoadAuditLogSettings: async () => ({ retentionDays: 90, maxEntries: null }),
     onSaveAuditLogSettings: async (settings) => {
@@ -1184,7 +1201,7 @@ export function createDemoMainRoutesProps(base: AppMainRoutesProps, notify: Noti
     onDownloadRemoteBackup: async (_masterPassword: string, _destinationId: string, _path: string, _onProgress?: (percent: number | null) => void) => {
       notify('success', t('txt_demo_download_prepared'));
     },
-    onInspectRemoteBackup: async (_destinationId: string, path: string) => ({
+    onInspectRemoteBackup: async (_masterPassword: string, _destinationId: string, path: string) => ({
       object: 'backup-remote-integrity',
       destinationId: _destinationId,
       path,

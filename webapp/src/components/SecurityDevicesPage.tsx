@@ -13,6 +13,7 @@ interface SecurityDevicesPageProps {
   error: string;
   pendingAuthRequests: AuthRequest[];
   pendingAuthRequestsLoading: boolean;
+  pendingAuthRequestsRefreshing: boolean;
   onRefresh: () => void;
   onRefreshPendingAuthRequests: () => Promise<void>;
   onApproveAuthRequest: (request: AuthRequest) => Promise<void>;
@@ -106,6 +107,7 @@ export default function SecurityDevicesPage(props: SecurityDevicesPageProps) {
           loadingVariant="compact"
           pendingAuthRequests={props.pendingAuthRequests}
           pendingAuthRequestsLoading={props.pendingAuthRequestsLoading}
+          pendingAuthRequestsRefreshing={props.pendingAuthRequestsRefreshing}
           onRefreshPendingAuthRequests={props.onRefreshPendingAuthRequests}
           onApproveAuthRequest={props.onApproveAuthRequest}
           onDenyAuthRequest={props.onDenyAuthRequest}
