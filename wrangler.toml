@@ -1,5 +1,3 @@
-# ⚠️ This file contains placeholder values.
-# For actual deployment, replace with your real IDs or use wrangler secret put.
 name = "royiwarden"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
@@ -28,10 +26,9 @@ class_name = "NotificationsHub"
 name = "BACKUP_TRANSFER_RUNNER"
 class_name = "BackupTransferRunner"
 
-# Use KV for attachments (R2 not enabled on this account)
-[[kv_namespaces]]
-binding = "ATTACHMENTS_KV"
-id = "YOUR_KV_NAMESPACE_ID"
+# NOTE: ATTACHMENTS_KV binding is managed via wrangler CLI deploy.
+# Cloudflare Workers Builds auto-deploy does not include this binding.
+# It will be inherited from the last successful CLI deployment.
 
 [[migrations]]
 tag = "v1-notifications-hub"
