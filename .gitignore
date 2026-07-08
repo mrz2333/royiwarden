@@ -65,6 +65,3 @@ security-audits/
 opencode.jsonc
 .cursor/
 
-# Private wrangler configs (contain real KV/D1 IDs)
-wrangler.toml
-wrangler.kv.toml
